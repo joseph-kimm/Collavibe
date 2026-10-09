@@ -2,6 +2,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, it } from "vitest";
 import { createCollavibeMcpServer } from "../server/mcp.js";
+import { withoutInternalGitEvidence } from "../src/public.js";
 
 describe("MCP contract", () => {
   it("exposes portable tools and slash-command prompts", async () => {
@@ -23,5 +24,14 @@ describe("MCP contract", () => {
 
     await client.close();
     await server.close();
+  });
+});
+
+describe("public MCP data", () => {
+  it("does not expose internal working-tree fingerprints", () => {
+    const publicValue = withoutInternalGitEvidence({
+      project: { latestGit: { workingFiles: ["README.md"], workingFileFingerprints: { "README.md": "private-hash" } } },
+    });
+    expect(publicValue).toEqual({ project: { latestGit: { workingFiles: ["README.md"] } } });
   });
 });

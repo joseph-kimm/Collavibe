@@ -1,9 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { chooseWorkItem, getProjectContext, startCollaborationSession, syncCollaborationSession } from "../src/store.js";
+import { withoutInternalGitEvidence } from "../src/public.js";
 
 function result(message: string, structuredContent: Record<string, unknown>) {
-  return { content: [{ type: "text" as const, text: message }], structuredContent };
+  return { content: [{ type: "text" as const, text: message }], structuredContent: withoutInternalGitEvidence(structuredContent) };
 }
 
 export function createCollavibeMcpServer() {

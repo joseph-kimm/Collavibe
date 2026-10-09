@@ -103,7 +103,7 @@ function buildWorkOptions(project: Project, features: Feature[], participant: st
     featureId: feature.id,
     branch: feature.branch,
   }));
-  for (const branch of project.latestGit.branches.filter((item) => !item.current && item.name !== "main" && item.name !== "master")) {
+  for (const branch of project.latestGit.branches.filter((item) => !item.current && !item.name.startsWith("origin/") && item.name !== "main" && item.name !== "master")) {
     if (!features.some((feature) => feature.branch === branch.name)) {
       options.push({ id: `branch:${branch.name}`, kind: "branch", title: `Continue ${branch.name}`, detail: `Existing branch at ${branch.head}`, branch: branch.name });
     }
@@ -165,6 +165,9 @@ export async function chooseWorkItem(input: { sessionId: string; featureId?: str
   return mutate((state) => {
     const session = findSession(state, input.sessionId);
     if (session.status === "synced") throw new Error("This session has already been synced.");
+    if (Boolean(input.featureId) === Boolean(input.newFeature)) {
+      throw new Error("Choose exactly one existing feature or one new feature.");
+    }
     let feature: Feature | undefined;
     if (input.featureId) {
       feature = state.features.find((item) => item.id === input.featureId && item.projectId === session.projectId);

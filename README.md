@@ -46,6 +46,8 @@ npm run check
 
 State is stored at `.collavibe/state.json` by default and is not committed. Set `COLLAVIBE_DATA_PATH` to use a central or test-specific location.
 
+The HTTP server binds to `127.0.0.1` by default so repository metadata is not exposed to the local network. Set `HOST` deliberately when testing from another machine; a shared deployment still requires authentication and a transactional database.
+
 Open `http://localhost:4317/` for the read-only project map. See [client integration](docs/INTEGRATION.md) for Claude Code, Claude Desktop, Codex, and generic MCP clients, and [architecture](docs/ARCHITECTURE.md) for the trust boundary and data flow.
 
 ## Important boundary

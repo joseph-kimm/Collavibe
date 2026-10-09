@@ -11,6 +11,7 @@ export interface GitCommit {
 export interface GitBranch {
   name: string;
   head: string;
+  fullHead?: string;
   current: boolean;
   upstream?: string;
 }
@@ -22,6 +23,7 @@ export interface GitSnapshot {
   head: string;
   dirty: boolean;
   workingFiles: string[];
+  workingFileFingerprints?: Record<string, string>;
   branches: GitBranch[];
   recentCommits: GitCommit[];
   trackedFiles: string[];
@@ -50,6 +52,8 @@ export interface Feature {
 export interface VerifiedDelta {
   startHead: string;
   endHead: string;
+  startBranch: string;
+  endBranch: string;
   commits: GitCommit[];
   changedFiles: string[];
   workingFiles: string[];
