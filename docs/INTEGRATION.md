@@ -25,13 +25,21 @@ After opening Claude Code in this repository, run `/mcp` to confirm the server i
 
 ## Codex CLI
 
-From the repository root, register the local stdio server:
+For the development server, start Collavibe and register its local HTTP endpoint:
 
 ```bash
-codex mcp add collavibe -- npx tsx server/stdio.ts
+npm run start
+codex mcp add collavibe --url http://127.0.0.1:4317/mcp
 ```
 
-Alternatively, run the HTTP service with `npm run start` and point any Streamable HTTP-compatible client at `http://localhost:4317/mcp`.
+For stdio, use absolute paths because `codex mcp add` creates a persistent configuration that may later start from another working directory:
+
+```bash
+codex mcp add collavibe \
+  --env COLLAVIBE_DATA_PATH=/absolute/path/to/Collavibe/.collavibe/state.json \
+  -- /absolute/path/to/Collavibe/node_modules/.bin/tsx \
+  /absolute/path/to/Collavibe/server/stdio.ts
+```
 
 ## Claude Desktop
 
