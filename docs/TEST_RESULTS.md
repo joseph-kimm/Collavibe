@@ -30,7 +30,7 @@ The Supabase project was provisioned on the free tier with Auth, seven applicati
 
 Disposable users and orphaned test projects were deleted after verification. Backend Supabase keys are stored only as hidden Vercel secrets and in an ignored local environment file.
 
-The production deployment `dpl_Yfd2GrFqv1BD4E4EstDJbN946LZ3` completed successfully and is aliased to [collavibe.vercel.app](https://collavibe.vercel.app). Vercel reports the deployment as Ready, all three Supabase values are present in the Production environment, and Vercel Authentication was explicitly disabled so third-party users can reach the signup screen.
+The production deployment `dpl_HGGPn5GJQjbRvznoCbTU2t45M74o` completed successfully and is aliased to [collavibe.vercel.app](https://collavibe.vercel.app). Vercel reports the deployment as Ready, all three Supabase values are present in the Production environment, and Vercel Authentication was explicitly disabled so third-party users can reach the signup screen.
 
 ## Account and team workflow
 
