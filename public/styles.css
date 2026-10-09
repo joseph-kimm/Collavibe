@@ -110,7 +110,7 @@ button.tree-node { cursor: pointer; }
 .detail-description { color: var(--muted); font-size: 11px; line-height: 1.55; }
 .detail-block { margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line); }
 .detail-block h4 { margin: 0 0 12px; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
-.checklist, .files { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.checklist, .files, .commits { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
 .checklist li { display: grid; grid-template-columns: 17px 1fr; gap: 8px; align-items: start; font-size: 10px; line-height: 1.45; }
 .checkmark { width: 13px; height: 13px; margin-top: 1px; border: 1px solid var(--line); border-radius: 50%; }
 .checklist li.done .checkmark { display: grid; place-items: center; color: white; background: var(--green); border-color: var(--green); font-size: 8px; }
@@ -118,6 +118,12 @@ button.tree-node { cursor: pointer; }
 .detail-grid span, .sync-label { display: block; color: var(--muted); font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
 .detail-grid strong { display: block; margin-top: 5px; font-size: 10px; }
 .files li { overflow: hidden; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.commits li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 9px; align-items: start; }
+.commits code { margin-top: 1px; padding: 2px 4px; color: var(--blue); background: var(--blue-soft); border-radius: 3px; font-size: 8px; }
+.commits strong, .commits small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.commits strong { font-size: 9px; }
+.commits small { margin-top: 3px; color: var(--muted); font-size: 8px; }
+.branch-transition { margin: -3px 0 12px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 8px; }
 .placeholder-detail { color: var(--muted); font-size: 10px; line-height: 1.55; }
 
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }

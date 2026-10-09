@@ -121,6 +121,12 @@ function renderDetail(feature, sessions) {
   }
   const latestSession = sessions.find((session) => session.featureId === feature.id && session.sync);
   const verified = latestSession?.sync?.verified;
+  const branchTransition = verified && verified.startBranch !== verified.endBranch
+    ? `<p class="branch-transition">${escapeHtml(verified.startBranch)} <span aria-hidden="true">→</span><span class="sr-only">to</span> ${escapeHtml(verified.endBranch)}</p>`
+    : "";
+  const verifiedCommits = verified?.commits.length
+    ? `<ol class="commits">${verified.commits.map((commit) => `<li><code>${escapeHtml(commit.shortHash)}</code><span><strong>${escapeHtml(commit.subject)}</strong><small>${escapeHtml(commit.author)}</small></span></li>`).join("")}</ol>`
+    : '<p class="placeholder-detail">No new commits were verified.</p>';
   elements.selectionStatus.textContent = feature.status;
   elements.selectionStatus.className = `status ${feature.status}`;
   elements.detail.innerHTML = `
@@ -128,7 +134,8 @@ function renderDetail(feature, sessions) {
     <p class="detail-description">${escapeHtml(feature.description)}</p>
     <div class="detail-block detail-grid"><div><span>Owner</span><strong>${escapeHtml(feature.owner || "Unclaimed")}</strong></div><div><span>Branch</span><strong>${escapeHtml(feature.branch || "Not set")}</strong></div></div>
     <div class="detail-block"><h4>Completion checklist</h4><ul class="checklist">${feature.checklist.map((item) => `<li class="${item.done ? "done" : ""}"><span class="checkmark" aria-hidden="true">${item.done ? "✓" : ""}</span><span><span class="sr-only">${item.done ? "Completed" : "Incomplete"}: </span>${escapeHtml(item.text)}</span></li>`).join("")}</ul></div>
-    <div class="detail-block"><h4>Last verified delta</h4>${verified ? `<ul class="files">${verified.changedFiles.map((file) => `<li>${escapeHtml(file)}</li>`).join("") || "<li>No changed files</li>"}</ul>` : '<p class="placeholder-detail">No completed sync for this feature yet.</p>'}</div>
+    <div class="detail-block"><h4>Verified commits</h4>${verified ? `${branchTransition}${verifiedCommits}` : '<p class="placeholder-detail">No completed sync for this feature yet.</p>'}</div>
+    <div class="detail-block"><h4>Verified files</h4>${verified ? `<ul class="files">${verified.changedFiles.map((file) => `<li>${escapeHtml(file)}</li>`).join("") || "<li>No changed files</li>"}</ul>` : '<p class="placeholder-detail">No completed sync for this feature yet.</p>'}</div>
   `;
 }
 
