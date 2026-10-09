@@ -4,6 +4,16 @@ import { describe, expect, it } from "vitest";
 import { createCollavibeMcpServer } from "../server/mcp.js";
 import { withoutInternalGitEvidence } from "../src/public.js";
 
+function textContent(result: { content?: unknown }) {
+  if (!Array.isArray(result.content)) return "";
+  return result.content
+    .filter((block): block is { type: "text"; text: string } => (
+      typeof block === "object" && block !== null && block.type === "text" && typeof block.text === "string"
+    ))
+    .map((block) => block.text)
+    .join("\n");
+}
+
 describe("MCP contract", () => {
   it("exposes portable tools and slash-command prompts", async () => {
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
@@ -46,5 +56,25 @@ describe("public MCP data", () => {
       project: { latestGit: { workingFiles: ["README.md"], workingFileFingerprints: { "README.md": "private-hash" } } },
     });
     expect(publicValue).toEqual({ project: { latestGit: { workingFiles: ["README.md"] } } });
+  });
+
+  it("includes public structured data in text for clients that ignore structuredContent", async () => {
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const server = createCollavibeMcpServer();
+    const client = new Client({ name: "text-fallback-test", version: "1.0.0" });
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+
+    const response = await client.callTool({
+      name: "get_sync_template",
+      arguments: { sessionId: "session_1234567890" },
+    });
+    const text = textContent(response as { content?: unknown });
+
+    expect(text).toContain("Collavibe data:");
+    expect(text).toContain('"sessionId": "session_1234567890"');
+    expect(text).toContain('"featureStatus": "review"');
+
+    await client.close();
+    await server.close();
   });
 });

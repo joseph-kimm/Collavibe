@@ -4,7 +4,14 @@ import { chooseWorkItem, getProjectContext, startCollaborationSession, syncColla
 import { withoutInternalGitEvidence } from "../src/public.js";
 
 function result(message: string, structuredContent: Record<string, unknown>) {
-  return { content: [{ type: "text" as const, text: message }], structuredContent: withoutInternalGitEvidence(structuredContent) };
+  const publicContent = withoutInternalGitEvidence(structuredContent);
+  return {
+    content: [{
+      type: "text" as const,
+      text: `${message}\n\nCollavibe data:\n${JSON.stringify(publicContent, null, 2)}`,
+    }],
+    structuredContent: publicContent,
+  };
 }
 
 const repoPathSchema = z.string().min(1).max(4096).describe("Absolute path to the local Git repository");

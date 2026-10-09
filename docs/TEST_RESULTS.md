@@ -9,13 +9,13 @@ This report records the final local verification pass for the Collavibe MCP prot
 | Check | Result |
 | --- | --- |
 | TypeScript compilation | Passed |
-| Vitest suite | 3 files, 21 tests passed |
+| Vitest suite | 3 files, 22 tests passed |
 | Clean `npm ci` | Passed without engine warnings |
 | Full dependency audit | 0 vulnerabilities |
 | Git whitespace validation | Passed |
 | Working tree before report | Clean |
 
-The suite includes Git edge cases, session-state transitions, concurrent persistence, Streamable HTTP behavior, restart recovery, response redaction, remote-credential stripping, and client input limits. The detailed matrix and commands are in [TESTING.md](TESTING.md).
+The suite includes Git edge cases, session-state transitions, concurrent persistence, Streamable HTTP behavior, restart recovery, response redaction, remote-credential stripping, client input limits, and a text fallback for clients that ignore MCP `structuredContent`. The detailed matrix and commands are in [TESTING.md](TESTING.md).
 
 ## MCP protocol verification
 
@@ -51,7 +51,7 @@ A real Codex agent, running read-only with a disposable state path:
 
 Collavibe correctly returned `synced`, with zero verified commits and zero verified changed files for that no-code transport test. This confirms the agent summary did not create false Git evidence.
 
-Claude Code's MCP health check reports Collavibe connected. Claude Desktop launched the configured stdio process and sent the MCP `initialize` request successfully. A model-driven Claude Desktop tool call remains a separate privacy-sensitive test because it would transmit local repository metadata to Anthropic.
+Claude Code's MCP health check reports Collavibe connected. Claude Desktop launched the configured stdio process, completed MCP initialization and tool discovery, and then executed a user-approved, read-only `get_project_context` call. The first live call exposed a client-compatibility gap: Claude Desktop used the tool's text block but did not surface its `structuredContent`, so the model could report the branch and counts but not the project name or HEAD hash. Collavibe now includes the same redacted public payload in both representations. A second live call returned all five requested fields exactly: project `Collavibe`, branch `codex/collavibe-session-sync`, HEAD `4198dfe`, 2 features, and 2 sessions. The Claude MCP log independently recorded the matching `tools/call` request and successful one-block response.
 
 ## Project-map verification
 
