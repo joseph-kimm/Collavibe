@@ -7,6 +7,10 @@ function result(message: string, structuredContent: Record<string, unknown>) {
   return { content: [{ type: "text" as const, text: message }], structuredContent: withoutInternalGitEvidence(structuredContent) };
 }
 
+const repoPathSchema = z.string().min(1).max(4096).describe("Absolute path to the local Git repository");
+const sessionIdSchema = z.string().min(10).max(128);
+const listItemSchema = z.string().min(1).max(2000);
+
 export function createCollavibeMcpServer() {
   const server = new McpServer(
     { name: "collavibe", version: "0.2.0" },
@@ -18,7 +22,7 @@ export function createCollavibeMcpServer() {
   server.registerTool("get_project_context", {
     title: "Get shared project context",
     description: "Use this when the user wants to understand current team work before coding. Reads the repository, refreshes Collavibe's project snapshot, and returns the feature tree and prior sessions without changing source files.",
-    inputSchema: { repoPath: z.string().describe("Absolute path to the local Git repository") },
+    inputSchema: { repoPath: repoPathSchema },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async ({ repoPath }) => {
     const context = await getProjectContext(repoPath);
@@ -29,9 +33,9 @@ export function createCollavibeMcpServer() {
     title: "Start a Collavibe session",
     description: "Use this before editing code. Captures the starting Git state, recent teammate sessions, and concrete work choices for the user. It does not edit code or switch branches.",
     inputSchema: {
-      repoPath: z.string().describe("Absolute path to the local Git repository"),
-      participant: z.string().min(2).describe("Human teammate name"),
-      intent: z.string().optional().describe("What the user may want to work on, if already known"),
+      repoPath: repoPathSchema,
+      participant: z.string().min(2).max(120).describe("Human teammate name"),
+      intent: z.string().max(2000).optional().describe("What the user may want to work on, if already known"),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async (input) => {
@@ -43,10 +47,14 @@ export function createCollavibeMcpServer() {
     title: "Choose session work",
     description: "Use this only after the user chooses what to build. Claims an existing feature or records a new feature and its completion checklist for this session.",
     inputSchema: {
-      sessionId: z.string(),
-      featureId: z.string().optional(),
-      newFeature: z.object({ title: z.string().min(3), description: z.string().min(8), checklist: z.array(z.string().min(3)).min(1) }).optional(),
-      intendedBranch: z.string().optional(),
+      sessionId: sessionIdSchema,
+      featureId: z.string().min(10).max(128).optional(),
+      newFeature: z.object({
+        title: z.string().min(3).max(200),
+        description: z.string().min(8).max(4000),
+        checklist: z.array(z.string().min(3).max(500)).min(1).max(100),
+      }).optional(),
+      intendedBranch: z.string().min(1).max(255).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async (input) => {
@@ -57,7 +65,7 @@ export function createCollavibeMcpServer() {
   server.registerTool("get_sync_template", {
     title: "Get session sync template",
     description: "Use this near the end of a coding chat to see exactly what context the agent must summarize before syncing.",
-    inputSchema: { sessionId: z.string() },
+    inputSchema: { sessionId: sessionIdSchema },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async ({ sessionId }) => result("Summarize the current coding session using this structure, then call sync_collaboration_session.", {
     template: {
@@ -77,14 +85,14 @@ export function createCollavibeMcpServer() {
     title: "Sync a coding session",
     description: "Use this at the end of the chat after the agent summarizes the session. Stores the summary and independently verifies commits and changed files against the starting Git snapshot. It never commits or pushes code.",
     inputSchema: {
-      sessionId: z.string(),
-      summary: z.string().min(12),
-      workCompleted: z.array(z.string()),
-      decisions: z.array(z.string()),
-      blockers: z.array(z.string()),
-      nextSteps: z.array(z.string()),
-      agentReportedFiles: z.array(z.string()),
-      completedChecklistItemIds: z.array(z.string()).optional(),
+      sessionId: sessionIdSchema,
+      summary: z.string().min(12).max(10_000),
+      workCompleted: z.array(listItemSchema).max(100),
+      decisions: z.array(listItemSchema).max(100),
+      blockers: z.array(listItemSchema).max(100),
+      nextSteps: z.array(listItemSchema).max(100),
+      agentReportedFiles: z.array(z.string().min(1).max(4096)).max(500),
+      completedChecklistItemIds: z.array(z.string().min(10).max(128)).max(100).optional(),
       featureStatus: z.enum(["planned", "active", "review", "done", "blocked"]).optional(),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
@@ -97,19 +105,19 @@ export function createCollavibeMcpServer() {
     title: "Start collaborative coding",
     description: "Begin a Collavibe coding session and choose team work before editing.",
     argsSchema: {
-      repo_path: z.string().describe("Absolute path to the Git repository"),
-      participant_name: z.string().describe("Your name"),
+      repo_path: repoPathSchema,
+      participant_name: z.string().min(2).max(120).describe("Your name"),
     },
   }, async ({ repo_path, participant_name }) => ({
-    messages: [{ role: "user", content: { type: "text", text: `Start a Collavibe session for ${participant_name} in ${repo_path}. Call start_collaboration_session now. Summarize current project and teammate activity, present concrete work choices, and wait for my selection before editing code.` } }],
+    messages: [{ role: "user", content: { type: "text", text: `Start a Collavibe session for participant ${JSON.stringify(participant_name)} in repository ${JSON.stringify(repo_path)}. Call start_collaboration_session now. Summarize current project and teammate activity, present concrete work choices, and wait for my selection before editing code.` } }],
   }));
 
   server.registerPrompt("sync", {
     title: "Sync collaborative coding",
     description: "Summarize the current chat and reconcile it with Git before handing work to the team.",
-    argsSchema: { session_id: z.string().describe("Collavibe session ID from the start command") },
+    argsSchema: { session_id: sessionIdSchema.describe("Collavibe session ID from the start command") },
   }, async ({ session_id }) => ({
-    messages: [{ role: "user", content: { type: "text", text: `Prepare the factual end-of-session handoff for Collavibe session ${session_id}. First call get_sync_template. Summarize this chat's completed work, decisions, blockers, next steps, and repository-relative files. Then call sync_collaboration_session. Clearly distinguish your summary from the Git-verified result.` } }],
+    messages: [{ role: "user", content: { type: "text", text: `Prepare the factual end-of-session handoff for Collavibe session ${JSON.stringify(session_id)}. First call get_sync_template. Summarize this chat's completed work, decisions, blockers, next steps, and repository-relative files. Then call sync_collaboration_session. Clearly distinguish your summary from the Git-verified result.` } }],
   }));
 
   return server;
