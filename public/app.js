@@ -14,16 +14,22 @@ const elements = {
 let state = { projects: [], features: [], sessions: [] };
 let selectedFeatureId = null;
 let latestFingerprint = "";
+let loadSequence = 0;
 
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
 const shortDate = (value) => new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
 
 async function load({ quiet = false } = {}) {
-  if (!quiet) elements.refresh.textContent = "Refreshing…";
+  const sequence = ++loadSequence;
+  if (!quiet) {
+    elements.refresh.disabled = true;
+    elements.refresh.textContent = "Refreshing…";
+  }
   try {
     const response = await fetch("/api/state", { cache: "no-store" });
     if (!response.ok) throw new Error("Could not load project state");
     const nextState = await response.json();
+    if (sequence !== loadSequence) return;
     const fingerprint = JSON.stringify(nextState);
     if (fingerprint !== latestFingerprint) {
       state = nextState;
@@ -34,7 +40,10 @@ async function load({ quiet = false } = {}) {
   } catch (error) {
     elements.connectionLabel.textContent = error.message;
   } finally {
-    elements.refresh.textContent = "Refresh context";
+    if (!quiet) {
+      elements.refresh.disabled = false;
+      elements.refresh.textContent = "Refresh context";
+    }
   }
 }
 
@@ -71,7 +80,7 @@ function renderTree(project, features) {
       const branchFeatures = features.filter((feature) => feature.branch === branch.name || (!feature.branch && branch.current));
       return `<div class="branch-group">
         <div class="branch-label"><strong>${branch.current ? "● " : ""}${escapeHtml(branch.name)}</strong><code>${escapeHtml(branch.head)}</code></div>
-        <div class="feature-nodes">${branchFeatures.length ? branchFeatures.map((feature) => `<button class="tree-node ${feature.status} ${feature.id === selectedFeatureId ? "selected" : ""}" type="button" data-feature-id="${feature.id}"><span>${escapeHtml(feature.title)}</span></button>`).join("") : '<span class="tree-node"><span>No recorded feature</span></span>'}</div>
+        <div class="feature-nodes">${branchFeatures.length ? branchFeatures.map((feature) => `<button class="tree-node ${feature.status} ${feature.id === selectedFeatureId ? "selected" : ""}" type="button" data-feature-id="${feature.id}" aria-pressed="${feature.id === selectedFeatureId}"><span>${escapeHtml(feature.title)}</span></button>`).join("") : '<span class="tree-node"><span>No recorded feature</span></span>'}</div>
       </div>`;
     }).join("")}
   </div>`;
@@ -118,7 +127,7 @@ function renderDetail(feature, sessions) {
     <h3>${escapeHtml(feature.title)}</h3>
     <p class="detail-description">${escapeHtml(feature.description)}</p>
     <div class="detail-block detail-grid"><div><span>Owner</span><strong>${escapeHtml(feature.owner || "Unclaimed")}</strong></div><div><span>Branch</span><strong>${escapeHtml(feature.branch || "Not set")}</strong></div></div>
-    <div class="detail-block"><h4>Completion checklist</h4><ul class="checklist">${feature.checklist.map((item) => `<li class="${item.done ? "done" : ""}">${escapeHtml(item.text)}</li>`).join("")}</ul></div>
+    <div class="detail-block"><h4>Completion checklist</h4><ul class="checklist">${feature.checklist.map((item) => `<li class="${item.done ? "done" : ""}"><span class="checkmark" aria-hidden="true">${item.done ? "✓" : ""}</span><span><span class="sr-only">${item.done ? "Completed" : "Incomplete"}: </span>${escapeHtml(item.text)}</span></li>`).join("")}</ul></div>
     <div class="detail-block"><h4>Last verified delta</h4>${verified ? `<ul class="files">${verified.changedFiles.map((file) => `<li>${escapeHtml(file)}</li>`).join("") || "<li>No changed files</li>"}</ul>` : '<p class="placeholder-detail">No completed sync for this feature yet.</p>'}</div>
   `;
 }
