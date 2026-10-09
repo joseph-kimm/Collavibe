@@ -8,6 +8,9 @@ const elements = {
   connectionLabel: document.querySelector("#connection-label"), teamSelect: document.querySelector("#team-select"), teamCode: document.querySelector("#team-code"), copyCode: document.querySelector("#copy-code"),
   accountButton: document.querySelector("#account-button"), accountMenu: document.querySelector("#account-menu"), accountName: document.querySelector("#account-name"), accountEmail: document.querySelector("#account-email"),
   logout: document.querySelector("#logout"), teamLogout: document.querySelector("#team-logout"), addTeam: document.querySelector("#add-team"), backWorkspace: document.querySelector("#back-workspace"),
+  openAgentSetup: document.querySelector("#open-agent-setup"), agentDialog: document.querySelector("#agent-connect-dialog"), closeAgentSetup: document.querySelector("#close-agent-setup"),
+  setupMcpUrl: document.querySelector("#setup-mcp-url"), setupTeamCode: document.querySelector("#setup-team-code"), setupStarterPrompt: document.querySelector("#setup-starter-prompt"), setupCopyStatus: document.querySelector("#setup-copy-status"),
+  setupCodexCommand: document.querySelector("#setup-codex-command"), setupClaudeCommand: document.querySelector("#setup-claude-command"), setupCursorJson: document.querySelector("#setup-cursor-json"),
 };
 
 let dashboard = { user: null, teams: [], selectedTeam: null, projects: [], features: [], sessions: [] };
@@ -17,9 +20,67 @@ let authMode = "signup";
 let teamMode = "create";
 let latestFingerprint = "";
 let loadSequence = 0;
+const hostedMcpUrl = "https://collavibe.vercel.app/mcp";
 
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
 const shortDate = (value) => new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
+
+async function copyText(value) {
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.append(textarea);
+    textarea.select();
+    const copied = document.execCommand("copy");
+    textarea.remove();
+    return copied;
+  }
+}
+
+function setAgentPlatform(platform) {
+  document.querySelectorAll("[data-agent-platform]").forEach((button) => {
+    button.setAttribute("aria-selected", String(button.dataset.agentPlatform === platform));
+  });
+  document.querySelectorAll("[data-agent-panel]").forEach((panel) => {
+    panel.hidden = panel.dataset.agentPanel !== platform;
+  });
+}
+
+function agentSetupValues() {
+  const teamCode = dashboard.selectedTeam?.joinCode || "YOUR_TEAM_CODE";
+  const participant = dashboard.user?.name || "Your name";
+  return {
+    mcp: hostedMcpUrl,
+    team: teamCode,
+    codex: `codex mcp add collavibe --url ${hostedMcpUrl}`,
+    claude: `claude mcp add --transport http --scope user collavibe ${hostedMcpUrl}`,
+    cursor: JSON.stringify({ mcpServers: { collavibe: { url: hostedMcpUrl } } }, null, 2),
+    prompt: `Use the Collavibe MCP. My team code is "${teamCode}" and my name is "${participant}". Inspect this repository, start a collaboration session, show me the available work options and recent teammate activity, and wait for me to choose before editing anything.`,
+  };
+}
+
+function hydrateAgentSetup() {
+  const values = agentSetupValues();
+  elements.setupMcpUrl.textContent = values.mcp;
+  elements.setupTeamCode.textContent = values.team;
+  elements.setupStarterPrompt.textContent = values.prompt;
+  elements.setupCodexCommand.textContent = values.codex;
+  elements.setupClaudeCommand.textContent = values.claude;
+  elements.setupCursorJson.textContent = values.cursor;
+  elements.setupCopyStatus.textContent = "";
+}
+
+function openAgentSetup() {
+  hydrateAgentSetup();
+  setAgentPlatform("chatgpt");
+  if (!elements.agentDialog.open) elements.agentDialog.showModal();
+}
 
 async function request(url, options = {}) {
   const response = await fetch(url, {
@@ -139,7 +200,10 @@ function renderNoProject() {
   elements.selectionStatus.className = "status";
   elements.activity.replaceChildren(document.querySelector(cloudMode ? "#connect-agent" : "#connect-project").content.cloneNode(true));
   elements.detail.innerHTML = `<p class="placeholder-detail">Once a repository is connected, its feature tree, teammate sessions, and ${cloudMode ? "agent-attested" : "verified"} commits will appear here.</p>`;
-  if (cloudMode) return;
+  if (cloudMode) {
+    document.querySelector("#open-agent-setup-empty")?.addEventListener("click", openAgentSetup);
+    return;
+  }
   const form = document.querySelector("#connect-project-form");
   form.elements.repoPath.value = dashboard.defaultRepoPath || "";
   form.addEventListener("submit", connectProject);
@@ -296,10 +360,29 @@ elements.joinTeamForm.addEventListener("submit", submitJoinTeam);
 elements.refresh.addEventListener("click", () => load());
 elements.teamSelect.addEventListener("change", () => { selectedTeamId = elements.teamSelect.value; localStorage.setItem("collavibe-team", selectedTeamId); selectedFeatureId = null; load(); });
 elements.copyCode.addEventListener("click", async () => {
-  await navigator.clipboard.writeText(dashboard.selectedTeam.joinCode);
+  const copied = await copyText(dashboard.selectedTeam.joinCode);
+  if (!copied) return;
   const previous = elements.copyCode.querySelector("span").textContent;
   elements.copyCode.querySelector("span").textContent = "Copied";
   setTimeout(() => { elements.copyCode.querySelector("span").textContent = previous; }, 1400);
+});
+elements.openAgentSetup.addEventListener("click", openAgentSetup);
+elements.closeAgentSetup.addEventListener("click", () => elements.agentDialog.close());
+elements.agentDialog.addEventListener("click", (event) => {
+  if (event.target === elements.agentDialog) elements.agentDialog.close();
+});
+document.querySelectorAll("[data-agent-platform]").forEach((button) => {
+  button.addEventListener("click", () => setAgentPlatform(button.dataset.agentPlatform));
+});
+document.querySelectorAll("[data-copy-setup]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const copied = await copyText(agentSetupValues()[button.dataset.copySetup]);
+    elements.setupCopyStatus.textContent = copied ? `${button.textContent.trim().replace(/^Copy /, "")} copied.` : "Could not copy automatically. Select the text above and copy it manually.";
+    if (!copied) return;
+    const previous = button.textContent;
+    button.textContent = "Copied";
+    setTimeout(() => { button.textContent = previous; }, 1400);
+  });
 });
 elements.accountButton.addEventListener("click", () => { elements.accountMenu.hidden = !elements.accountMenu.hidden; });
 elements.addTeam.addEventListener("click", () => {

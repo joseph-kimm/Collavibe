@@ -68,6 +68,16 @@ afterAll(async () => {
 });
 
 describe("Streamable HTTP transport", () => {
+  it("serves the visual agent connection flow", async () => {
+    const response = await fetch(baseUrl);
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(html).toContain('id="agent-connect-dialog"');
+    expect(html).toContain('href="https://chatgpt.com/plugins"');
+    expect(html).toContain('href="https://claude.ai/settings/connectors"');
+    expect(html).toContain("No authentication");
+  });
+
   it("initializes independent clients and persists shared state", async () => {
     const clientOne = new Client({ name: "http-one", version: "1.0.0" });
     const clientTwo = new Client({ name: "http-two", version: "1.0.0" });

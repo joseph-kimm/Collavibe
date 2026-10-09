@@ -8,7 +8,29 @@ https://collavibe.vercel.app/mcp
 
 The coding agent remains responsible for reading and editing its checkout. At the start and end of a session, it sends a sanitized Git snapshot to the hosted MCP. Collavibe stores the team context and handoff in Supabase. No Collavibe process needs to run on the developer's computer.
 
-## Claude Code
+The signed-in workspace also has a **Connect agent** button that prepares the current team's code, installation details, and a starter prompt for each supported client.
+
+## ChatGPT
+
+Open [ChatGPT Plugins](https://chatgpt.com/plugins), click **+**, and choose **Add custom MCP server**. Use:
+
+- Name: `Collavibe`
+- URL: `https://collavibe.vercel.app/mcp`
+- Authentication: `No authentication`
+
+Create and install the plugin. In a Work chat, invoke `@Collavibe`, then provide the team code shown in the Collavibe workspace. The website's connection sheet prepares a complete first prompt for this step.
+
+## Claude and Claude Desktop
+
+Go to **Settings → Connectors → Add custom connector**. Name the connector `Collavibe`, paste the hosted MCP URL, and add it. Enable Collavibe from **Search and tools** in a new chat before using the prepared starter prompt.
+
+Claude Code can instead register it from the terminal:
+
+```bash
+claude mcp add --transport http --scope user collavibe https://collavibe.vercel.app/mcp
+```
+
+## Claude Code project configuration
 
 Add this project-scoped `.mcp.json`:
 
