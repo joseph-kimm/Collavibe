@@ -84,6 +84,10 @@ describe("Streamable HTTP transport", () => {
     const context = await clientTwo.callTool({ name: "get_project_context", arguments: { repoPath: projectRoot } });
     expect(context.isError).not.toBe(true);
 
+    const unsignedStatus = await fetch(`${baseUrl}/api/auth/status`);
+    expect(unsignedStatus.status).toBe(200);
+    await expect(unsignedStatus.json()).resolves.toEqual({ authenticated: false });
+
     const signup = await fetch(`${baseUrl}/api/auth/signup`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -91,6 +95,9 @@ describe("Streamable HTTP transport", () => {
     });
     expect(signup.status).toBe(201);
     authCookie = signup.headers.get("set-cookie")!.split(";")[0];
+    const signedStatus = await fetch(`${baseUrl}/api/auth/status`, { headers: { cookie: authCookie } });
+    expect(signedStatus.status).toBe(200);
+    await expect(signedStatus.json()).resolves.toEqual({ authenticated: true });
     const team = await fetch(`${baseUrl}/api/teams`, {
       method: "POST",
       headers: { "content-type": "application/json", cookie: authCookie },

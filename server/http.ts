@@ -99,6 +99,21 @@ app.post("/api/auth/logout", api(async (req, res) => {
   res.clearCookie(AUTH_COOKIE, { path: "/" }).status(204).end();
 }));
 
+app.get("/api/auth/status", api(async (req, res) => {
+  if (isSupabaseConfigured()) {
+    const result = await cloudUserForSession(cloudSession(req));
+    if (!result) {
+      res.json({ authenticated: false });
+      return;
+    }
+    setCloudSession(res, result.session);
+    res.json({ authenticated: true });
+    return;
+  }
+  const user = await getUserForToken(cookie(req, AUTH_COOKIE));
+  res.json({ authenticated: Boolean(user) });
+}));
+
 app.get("/api/dashboard", requireUser, api(async (req, res) => {
   const dashboard = isSupabaseConfigured()
     ? await cloudDashboard(req.collavibeUser!, typeof req.query.teamId === "string" ? req.query.teamId : undefined)

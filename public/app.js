@@ -46,6 +46,14 @@ async function load({ quiet = false } = {}) {
     elements.refresh.textContent = "Refreshing…";
   }
   try {
+    const statusResponse = await fetch("/api/auth/status", { cache: "no-store" });
+    const authStatus = await statusResponse.json();
+    if (!statusResponse.ok) throw new Error(authStatus.error || "Could not check account status.");
+    if (!authStatus.authenticated) {
+      dashboard = { user: null, teams: [], selectedTeam: null, projects: [], features: [], sessions: [] };
+      show("auth");
+      return;
+    }
     const query = selectedTeamId ? `?teamId=${encodeURIComponent(selectedTeamId)}` : "";
     const response = await fetch(`/api/dashboard${query}`, { cache: "no-store" });
     if (response.status === 401) {
