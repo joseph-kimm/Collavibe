@@ -32,6 +32,10 @@ Disposable users and orphaned test projects were deleted after verification. Bac
 
 The production deployment `dpl_HGGPn5GJQjbRvznoCbTU2t45M74o` completed successfully and is aliased to [collavibe.vercel.app](https://collavibe.vercel.app). Vercel reports the deployment as Ready, all three Supabase values are present in the Production environment, and Vercel Authentication was explicitly disabled so third-party users can reach the signup screen.
 
+### Production end-to-end retest
+
+The stable production alias was retested after deployment with two separate browser sessions and a real local stdio MCP client. The test verified owner signup, team creation, lowercase invite-code joining, MCP `start_collaboration_session`, `choose_work_item`, and `sync_collaboration_session`, shared project visibility from both accounts, and returning-user logout/login. The synchronized no-code test correctly displayed zero verified commits and zero changed files. The disposable project, team, accounts, and local MCP state were removed after the test.
+
 ## Account and team workflow
 
 A disposable browser and state directory were used to verify the complete human and agent handoff:
