@@ -50,6 +50,7 @@ export interface Feature {
 }
 
 export interface VerifiedDelta {
+  source?: "local_git" | "agent_attested";
   startHead: string;
   endHead: string;
   startBranch: string;

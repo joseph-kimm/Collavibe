@@ -29,6 +29,9 @@ function publicClient() { return client(config().publishable); }
 function joinCode() { return Array.from(randomBytes(8), (byte) => alphabet[byte % alphabet.length]).join(""); }
 function fail(error: { message: string } | null | undefined) { if (error) throw new Error(error.message); }
 
+export function getSupabaseAdmin() { return admin(); }
+export function throwSupabaseError(error: { message: string } | null | undefined) { fail(error); }
+
 function cloudUser(user: { id: string; email?: string; created_at: string; user_metadata?: Record<string, unknown> }): CloudUser {
   return {
     id: user.id,

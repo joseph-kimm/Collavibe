@@ -160,11 +160,12 @@ function renderActivity(features, sessions) {
   elements.activity.innerHTML = sessions.map((session, index) => {
     const feature = features.find((item) => item.id === session.featureId);
     const verified = session.sync?.verified;
+    const attested = verified?.source === "agent_attested";
     return `<article class="session-entry ${session.status}" style="--delay:${index * 45}ms">
       <div class="session-meta"><strong>${escapeHtml(session.participant)}</strong><span>${shortDate(session.startedAt)}</span><span>${escapeHtml(session.startSnapshot.branch)}</span><span class="session-state">${escapeHtml(session.status)}</span></div>
       <h3>${escapeHtml(feature?.title || session.intent || "Choosing work")}</h3>
       <p class="session-summary">${escapeHtml(session.sync?.summary || "Session started. Waiting for the agent to sync its handoff.")}</p>
-      ${verified ? `<div class="verified-row"><span class="verified-chip"><strong>${verified.commits.length}</strong> verified commits</span><span class="verified-chip"><strong>${verified.changedFiles.length}</strong> changed files</span>${verified.reportedButUnverified.length ? `<span class="verified-chip unverified"><strong>${verified.reportedButUnverified.length}</strong> unverified claims</span>` : ""}</div>` : ""}
+      ${verified ? `<div class="verified-row"><span class="verified-chip"><strong>${verified.commits.length}</strong> ${attested ? "reported" : "verified"} commits</span><span class="verified-chip"><strong>${verified.changedFiles.length}</strong> ${attested ? "reported" : "verified"} files</span>${verified.reportedButUnverified.length ? `<span class="verified-chip unverified"><strong>${verified.reportedButUnverified.length}</strong> unverified claims</span>` : ""}</div>` : ""}
     </article>`;
   }).join("");
 }
@@ -178,6 +179,7 @@ function renderDetail(feature, sessions) {
   }
   const latestSession = sessions.find((session) => session.featureId === feature.id && session.sync);
   const verified = latestSession?.sync?.verified;
+  const attested = verified?.source === "agent_attested";
   const branchTransition = verified && verified.startBranch !== verified.endBranch ? `<p class="branch-transition">${escapeHtml(verified.startBranch)} <span aria-hidden="true">→</span><span class="sr-only">to</span> ${escapeHtml(verified.endBranch)}</p>` : "";
   const verifiedCommits = verified?.commits.length ? `<ol class="commits">${verified.commits.map((commit) => `<li><code>${escapeHtml(commit.shortHash)}</code><span><strong>${escapeHtml(commit.subject)}</strong><small>${escapeHtml(commit.author)}</small></span></li>`).join("")}</ol>` : '<p class="placeholder-detail">No new commits were verified.</p>';
   elements.selectionStatus.textContent = feature.status;
@@ -185,8 +187,9 @@ function renderDetail(feature, sessions) {
   elements.detail.innerHTML = `<h3>${escapeHtml(feature.title)}</h3><p class="detail-description">${escapeHtml(feature.description)}</p>
     <div class="detail-block detail-grid"><div><span>Owner</span><strong>${escapeHtml(feature.owner || "Unclaimed")}</strong></div><div><span>Branch</span><strong>${escapeHtml(feature.branch || "Not set")}</strong></div></div>
     <div class="detail-block"><h4>Completion checklist</h4><ul class="checklist">${feature.checklist.map((item) => `<li class="${item.done ? "done" : ""}"><span class="checkmark" aria-hidden="true">${item.done ? "✓" : ""}</span><span><span class="sr-only">${item.done ? "Completed" : "Incomplete"}: </span>${escapeHtml(item.text)}</span></li>`).join("")}</ul></div>
-    <div class="detail-block"><h4>Verified commits</h4>${verified ? `${branchTransition}${verifiedCommits}` : '<p class="placeholder-detail">No completed sync for this feature yet.</p>'}</div>
-    <div class="detail-block"><h4>Verified files</h4>${verified ? `<ul class="files">${verified.changedFiles.map((file) => `<li>${escapeHtml(file)}</li>`).join("") || "<li>No changed files</li>"}</ul>` : '<p class="placeholder-detail">No completed sync for this feature yet.</p>'}</div>`;
+    ${attested ? '<p class="evidence-note">Remote evidence was supplied by the coding agent and was not independently read from the developer’s filesystem.</p>' : ""}
+    <div class="detail-block"><h4>${attested ? "Agent-attested" : "Verified"} commits</h4>${verified ? `${branchTransition}${verifiedCommits}` : '<p class="placeholder-detail">No completed sync for this feature yet.</p>'}</div>
+    <div class="detail-block"><h4>${attested ? "Agent-attested" : "Verified"} files</h4>${verified ? `<ul class="files">${verified.changedFiles.map((file) => `<li>${escapeHtml(file)}</li>`).join("") || "<li>No changed files</li>"}</ul>` : '<p class="placeholder-detail">No completed sync for this feature yet.</p>'}</div>`;
 }
 
 function setAuthMode(mode) {

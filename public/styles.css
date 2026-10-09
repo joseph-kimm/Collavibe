@@ -193,6 +193,7 @@ body.app-loading > * { visibility: hidden; }
 .connect-project > p:not(.kicker):not(.form-error) { margin-bottom: 28px; color: var(--muted); font-size: 11px; }
 .connect-project code { font-family: var(--mono); font-size: 11px; }
 .agent-steps { display: grid; gap: 12px; margin: 26px 0 0 18px; color: var(--ink); font-size: 12px; line-height: 1.55; }
+.evidence-note { margin: 18px 0; padding: 12px 14px; border-left: 2px solid var(--accent); background: var(--paper-deep); color: var(--muted); font-size: 11px; line-height: 1.55; }
 .inline-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: end; }
 .inline-form .primary-action { min-width: 100px; }
 

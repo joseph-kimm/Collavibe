@@ -126,6 +126,7 @@ export async function inspectDelta(start: GitSnapshot, current: GitSnapshot, rep
     ...changedWorkingFiles,
   ])].sort();
   return {
+    source: "local_git",
     startHead: start.head,
     endHead: current.head,
     startBranch: start.branch,

@@ -1,18 +1,16 @@
-import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import { z } from "zod";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { createCollavibeMcpServer } from "./mcp.js";
+import { createHostedCollavibeMcpServer } from "./hosted-mcp.js";
 import { addProjectToTeam, createTeam, getDashboard, getUserForToken, joinTeam, loginUser, logoutUser, signUpUser } from "../src/store.js";
 import { withoutInternalGitEvidence } from "../src/public.js";
 import { cloudAgentSync, cloudCreateTeam, cloudDashboard, cloudJoinTeam, cloudLogin, cloudLogout, cloudSignUp, cloudUserForSession, isSupabaseConfigured, type CloudSession } from "../src/supabase.js";
 import type { NextFunction, Request, Response } from "express";
 
 export const app = express();
-const transports = new Map<string, StreamableHTTPServerTransport>();
 app.use(express.json({ limit: "1mb" }));
 
 const AUTH_COOKIE = "collavibe_session";
@@ -150,32 +148,30 @@ app.post("/api/agent/sync", api(async (req, res) => {
 }));
 
 app.post("/mcp", async (req, res) => {
-  const sessionId = req.headers["mcp-session-id"] as string | undefined;
-  let transport = sessionId ? transports.get(sessionId) : undefined;
-  if (!transport && isInitializeRequest(req.body)) {
-    transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
-      onsessioninitialized: (id) => { transports.set(id, transport!); },
-    });
-    transport.onclose = () => { if (transport?.sessionId) transports.delete(transport.sessionId); };
-    await createCollavibeMcpServer().connect(transport);
+  const server = isSupabaseConfigured() ? createHostedCollavibeMcpServer() : createCollavibeMcpServer();
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+  let cleanedUp = false;
+  const cleanup = async () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    await transport.close();
+    await server.close();
+  };
+  res.on("close", () => void cleanup());
+  try {
+    await server.connect(transport);
+    await transport.handleRequest(req, res, req.body);
+  } catch (error) {
+    if (!res.headersSent) res.status(500).json({ jsonrpc: "2.0", error: { code: -32603, message: error instanceof Error ? error.message : "Internal server error" }, id: null });
+    await cleanup();
   }
-  if (!transport) {
-    res.status(400).json({ jsonrpc: "2.0", error: { code: -32000, message: "Invalid or missing MCP session." }, id: null });
-    return;
-  }
-  await transport.handleRequest(req, res, req.body);
 });
 
 for (const method of ["get", "delete"] as const) {
-  app[method]("/mcp", async (req, res) => {
-    const transport = transports.get(req.headers["mcp-session-id"] as string);
-    if (!transport) return void res.status(400).send("Invalid or missing MCP session.");
-    await transport.handleRequest(req, res);
-  });
+  app[method]("/mcp", (_req, res) => res.status(405).json({ jsonrpc: "2.0", error: { code: -32000, message: "Method not allowed for stateless MCP." }, id: null }));
 }
 
-app.get("/health", (_req, res) => res.json({ ok: true, service: "collavibe", version: "0.4.0", mode: isSupabaseConfigured() ? "cloud" : "local" }));
+app.get("/health", (_req, res) => res.json({ ok: true, service: "collavibe", version: "0.5.0", mode: isSupabaseConfigured() ? "hosted-mcp" : "local" }));
 
 const publicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
 app.use(express.static(publicDirectory));

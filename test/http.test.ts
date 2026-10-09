@@ -106,14 +106,14 @@ describe("Streamable HTTP transport", () => {
     await Promise.all([clientOne.close(), clientTwo.close()]);
   });
 
-  it("rejects an MCP request without a valid transport session", async () => {
+  it("enforces the Streamable HTTP Accept header contract", async () => {
     const response = await fetch(`${baseUrl}/mcp`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
     });
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toMatchObject({ error: { message: "Invalid or missing MCP session." } });
+    expect(response.status).toBe(406);
+    await expect(response.json()).resolves.toMatchObject({ error: { message: expect.stringMatching(/accept both application\/json and text\/event-stream/i) } });
   });
 
   it("requires a signed-in account for the team dashboard", async () => {
