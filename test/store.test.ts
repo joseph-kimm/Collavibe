@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { inspectRepository } from "../src/git.js";
 import { chooseWorkItem, getProjectContext, resetStateForTests, startCollaborationSession, syncCollaborationSession } from "../src/store.js";
 
 const exec = promisify(execFile);
@@ -30,6 +31,12 @@ beforeEach(async () => {
 afterAll(async () => rm(root, { recursive: true, force: true }));
 
 describe("agent-to-team session workflow", () => {
+  it("preserves the complete filename for the first modified tracked file", async () => {
+    await writeFile(path.join(repo, "README.md"), "# Updated demo\n", "utf8");
+    const snapshot = await inspectRepository(repo);
+    expect(snapshot.workingFiles).toEqual(["README.md"]);
+  });
+
   it("starts with repository context and concrete work choices", async () => {
     const started = await startCollaborationSession({ repoPath: repo, participant: "Shayan" });
     expect(started.project.latestGit.branch).toBe("main");

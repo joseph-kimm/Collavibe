@@ -12,7 +12,7 @@ async function git(repoPath: string, args: string[], allowFailure = false): Prom
       maxBuffer: 4 * 1024 * 1024,
       timeout: 10_000,
     });
-    return stdout.trim();
+    return stdout.trimEnd();
   } catch (error) {
     if (allowFailure) return "";
     const message = error instanceof Error ? error.message : String(error);

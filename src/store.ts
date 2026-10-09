@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { inspectDelta, inspectRepository } from "./git.js";
 import type { CollaborationSession, CollavibeState, Feature, FeatureStatus, Project, WorkOption } from "./types.js";
@@ -7,6 +7,52 @@ import type { CollaborationSession, CollavibeState, Feature, FeatureStatus, Proj
 const emptyState = (): CollavibeState => ({ projects: [], features: [], sessions: [] });
 const statePath = () => process.env.COLLAVIBE_DATA_PATH || path.join(process.cwd(), ".collavibe", "state.json");
 let writeQueue: Promise<unknown> = Promise.resolve();
+
+const LOCK_RETRY_MS = 25;
+const LOCK_TIMEOUT_MS = 10_000;
+const STALE_LOCK_MS = 30_000;
+
+async function withStateLock<T>(operation: () => Promise<T>): Promise<T> {
+  const file = statePath();
+  const lockFile = `${file}.lock`;
+  await mkdir(path.dirname(file), { recursive: true });
+  const startedAt = Date.now();
+  let handle;
+
+  while (!handle) {
+    try {
+      handle = await open(lockFile, "wx");
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "EEXIST") throw error;
+
+      try {
+        const lock = await stat(lockFile);
+        if (Date.now() - lock.mtimeMs > STALE_LOCK_MS) {
+          await unlink(lockFile);
+          continue;
+        }
+      } catch (inspectionError) {
+        if ((inspectionError as NodeJS.ErrnoException).code === "ENOENT") continue;
+        throw inspectionError;
+      }
+
+      if (Date.now() - startedAt > LOCK_TIMEOUT_MS) {
+        throw new Error(`Timed out waiting for Collavibe state lock: ${lockFile}`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_MS));
+    }
+  }
+
+  try {
+    return await operation();
+  } finally {
+    await handle.close();
+    await unlink(lockFile).catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== "ENOENT") throw error;
+    });
+  }
+}
 
 async function save(state: CollavibeState) {
   const file = statePath();
@@ -28,9 +74,11 @@ export async function readState(): Promise<CollavibeState> {
 async function mutate<T>(operation: (state: CollavibeState) => Promise<T> | T): Promise<T> {
   let result!: T;
   writeQueue = writeQueue.catch(() => undefined).then(async () => {
-    const state = await readState();
-    result = await operation(state);
-    await save(state);
+    await withStateLock(async () => {
+      const state = await readState();
+      result = await operation(state);
+      await save(state);
+    });
   });
   await writeQueue;
   return result;

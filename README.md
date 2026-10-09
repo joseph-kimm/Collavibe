@@ -46,6 +46,8 @@ npm run check
 
 State is stored at `.collavibe/state.json` by default and is not committed. Set `COLLAVIBE_DATA_PATH` to use a central or test-specific location.
 
+Open `http://localhost:4317/` for the read-only project map. See [client integration](docs/INTEGRATION.md) for Claude Code, Claude Desktop, Codex, and generic MCP clients, and [architecture](docs/ARCHITECTURE.md) for the trust boundary and data flow.
+
 ## Important boundary
 
 The end-of-session summary is written by the coding agent from its conversation context. Collavibe stores that summary as a claim and displays it separately from Git-verified commits and files. This prevents a fluent summary from becoming false evidence of work that is not present in the repository.
