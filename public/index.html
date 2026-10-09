@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Collavibe shared coding-session map" />
+    <title>Collavibe project map</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="wordmark" href="/" aria-label="Collavibe home"><span class="mark">c</span><span>collavibe</span></a>
+      <div class="connection"><span class="pulse"></span><span id="connection-label">Local coordination server</span></div>
+      <div class="top-actions">
+        <span class="shortcut"><kbd>⌘</kbd><kbd>K</kbd></span>
+        <button class="refresh" id="refresh" type="button">Refresh context</button>
+      </div>
+    </header>
+
+    <main class="shell">
+      <aside class="tree-pane">
+        <div class="pane-heading">
+          <p class="kicker">Project map</p>
+          <h1 id="project-name">Waiting for a session</h1>
+          <p id="project-meta">Start Collavibe from a coding agent to register this repository.</p>
+        </div>
+        <nav id="project-tree" class="project-tree" aria-label="Repository and feature tree"></nav>
+        <div class="start-hint">
+          <span class="hint-index">01</span>
+          <p>Invoke the MCP <strong>start</strong> prompt before coding. The feature tree appears here as the team works.</p>
+        </div>
+      </aside>
+
+      <section class="activity-pane">
+        <header class="activity-header">
+          <div>
+            <p class="kicker">Shared history</p>
+            <h2>Team activity</h2>
+          </div>
+          <div class="branch-readout"><span>HEAD</span><strong id="current-branch">—</strong><code id="current-head">—</code></div>
+        </header>
+        <div id="activity" class="activity" aria-live="polite"></div>
+      </section>
+
+      <aside class="detail-pane">
+        <div class="detail-topline"><p class="kicker">Selected work</p><span id="selection-status" class="status">No selection</span></div>
+        <div id="detail" class="detail"></div>
+      </aside>
+    </main>
+
+    <template id="empty-activity">
+      <div class="empty-state">
+        <div class="empty-graph" aria-hidden="true"><i></i><i></i><i></i></div>
+        <h3>No coding sessions synced yet.</h3>
+        <p>The first start call records the repository baseline. The sync call adds the agent’s handoff and Git-verified delta.</p>
+      </div>
+    </template>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
