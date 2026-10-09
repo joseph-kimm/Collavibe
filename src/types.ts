@@ -82,6 +82,8 @@ export interface CollaborationSession {
   startedAt: string;
   syncedAt?: string;
   sync?: SessionSync;
+  /** Local-only capability used to publish this session to its hosted team. */
+  teamCode?: string;
 }
 
 export interface Project {

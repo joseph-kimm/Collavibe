@@ -2,14 +2,16 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
+import { z } from "zod";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { createCollavibeMcpServer } from "./mcp.js";
 import { addProjectToTeam, createTeam, getDashboard, getUserForToken, joinTeam, loginUser, logoutUser, signUpUser } from "../src/store.js";
 import { withoutInternalGitEvidence } from "../src/public.js";
+import { cloudAgentSync, cloudCreateTeam, cloudDashboard, cloudJoinTeam, cloudLogin, cloudLogout, cloudSignUp, cloudUserForSession, isSupabaseConfigured, type CloudSession } from "../src/supabase.js";
 import type { NextFunction, Request, Response } from "express";
 
-const app = express();
+export const app = express();
 const transports = new Map<string, StreamableHTTPServerTransport>();
 app.use(express.json({ limit: "1mb" }));
 
@@ -27,8 +29,28 @@ function cookie(req: Request, name: string) {
 
 type AuthenticatedRequest = Request & { collavibeUser?: { id: string; name: string; email: string; createdAt: string } };
 
+function cloudSession(req: Request): CloudSession | undefined {
+  try {
+    const value = cookie(req, AUTH_COOKIE);
+    return value ? JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as CloudSession : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function setCloudSession(res: Response, session: CloudSession) {
+  res.cookie(AUTH_COOKIE, Buffer.from(JSON.stringify(session)).toString("base64url"), cookieOptions);
+}
+
 async function requireUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   try {
+    if (isSupabaseConfigured()) {
+      const result = await cloudUserForSession(cloudSession(req));
+      if (!result) return void res.status(401).json({ error: "Sign in to continue." });
+      req.collavibeUser = result.user;
+      setCloudSession(res, result.session);
+      return next();
+    }
     const user = await getUserForToken(cookie(req, AUTH_COOKIE));
     if (!user) return void res.status(401).json({ error: "Sign in to continue." });
     req.collavibeUser = user;
@@ -47,48 +69,84 @@ const api = (handler: (req: AuthenticatedRequest, res: Response) => Promise<void
 };
 
 app.post("/api/auth/signup", api(async (req, res) => {
+  if (isSupabaseConfigured()) {
+    const result = await cloudSignUp({ name: String(req.body?.name || ""), email: String(req.body?.email || ""), password: String(req.body?.password || "") });
+    setCloudSession(res, result.session);
+    res.status(201).json({ user: result.user });
+    return;
+  }
   const result = await signUpUser({ name: String(req.body?.name || ""), email: String(req.body?.email || ""), password: String(req.body?.password || "") });
   res.cookie(AUTH_COOKIE, result.token, cookieOptions).status(201).json({ user: result.user });
 }));
 
 app.post("/api/auth/login", api(async (req, res) => {
+  if (isSupabaseConfigured()) {
+    const result = await cloudLogin({ email: String(req.body?.email || ""), password: String(req.body?.password || "") });
+    setCloudSession(res, result.session);
+    res.json({ user: result.user });
+    return;
+  }
   const result = await loginUser({ email: String(req.body?.email || ""), password: String(req.body?.password || "") });
   res.cookie(AUTH_COOKIE, result.token, cookieOptions).json({ user: result.user });
 }));
 
 app.post("/api/auth/logout", api(async (req, res) => {
+  if (isSupabaseConfigured()) {
+    await cloudLogout(cloudSession(req));
+    res.clearCookie(AUTH_COOKIE, { path: "/" }).status(204).end();
+    return;
+  }
   const token = cookie(req, AUTH_COOKIE);
   if (token) await logoutUser(token);
   res.clearCookie(AUTH_COOKIE, { path: "/" }).status(204).end();
 }));
 
 app.get("/api/dashboard", requireUser, api(async (req, res) => {
-  const dashboard = await getDashboard(req.collavibeUser!.id, typeof req.query.teamId === "string" ? req.query.teamId : undefined);
+  const dashboard = isSupabaseConfigured()
+    ? await cloudDashboard(req.collavibeUser!, typeof req.query.teamId === "string" ? req.query.teamId : undefined)
+    : await getDashboard(req.collavibeUser!.id, typeof req.query.teamId === "string" ? req.query.teamId : undefined);
   res.json(withoutInternalGitEvidence(dashboard));
 }));
 
 app.get("/api/state", requireUser, api(async (req, res) => {
-  const dashboard = await getDashboard(req.collavibeUser!.id, typeof req.query.teamId === "string" ? req.query.teamId : undefined);
+  const dashboard = isSupabaseConfigured()
+    ? await cloudDashboard(req.collavibeUser!, typeof req.query.teamId === "string" ? req.query.teamId : undefined)
+    : await getDashboard(req.collavibeUser!.id, typeof req.query.teamId === "string" ? req.query.teamId : undefined);
   res.json(withoutInternalGitEvidence(dashboard));
 }));
 
 app.post("/api/teams", requireUser, api(async (req, res) => {
-  const team = await createTeam({
-    userId: req.collavibeUser!.id,
-    name: String(req.body?.name || ""),
-    repoPath: typeof req.body?.repoPath === "string" ? req.body.repoPath : undefined,
-  });
+  const team = isSupabaseConfigured()
+    ? await cloudCreateTeam({ userId: req.collavibeUser!.id, name: String(req.body?.name || "") })
+    : await createTeam({ userId: req.collavibeUser!.id, name: String(req.body?.name || ""), repoPath: typeof req.body?.repoPath === "string" ? req.body.repoPath : undefined });
   res.status(201).json({ team });
 }));
 
 app.post("/api/teams/join", requireUser, api(async (req, res) => {
-  const team = await joinTeam({ userId: req.collavibeUser!.id, joinCode: String(req.body?.joinCode || "") });
+  const team = isSupabaseConfigured()
+    ? await cloudJoinTeam({ userId: req.collavibeUser!.id, joinCode: String(req.body?.joinCode || "") })
+    : await joinTeam({ userId: req.collavibeUser!.id, joinCode: String(req.body?.joinCode || "") });
   res.json({ team });
 }));
 
 app.post("/api/teams/:teamId/projects", requireUser, api(async (req, res) => {
+  if (isSupabaseConfigured()) throw new Error("Connect a hosted team from the local MCP using its team code.");
   const project = await addProjectToTeam({ userId: req.collavibeUser!.id, teamId: String(req.params.teamId), repoPath: String(req.body?.repoPath || "") });
   res.status(201).json({ project: withoutInternalGitEvidence(project) });
+}));
+
+const agentSyncSchema = z.object({
+  teamCode: z.string().min(8).max(16),
+  project: z.object({ id: z.string().min(1), name: z.string().min(1), root: z.string(), remote: z.string().optional(), latestGit: z.record(z.string(), z.unknown()), createdAt: z.string(), updatedAt: z.string() }).passthrough(),
+  features: z.array(z.object({ id: z.string(), projectId: z.string(), updatedAt: z.string() }).passthrough()).max(500),
+  sessions: z.array(z.object({ id: z.string(), projectId: z.string(), participant: z.string(), startedAt: z.string() }).passthrough()).max(1000),
+});
+
+app.post("/api/agent/sync", api(async (req, res) => {
+  if (!isSupabaseConfigured()) throw new Error("Hosted sync is not configured on this server.");
+  const payload = agentSyncSchema.parse(req.body);
+  const synced = await cloudAgentSync(payload as unknown as Parameters<typeof cloudAgentSync>[0]);
+  res.json({ synced });
 }));
 
 app.post("/mcp", async (req, res) => {
@@ -117,7 +175,7 @@ for (const method of ["get", "delete"] as const) {
   });
 }
 
-app.get("/health", (_req, res) => res.json({ ok: true, service: "collavibe", version: "0.3.0" }));
+app.get("/health", (_req, res) => res.json({ ok: true, service: "collavibe", version: "0.4.0", mode: isSupabaseConfigured() ? "cloud" : "local" }));
 
 const publicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
 app.use(express.static(publicDirectory));
@@ -130,4 +188,6 @@ app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
 
 const port = Number(process.env.PORT || 4317);
 const host = process.env.HOST || "127.0.0.1";
-app.listen(port, host, () => console.log(`Collavibe listening on http://${host}:${port}/mcp`));
+if (!process.env.VERCEL) app.listen(port, host, () => console.log(`Collavibe listening on http://${host}:${port}/mcp`));
+
+export default app;

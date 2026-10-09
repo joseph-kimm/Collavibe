@@ -1,6 +1,6 @@
 {
   "name": "collavibe",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",
+    "@supabase/supabase-js": "^2.117.3",
     "express": "5.3.0",
     "zod": "4.6.5"
   },
@@ -25,8 +26,5 @@
     "tsx": "4.23.15",
     "typescript": "5.9.3",
     "vitest": "4.1.11"
-  },
-  "engines": {
-    "node": ">=22.12"
   }
 }

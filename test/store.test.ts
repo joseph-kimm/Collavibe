@@ -3,7 +3,7 @@ import { access, mkdtemp, rename, rm, utimes, writeFile } from "node:fs/promises
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { inspectRepository } from "../src/git.js";
 import { chooseWorkItem, createTeam, getDashboard, getProjectContext, joinTeam, loginUser, readState, resetStateForTests, signUpUser, startCollaborationSession, syncCollaborationSession } from "../src/store.js";
 
@@ -31,6 +31,10 @@ beforeEach(async () => {
 });
 
 afterAll(async () => rm(root, { recursive: true, force: true }));
+afterEach(() => {
+  delete process.env.COLLAVIBE_CLOUD_URL;
+  vi.unstubAllGlobals();
+});
 
 describe("agent-to-team session workflow", () => {
   it("supports account creation, team codes, joining, and team-scoped dashboards", async () => {
@@ -60,6 +64,18 @@ describe("agent-to-team session workflow", () => {
     expect(context.team).toEqual({ id: team.id, name: "Learning Lab" });
     const dashboard = await getDashboard(owner.user.id, team.id);
     expect(dashboard.projects.map((project) => project.id)).toContain(context.project.id);
+  });
+
+  it("accepts a hosted team code and publishes local MCP state without a local team record", async () => {
+    process.env.COLLAVIBE_CLOUD_URL = "https://collavibe.example";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ synced: { projectId: "remote" } }), {
+      status: 200, headers: { "content-type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const started = await startCollaborationSession({ repoPath: repo, participant: "Remote Teammate", teamCode: "ABCD2345" });
+    expect(started.team).toEqual({ id: "ABCD2345", name: "Hosted team" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.every((call) => call[0] === "https://collavibe.example/api/agent/sync")).toBe(true);
   });
 
   it("preserves the complete filename for the first modified tracked file", async () => {

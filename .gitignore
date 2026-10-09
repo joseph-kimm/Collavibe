@@ -8,3 +8,6 @@ coverage/
 *.log
 .collavibe/
 *.tsbuildinfo
+.vercel
+.env*
+!.env.example

@@ -57,6 +57,10 @@ async function load({ quiet = false } = {}) {
     if (!response.ok) throw new Error(nextDashboard.error || "Could not load workspace.");
     if (sequence !== loadSequence) return;
     dashboard = nextDashboard;
+    const cloudMode = dashboard.deploymentMode === "cloud";
+    const repoField = document.querySelector("#create-repo-field");
+    repoField.hidden = cloudMode;
+    repoField.querySelector("input").required = !cloudMode;
     if (dashboard.selectedTeam) {
       selectedTeamId = dashboard.selectedTeam.id;
       localStorage.setItem("collavibe-team", selectedTeamId);
@@ -124,8 +128,10 @@ function renderNoProject() {
   elements.currentHead.textContent = "—";
   elements.selectionStatus.textContent = "Setup";
   elements.selectionStatus.className = "status";
-  elements.activity.replaceChildren(document.querySelector("#connect-project").content.cloneNode(true));
+  const cloudMode = dashboard.deploymentMode === "cloud";
+  elements.activity.replaceChildren(document.querySelector(cloudMode ? "#connect-agent" : "#connect-project").content.cloneNode(true));
   elements.detail.innerHTML = '<p class="placeholder-detail">Once a repository is connected, its feature tree, teammate sessions, and verified commits will appear here.</p>';
+  if (cloudMode) return;
   const form = document.querySelector("#connect-project-form");
   form.elements.repoPath.value = dashboard.defaultRepoPath || "";
   form.addEventListener("submit", connectProject);

@@ -3,6 +3,7 @@ import { mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/
 import path from "node:path";
 import { promisify } from "node:util";
 import { inspectDelta, inspectRepository } from "./git.js";
+import { cloudSyncUrl, publishCloudState } from "./cloud-sync.js";
 import type { CollaborationSession, CollavibeState, Feature, FeatureStatus, Project, Team, User, WorkOption } from "./types.js";
 
 const emptyState = (): CollavibeState => ({
@@ -262,6 +263,7 @@ export async function getDashboard(userId: string, requestedTeamId?: string) {
     features: state.features.filter((feature) => projectIds.has(feature.projectId)),
     sessions: state.sessions.filter((session) => projectIds.has(session.projectId)),
     defaultRepoPath: process.cwd(),
+    deploymentMode: "local" as const,
   };
 }
 
@@ -311,7 +313,7 @@ function buildWorkOptions(project: Project, features: Feature[], participant: st
 
 export async function getProjectContext(repoPath: string, teamCode?: string) {
   const git = await inspectRepository(repoPath);
-  return mutate((state) => {
+  const context = await mutate((state) => {
     const id = projectId(git.remote, git.root);
     let project = state.projects.find((item) => item.id === id);
     const timestamp = new Date().toISOString();
@@ -327,9 +329,9 @@ export async function getProjectContext(repoPath: string, teamCode?: string) {
     let team = state.teamProjects.find((link) => link.projectId === id);
     if (teamCode) {
       const requestedTeam = state.teams.find((candidate) => candidate.joinCode === normalizeTeamCode(teamCode));
-      if (!requestedTeam) throw new Error("That team code is not valid.");
-      if (team && team.teamId !== requestedTeam.id) throw new Error("This project already belongs to another team.");
-      if (!team) {
+      if (!requestedTeam && !cloudSyncUrl()) throw new Error("That team code is not valid.");
+      if (requestedTeam && team && team.teamId !== requestedTeam.id) throw new Error("This project already belongs to another team.");
+      if (requestedTeam && !team) {
         team = { teamId: requestedTeam.id, projectId: id, addedAt: timestamp };
         state.teamProjects.push(team);
       }
@@ -337,13 +339,15 @@ export async function getProjectContext(repoPath: string, teamCode?: string) {
     const linkedTeam = team ? state.teams.find((candidate) => candidate.id === team.teamId) : undefined;
     const features = state.features.filter((item) => item.projectId === id);
     const sessions = state.sessions.filter((item) => item.projectId === id).sort((a, b) => b.startedAt.localeCompare(a.startedAt));
-    return { project, features, sessions, team: linkedTeam ? { id: linkedTeam.id, name: linkedTeam.name } : undefined };
+    return { project, features, sessions, team: linkedTeam ? { id: linkedTeam.id, name: linkedTeam.name } : teamCode ? { id: normalizeTeamCode(teamCode), name: "Hosted team" } : undefined };
   });
+  if (teamCode) await publishCloudState({ teamCode, project: context.project, features: context.features, sessions: context.sessions });
+  return context;
 }
 
 export async function startCollaborationSession(input: { repoPath: string; participant: string; intent?: string; teamCode?: string }) {
   const context = await getProjectContext(input.repoPath, input.teamCode);
-  return mutate((state) => {
+  const started = await mutate((state) => {
     const session: CollaborationSession = {
       id: `session_${randomUUID()}`,
       projectId: context.project.id,
@@ -353,6 +357,7 @@ export async function startCollaborationSession(input: { repoPath: string; parti
       status: "choosing",
       startSnapshot: context.project.latestGit,
       startedAt: new Date().toISOString(),
+      teamCode: input.teamCode ? normalizeTeamCode(input.teamCode) : undefined,
     };
     state.sessions.push(session);
     const teammates = state.sessions.filter((item) => item.projectId === context.project.id && item.id !== session.id).slice(-8).reverse();
@@ -365,10 +370,15 @@ export async function startCollaborationSession(input: { repoPath: string; parti
       agentInstructions: "Briefly summarize the repository and recent teammate activity. Present 3 to 6 concrete work options, including Define a new feature. Ask the user to choose or refine one. After the user decides, call choose_work_item before editing code.",
     };
   });
+  if (input.teamCode) {
+    const latest = await readState();
+    await publishCloudState({ teamCode: input.teamCode, project: started.project, features: latest.features.filter((item) => item.projectId === started.project.id), sessions: latest.sessions.filter((item) => item.projectId === started.project.id) });
+  }
+  return started;
 }
 
 export async function chooseWorkItem(input: { sessionId: string; featureId?: string; newFeature?: { title: string; description: string; checklist: string[] }; intendedBranch?: string }) {
-  return mutate((state) => {
+  const selected = await mutate((state) => {
     const session = findSession(state, input.sessionId);
     if (session.status === "synced") throw new Error("This session has already been synced.");
     if (session.status === "active") throw new Error("This session already has selected work.");
@@ -410,6 +420,8 @@ export async function chooseWorkItem(input: { sessionId: string; featureId?: str
       agentInstructions: `Work only on the selected feature. Keep its checklist visible in your plan. Before ending the chat, summarize what happened and call sync_collaboration_session with sessionId ${session.id}.`,
     };
   });
+  if (selected.session.teamCode) await publishProjectForSession(selected.session);
+  return selected;
 }
 
 export async function syncCollaborationSession(input: {
@@ -429,7 +441,7 @@ export async function syncCollaborationSession(input: {
   const current = await inspectRepository(existing.repoPath);
   const verified = await inspectDelta(existing.startSnapshot, current, input.agentReportedFiles);
 
-  return mutate((latest) => {
+  const synced = await mutate((latest) => {
     const session = findSession(latest, input.sessionId);
     if (session.status === "synced") throw new Error("This session has already been synced.");
     session.status = "synced";
@@ -467,6 +479,20 @@ export async function syncCollaborationSession(input: {
         ? `Tell the user that ${verified.reportedButUnverified.length} reported file(s) were not visible in Git and list them clearly. Do not claim they were synced.`
         : "Confirm the session was synced and distinguish the agent-authored summary from the Git-verified commits and files.",
     };
+  });
+  if (synced.session.teamCode) await publishProjectForSession(synced.session);
+  return synced;
+}
+
+async function publishProjectForSession(session: CollaborationSession) {
+  const latest = await readState();
+  const project = latest.projects.find((item) => item.id === session.projectId);
+  if (!project || !session.teamCode) return;
+  await publishCloudState({
+    teamCode: session.teamCode,
+    project,
+    features: latest.features.filter((item) => item.projectId === project.id),
+    sessions: latest.sessions.filter((item) => item.projectId === project.id),
   });
 }
 

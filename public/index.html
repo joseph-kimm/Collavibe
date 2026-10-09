@@ -61,7 +61,7 @@
           </div>
           <form id="create-team-form" class="stack-form">
             <label>Team name<input name="name" minlength="2" maxlength="120" placeholder="Learning Lab" required /></label>
-            <label>Repository path<input name="repoPath" placeholder="/Users/you/projects/app" required /><small>Local path used by this Collavibe server</small></label>
+            <label id="create-repo-field">Repository path<input name="repoPath" placeholder="/Users/you/projects/app" required /><small>Local path used by this Collavibe server</small></label>
             <p class="form-error" data-team-error role="alert"></p>
             <button class="primary-action" type="submit">Create team</button>
           </form>
@@ -143,6 +143,19 @@
           <button class="primary-action" type="submit">Connect</button>
         </form>
         <p class="form-error" id="project-error" role="alert"></p>
+      </div>
+    </template>
+
+    <template id="connect-agent">
+      <div class="connect-project">
+        <p class="kicker">Connect your first agent</p>
+        <h3>Your team is ready.</h3>
+        <p>Install Collavibe beside a local Git checkout, set <code>COLLAVIBE_CLOUD_URL</code>, and start the MCP session with the team code above. The repository map and verified handoffs will appear here automatically.</p>
+        <ol class="agent-steps">
+          <li>Copy the team code from the header.</li>
+          <li>Configure the Collavibe MCP server in Codex, Claude, or another MCP client.</li>
+          <li>Run the <strong>start</strong> prompt with your repository path, name, and team code.</li>
+        </ol>
       </div>
     </template>
 
