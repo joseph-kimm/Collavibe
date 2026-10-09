@@ -2,20 +2,35 @@
 
 Branch tested: `codex/collavibe-session-sync`
 
-This report records the final local verification pass for the Collavibe MCP prototype. It separates executed evidence from future production work.
+This report records the local and hosted verification pass for the Collavibe MCP preview. It separates executed evidence from future production hardening.
 
 ## Automated verification
 
 | Check | Result |
 | --- | --- |
 | TypeScript compilation | Passed |
-| Vitest suite | 3 files, 25 tests passed |
+| Vitest suite | 4 files, 28 tests passed |
 | Clean `npm ci` | Passed without engine warnings |
 | Full dependency audit | 0 vulnerabilities |
 | Git whitespace validation | Passed |
 | Working tree before report | Clean |
 
-The suite includes Git edge cases, session-state transitions, concurrent persistence, Streamable HTTP behavior, restart recovery, response redaction, remote-credential stripping, client input limits, a text fallback for clients that ignore MCP `structuredContent`, local account authentication, team membership, invite codes, and team-scoped repository attachment. The detailed matrix and commands are in [TESTING.md](TESTING.md).
+The suite includes Git edge cases, session-state transitions, concurrent persistence, Streamable HTTP behavior, restart recovery, response redaction, remote-credential stripping, client input limits, a text fallback for clients that ignore MCP `structuredContent`, local account authentication, team membership, invite codes, hosted team-code publishing, and team-scoped repository attachment. The detailed matrix and commands are in [TESTING.md](TESTING.md).
+
+## Hosted Supabase and Vercel flow
+
+The Supabase project was provisioned on the free tier with Auth, seven application tables, user-profile trigger, membership checks, and row-level security. Two live disposable-user flows verified:
+
+1. account signup and immediate authenticated session;
+2. team creation with an eight-character code;
+3. a second account joining with the lowercase form of that code;
+4. team membership isolation;
+5. a local MCP process inspecting a real Git checkout and publishing through the hosted sync endpoint; and
+6. both the repository and new session appearing in the authenticated team dashboard.
+
+Disposable users and orphaned test projects were deleted after verification. Backend Supabase keys are stored only as hidden Vercel secrets and in an ignored local environment file.
+
+The production deployment `dpl_Yfd2GrFqv1BD4E4EstDJbN946LZ3` completed successfully and is aliased to [collavibe.vercel.app](https://collavibe.vercel.app). Vercel reports the deployment as Ready, all three Supabase values are present in the Production environment, and Vercel Authentication was explicitly disabled so third-party users can reach the signup screen.
 
 ## Account and team workflow
 
@@ -81,4 +96,4 @@ The browser view was checked at its default desktop size and at a 390 by 844 mob
 
 The development HTTP server now binds to `127.0.0.1` by default. Git credentials are removed from stored remote URLs, state writes are atomic and inter-process locked, inputs are bounded, and internal file fingerprints are not returned to clients.
 
-This is still a local prototype. A shared deployment requires user authentication, repository-level authorization, a transactional database, rate limiting, structured operational logs, HTTPS, and deployment-level recovery tests.
+The hosted preview now has Supabase authentication, transactional shared storage, row-level security, server-only backend credentials, and HTTPS. The local MCP still performs Git inspection so the hosted service never reads a developer filesystem. Before broader production use, persistent team-code agent access should be replaced with scoped revocable tokens, and the service still needs repository-provider authorization, rate limiting, structured operational logs, and deployment-level load and recovery tests.

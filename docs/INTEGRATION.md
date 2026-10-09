@@ -14,7 +14,8 @@ The repository includes a project-scoped `.mcp.json`:
       "command": "npx",
       "args": ["tsx", "server/stdio.ts"],
       "env": {
-        "COLLAVIBE_DATA_PATH": ".collavibe/state.json"
+        "COLLAVIBE_DATA_PATH": ".collavibe/state.json",
+        "COLLAVIBE_CLOUD_URL": "https://collavibe.vercel.app"
       }
     }
   }
@@ -37,6 +38,7 @@ For stdio, use absolute paths because `codex mcp add` creates a persistent confi
 ```bash
 codex mcp add collavibe \
   --env COLLAVIBE_DATA_PATH=/absolute/path/to/Collavibe/.collavibe/state.json \
+  --env COLLAVIBE_CLOUD_URL=https://collavibe.vercel.app \
   -- /absolute/path/to/Collavibe/node_modules/.bin/tsx \
   /absolute/path/to/Collavibe/server/stdio.ts
 ```
@@ -55,9 +57,9 @@ For a development checkout, add a `collavibe` stdio entry to `claude_desktop_con
 
 ## Team codes
 
-Create or join a team in the browser first. The workspace header displays an eight-character code. Pass it as `teamCode` when calling `get_project_context` or `start_collaboration_session`, or as `team_code` when invoking the `start` prompt. On the first use, Collavibe attaches that repository identity to the team. Later sessions for the same repository resolve to the same shared workspace.
+Create or join a team in the hosted browser workspace first. The workspace header displays an eight-character code. Set `COLLAVIBE_CLOUD_URL` for the local MCP, then pass the code as `teamCode` when calling `get_project_context` or `start_collaboration_session`, or as `team_code` when invoking the `start` prompt. On first use, the local MCP inspects the repository and publishes a redacted snapshot to that team. Later sessions for the same repository resolve to the same shared workspace.
 
-The code is an invitation mechanism, not a production API credential. Keep it within the intended class or project team. A hosted release should replace or supplement it with scoped, revocable agent tokens.
+The code currently serves as both the invitation and agent capability. Keep it within the intended class or project team. A production release should replace or supplement it with scoped, revocable agent tokens.
 
 ## Intended session loop
 

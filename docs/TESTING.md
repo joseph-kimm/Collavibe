@@ -29,6 +29,8 @@ The suite covers:
 - Team creation, unique invite codes, idempotent joining, and member-scoped dashboards.
 - Repository attachment through both the browser flow and MCP `teamCode` input.
 - Authentication enforcement on browser project-state endpoints.
+- Redaction of team capabilities and internal working-file fingerprints before hosted publishing.
+- Hosted Supabase signup, team creation, invite join, agent sync, and member dashboard flow.
 
 ## MCP Inspector
 
@@ -82,4 +84,4 @@ Open `http://127.0.0.1:4317/` and verify:
 
 ## Production boundary
 
-These tests validate the local collaboration prototype, including local accounts and team membership. A shared deployment still needs production identity, repository authorization, revocable agent credentials, a transactional database, rate limits, structured logs, HTTPS, and deployment-level concurrency and recovery tests.
+The automated suite validates the local collaboration workflow and cloud publishing boundary. The live smoke test validates Supabase Auth/Postgres end to end. Broader production use still needs repository authorization, revocable agent credentials, rate limits, structured logs, and deployment-level load and recovery tests.
