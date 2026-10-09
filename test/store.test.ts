@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, rename, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, rename, rm, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -10,6 +10,7 @@ import { chooseWorkItem, getProjectContext, readState, resetStateForTests, start
 const exec = promisify(execFile);
 const root = await mkdtemp(path.join(os.tmpdir(), "collavibe-test-"));
 const repo = path.join(root, "repo");
+const remoteRepo = path.join(root, "remote.git");
 process.env.COLLAVIBE_DATA_PATH = path.join(root, "state.json");
 
 async function git(...args: string[]) {
@@ -18,6 +19,7 @@ async function git(...args: string[]) {
 
 beforeEach(async () => {
   await rm(repo, { recursive: true, force: true });
+  await rm(remoteRepo, { recursive: true, force: true });
   await exec("mkdir", ["-p", repo]);
   await git("init", "-b", "main");
   await git("config", "user.name", "Test Teammate");
@@ -37,11 +39,39 @@ describe("agent-to-team session workflow", () => {
     expect(snapshot.workingFiles).toEqual(["README.md"]);
   });
 
+  it("removes credentials from repository remotes before storing context", async () => {
+    await git("remote", "add", "origin", "https://secret-user:secret-password@example.com/team/repo.git");
+    const snapshot = await inspectRepository(repo);
+    expect(snapshot.remote).toBe("https://example.com/team/repo.git");
+    expect(JSON.stringify(snapshot)).not.toContain("secret-password");
+  });
+
   it("starts with repository context and concrete work choices", async () => {
     const started = await startCollaborationSession({ repoPath: repo, participant: "Shayan" });
     expect(started.project.latestGit.branch).toBe("main");
     expect(started.workOptions.at(-1)?.kind).toBe("new_feature");
     expect(started.agentInstructions.toLowerCase()).toContain("ask the user");
+  });
+
+  it("does not offer remote-tracking refs as duplicate branch choices", async () => {
+    await exec("git", ["init", "--bare", remoteRepo]);
+    await git("remote", "add", "origin", remoteRepo);
+    await git("push", "-u", "origin", "main");
+    await git("branch", "teammate-work");
+    await git("push", "origin", "teammate-work");
+    await git("branch", "-D", "teammate-work");
+    const started = await startCollaborationSession({ repoPath: repo, participant: "Shayan" });
+    expect(started.project.latestGit.branches.some((branch) => branch.name === "origin/teammate-work")).toBe(true);
+    expect(started.workOptions.some((option) => option.branch === "origin/teammate-work")).toBe(false);
+  });
+
+  it("recovers a stale inter-process lock without leaving a lock behind", async () => {
+    const lockPath = `${process.env.COLLAVIBE_DATA_PATH!}.lock`;
+    await writeFile(lockPath, "abandoned-owner", "utf8");
+    const old = new Date(Date.now() - 60_000);
+    await utimes(lockPath, old, old);
+    await getProjectContext(repo);
+    await expect(access(lockPath)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("records a selected feature and verifies changed files at sync", async () => {
@@ -175,17 +205,39 @@ describe("agent-to-team session workflow", () => {
     expect(synced.verification.reportedButUnverified).toEqual([]);
   });
 
-  it("rejects ambiguous selections and terminal session transitions", async () => {
+  it("preserves newline characters in Git filenames", async () => {
+    const unusualName = "line\nbreak.ts";
     const started = await startCollaborationSession({ repoPath: repo, participant: "Shayan" });
-    const first = await chooseWorkItem({
+    await chooseWorkItem({
       sessionId: started.session.id,
+      newFeature: { title: "Odd filename", description: "Verify Git paths are parsed without newline delimiters.", checklist: ["Track exact path"] },
+    });
+    await writeFile(path.join(repo, unusualName), "export const unusual = true;\n", "utf8");
+    const snapshot = await inspectRepository(repo);
+    expect(snapshot.workingFiles).toEqual([unusualName]);
+    const synced = await syncCollaborationSession({
+      sessionId: started.session.id,
+      summary: "Verified that a filename containing a newline remains one exact path.",
+      workCompleted: ["Tracked unusual filename"], decisions: [], blockers: [], nextSteps: [], agentReportedFiles: [unusualName], featureStatus: "review",
+    });
+    expect(synced.verification.changedFiles).toEqual([unusualName]);
+    expect(synced.verification.reportedButUnverified).toEqual([]);
+  });
+
+  it("rejects ambiguous selections and terminal session transitions", async () => {
+    const setup = await startCollaborationSession({ repoPath: repo, participant: "Amina" });
+    const first = await chooseWorkItem({
+      sessionId: setup.session.id,
       newFeature: { title: "First feature", description: "Create a first concrete test feature.", checklist: ["Make a change"] },
     });
+    const started = await startCollaborationSession({ repoPath: repo, participant: "Shayan" });
     await expect(chooseWorkItem({
       sessionId: started.session.id,
       featureId: first.feature.id,
       newFeature: { title: "Second feature", description: "This ambiguous choice must be rejected.", checklist: ["Do not accept"] },
     })).rejects.toThrow("exactly one");
+    await chooseWorkItem({ sessionId: started.session.id, featureId: first.feature.id });
+    await expect(chooseWorkItem({ sessionId: started.session.id, featureId: first.feature.id })).rejects.toThrow("already has selected work");
     await writeFile(path.join(repo, "change.ts"), "export const changed = true;\n", "utf8");
     const payload = {
       sessionId: started.session.id,

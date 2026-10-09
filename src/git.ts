@@ -34,9 +34,25 @@ function parseNulList(value: string): string[] {
   return value.split("\0").filter(Boolean);
 }
 
+function sanitizeRemote(value: string): string {
+  if (!value) return "";
+  try {
+    const remote = new URL(value);
+    remote.username = "";
+    remote.password = "";
+    return remote.toString();
+  } catch {
+    return value.replace(/^[^/@:]+@(?=[^/]+:)/, "");
+  }
+}
+
 async function fingerprintFile(root: string, file: string): Promise<string> {
   try {
     const details = await lstat(path.join(root, file));
+    if (details.isDirectory()) {
+      const submoduleDiff = await git(root, ["diff", "--submodule=short", "HEAD", "--", file], true);
+      return createHash("sha256").update(`${details.mode}:${submoduleDiff}`).digest("hex");
+    }
     const objectHash = await git(root, ["hash-object", "--no-filters", "--", file]);
     return createHash("sha256").update(`${details.mode}:${objectHash}`).digest("hex");
   } catch (error) {
@@ -70,7 +86,7 @@ export async function inspectRepository(repoPath: string): Promise<GitSnapshot> 
     inspectWorkingTree(root),
     git(root, ["for-each-ref", "--format=%(refname:short)%09%(objectname)%09%(upstream:short)", "refs/heads", "refs/remotes/origin"]),
     git(root, ["log", "-n", "12", "--date=iso-strict", "--pretty=format:%H%x1f%h%x1f%an%x1f%aI%x1f%s"]),
-    git(root, ["ls-files"]),
+    git(root, ["ls-files", "-z"]),
   ]);
 
   const branches: GitBranch[] = branchRows.split("\n").filter((line) => line && !line.startsWith("origin/HEAD\t")).map((line) => {
@@ -80,7 +96,7 @@ export async function inspectRepository(repoPath: string): Promise<GitSnapshot> 
 
   return {
     root,
-    remote: remote || undefined,
+    remote: sanitizeRemote(remote) || undefined,
     branch: branch || "detached",
     head,
     dirty: workingTree.workingFiles.length > 0,
@@ -88,7 +104,7 @@ export async function inspectRepository(repoPath: string): Promise<GitSnapshot> 
     workingFileFingerprints: workingTree.workingFileFingerprints,
     branches,
     recentCommits: parseCommits(commits),
-    trackedFiles: trackedFiles.split("\n").filter(Boolean).sort(),
+    trackedFiles: parseNulList(trackedFiles).sort(),
     capturedAt: new Date().toISOString(),
   };
 }
@@ -100,13 +116,13 @@ export async function inspectDelta(start: GitSnapshot, current: GitSnapshot, rep
     ? ""
     : await git(current.root, ["log", current.head, "--not", ...knownHeads, "--date=iso-strict", "--pretty=format:%H%x1f%h%x1f%an%x1f%aI%x1f%s"], true);
   const commits = parseCommits(commitsRaw);
-  const committedFileRows = await Promise.all(commits.map((commit) => git(current.root, ["diff-tree", "--root", "-m", "--no-commit-id", "--name-only", "-r", "--no-renames", commit.hash], true)));
+  const committedFileRows = await Promise.all(commits.map((commit) => git(current.root, ["diff-tree", "--root", "-m", "--no-commit-id", "--name-only", "-z", "-r", "--no-renames", commit.hash], true)));
   const changedWorkingFiles = current.workingFiles.filter((file) => {
     const startingFingerprint = start.workingFileFingerprints?.[file];
     return !startingFingerprint || startingFingerprint !== current.workingFileFingerprints?.[file];
   });
   const changedFiles = [...new Set([
-    ...committedFileRows.flatMap((value) => value.split("\n").filter(Boolean)),
+    ...committedFileRows.flatMap(parseNulList),
     ...changedWorkingFiles,
   ])].sort();
   return {

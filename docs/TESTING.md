@@ -1,0 +1,77 @@
+# Testing Collavibe
+
+## Automated suite
+
+Run the complete local suite:
+
+```bash
+npm run check
+npm audit --omit=dev
+```
+
+The suite covers:
+
+- MCP tool and prompt discovery.
+- Streamable HTTP initialization with two independent clients.
+- Invalid HTTP requests without an MCP session.
+- State recovery after restarting the HTTP server.
+- Concurrent writes from four separate MCP processes.
+- Repository refresh without duplicate projects.
+- Exact filenames, including rename-like names containing `->`.
+- Pre-existing dirty files remaining unattributed until their contents change.
+- New commits on top of a teammate branch without claiming the teammate's older commits.
+- Branch switches without false commit or file attribution.
+- False agent-reported files appearing as unverified.
+- Rejection of incomplete `done` claims, ambiguous feature selection, duplicate sync, and post-sync selection.
+- Removal of credentials embedded in Git remote URLs.
+- Removal of internal working-tree fingerprints from MCP and browser responses.
+
+## MCP Inspector
+
+With `npm run start` running, validate the Streamable HTTP contract:
+
+```bash
+npx @modelcontextprotocol/inspector --cli \
+  http://127.0.0.1:4317/mcp \
+  --transport http \
+  --method tools/list \
+  --strict
+```
+
+Validate the stdio contract:
+
+```bash
+npx @modelcontextprotocol/inspector --cli \
+  npx tsx server/stdio.ts \
+  --transport stdio \
+  --method tools/list \
+  --strict
+```
+
+For release testing, use Inspector to call every tool with both representative and invalid inputs. A complete no-code sequence should produce zero verified commits and zero verified changed files.
+
+## Real-agent smoke test
+
+Configure Collavibe as a local stdio MCP and ask the coding agent to:
+
+1. Call `start_collaboration_session` and report the returned choices.
+2. Call `choose_work_item` with a test feature.
+3. Call `get_sync_template`.
+4. Call `sync_collaboration_session` with `featureStatus: review` and no reported files.
+
+The test passes when the agent completes the sequence and Collavibe reports a synced session with no fabricated Git evidence. Run this test read-only and use a disposable `COLLAVIBE_DATA_PATH`.
+
+## Browser checks
+
+Open `http://127.0.0.1:4317/` and verify:
+
+- the repository head matches `git rev-parse HEAD`;
+- feature selection updates the detail pane and its pressed state;
+- refresh updates the connection timestamp without console errors;
+- agent summaries remain visually separate from verified commits and files;
+- the layout remains readable at a 390 by 844 viewport;
+- completed checklist items have both a visual check and screen-reader text.
+
+## Production boundary
+
+These tests validate the local collaboration prototype. A shared deployment still needs authenticated users, repository authorization, a transactional database, rate limits, structured logs, and deployment-level concurrency and recovery tests.

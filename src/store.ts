@@ -15,6 +15,7 @@ const STALE_LOCK_MS = 30_000;
 async function withStateLock<T>(operation: () => Promise<T>): Promise<T> {
   const file = statePath();
   const lockFile = `${file}.lock`;
+  const lockToken = `${process.pid}:${randomUUID()}`;
   await mkdir(path.dirname(file), { recursive: true });
   const startedAt = Date.now();
   let handle;
@@ -22,6 +23,7 @@ async function withStateLock<T>(operation: () => Promise<T>): Promise<T> {
   while (!handle) {
     try {
       handle = await open(lockFile, "wx");
+      await handle.writeFile(lockToken, "utf8");
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code;
       if (code !== "EEXIST") throw error;
@@ -48,9 +50,11 @@ async function withStateLock<T>(operation: () => Promise<T>): Promise<T> {
     return await operation();
   } finally {
     await handle.close();
-    await unlink(lockFile).catch((error: NodeJS.ErrnoException) => {
-      if (error.code !== "ENOENT") throw error;
-    });
+    try {
+      if (await readFile(lockFile, "utf8") === lockToken) await unlink(lockFile);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
   }
 }
 
@@ -165,6 +169,7 @@ export async function chooseWorkItem(input: { sessionId: string; featureId?: str
   return mutate((state) => {
     const session = findSession(state, input.sessionId);
     if (session.status === "synced") throw new Error("This session has already been synced.");
+    if (session.status === "active") throw new Error("This session already has selected work.");
     if (Boolean(input.featureId) === Boolean(input.newFeature)) {
       throw new Error("Choose exactly one existing feature or one new feature.");
     }
