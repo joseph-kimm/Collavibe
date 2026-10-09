@@ -6,11 +6,11 @@ Hosted workspace: **https://collavibe.vercel.app**
 
 The agent does the language work. Collavibe provides the durable coordination layer:
 
-1. Inspect the current Git repository and prior teammate sessions.
+1. Let the coding agent inspect the current Git repository and load prior teammate sessions.
 2. Offer the user concrete features or branches to continue.
 3. Record the chosen feature and its completion checklist before code changes begin.
 4. Accept an agent-authored session summary at the end of the chat.
-5. Independently verify commits and changed files against the starting Git snapshot.
+5. Record the sanitized Git snapshot and changed files attested by the coding agent.
 6. Publish the result to a readable project map.
 
 Collavibe never commits, pushes, or edits project source code.
@@ -30,22 +30,34 @@ Supabase Auth stores account credentials, browser sessions use `HttpOnly`, `Same
 
 | Capability | MCP primitive | Purpose |
 | --- | --- | --- |
-| `get_project_context` | Tool | Refresh repository, feature, and session context, optionally attaching it with a team code. |
-| `start_collaboration_session` | Tool | Capture starting Git state, attach it to a team code, and generate work choices. |
+| `get_project_context` | Tool | Load hosted team, project, feature, and session context using a team code. |
+| `start_collaboration_session` | Tool | Record the agent-supplied starting Git state and generate work choices. |
 | `choose_work_item` | Tool | Claim an existing feature or define a new one with a checklist. |
 | `get_sync_template` | Tool | Tell the agent exactly what to summarize from the chat. |
-| `sync_collaboration_session` | Tool | Save the summary and reconcile it with verified Git changes. |
+| `sync_collaboration_session` | Tool | Save the summary and agent-attested final Git changes. |
 | `start` | Prompt | Client-visible start workflow; appears as a slash command in clients that support MCP prompts. |
 | `sync` | Prompt | Client-visible end-of-session workflow. |
 
-## Run locally
+## Connect an agent
+
+The production Streamable HTTP endpoint is:
+
+```text
+https://collavibe.vercel.app/mcp
+```
+
+No Collavibe process needs to run on the developer's laptop. Add that URL to an MCP-compatible client, copy the team code from the hosted workspace, and ask the agent to start a Collavibe session. The agent uses its normal repository tools to create the sanitized Git snapshot that the hosted MCP stores.
+
+This repository includes a project-scoped `.mcp.json` already pointed at the production endpoint. See [client integration](docs/INTEGRATION.md) for Codex, Claude Code, and generic clients.
+
+## Local development
 
 ```bash
 npm install
 npm run start
 ```
 
-The Streamable HTTP endpoint is `http://localhost:4317/mcp`. A local stdio client can run:
+The development Streamable HTTP endpoint is `http://localhost:4317/mcp`. The original local stdio implementation remains available for development and compatibility testing:
 
 ```bash
 npm run mcp
@@ -65,20 +77,12 @@ To run the hosted dashboard backend locally, copy `.env.example` to `.env.local`
 node --env-file=.env.local --import tsx server/http.ts
 ```
 
-To publish a local MCP session to the hosted workspace, set only the public deployment URL on the developer machine:
-
-```bash
-COLLAVIBE_CLOUD_URL=https://collavibe.vercel.app npm run mcp
-```
-
-The MCP inspects Git locally; the hosted service never attempts to read a developer's filesystem. The `teamCode` supplied to the `start` prompt connects that sanitized project and session state to the right team.
-
-The HTTP server binds to `127.0.0.1` by default so repository metadata is not exposed to the local network. Set `HOST` deliberately when testing from another machine.
+The local HTTP server binds to `127.0.0.1` by default. Set `HOST` deliberately when testing from another machine.
 
 Open `http://localhost:4317/` to sign in, create or join a team, and view its read-only project map. See [client integration](docs/INTEGRATION.md) for Claude Code, Claude Desktop, Codex, and generic MCP clients, [architecture](docs/ARCHITECTURE.md) for the trust boundary and data flow, [testing](docs/TESTING.md) for the repeatable verification matrix, and [QA results](docs/TEST_RESULTS.md) for the latest executed evidence.
 
 ## Important boundary
 
-The end-of-session summary is written by the coding agent from its conversation context. Collavibe stores that summary as a claim and displays it separately from Git-verified commits and files. This prevents a fluent summary from becoming false evidence of work that is not present in the repository.
+The hosted service cannot independently read a developer's laptop. The conversation summary and Git snapshot are supplied by the coding agent, and the website labels remote repository evidence as **agent-attested**. The local development transport can still compute an independently observed local Git delta. Those two evidence levels are deliberately not presented as equivalent.
 
 This is a classroom-ready preview, not a production security release. Before broad public use, replace persistent team-code agent access with revocable scoped tokens and add rate limiting, audit logs, and repository-provider authorization.

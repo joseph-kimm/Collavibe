@@ -3,46 +3,52 @@
 ```text
 Human
   |
-  |  account / team / invite code
+  | account, team, invite code
   v
-Hosted team workspace (Vercel + Supabase Auth/Postgres)
-  |
-  v
-Coding agent (Codex, Claude, or another MCP client)
-  |  start / choose / sync
-  v
-Local Collavibe MCP server
-  |-------------------|
-  v                   v
-Git inspection     Durable coordination state
-(independent)      (projects, features, sessions)
-  |                   |
-  |-------------------|
-            |
-            v
-     Sanitized cloud sync -> authenticated project map
+Hosted team workspace ───────────────────────────────┐
+(Vercel + Supabase Auth/Postgres)                    |
+                                                     |
+Coding agent (Codex, Claude, or another MCP client) |
+  |                                                  |
+  | HTTPS Streamable HTTP                            |
+  v                                                  |
+Hosted Collavibe MCP                                 |
+(stateless Vercel handler)                           |
+  |                                                  |
+  | team-scoped projects, features, sessions         |
+  └──────────────────────> Supabase <────────────────┘
+
+The coding agent uses its native tools to inspect the local Git checkout and
+sends a sanitized snapshot at session start and sync. Collavibe never receives
+filesystem access and never edits, commits, or pushes source code.
 ```
+
+## Stateless transport
+
+`POST /mcp` creates a fresh MCP server and `StreamableHTTPServerTransport` for each request. No protocol session or repository state is kept in Vercel memory. Durable workflow state lives in Supabase, so a later request can be served by a different function instance.
+
+`GET /mcp` and `DELETE /mcp` return `405` because the current tools do not use server-initiated streams or resumable protocol sessions.
 
 ## Trust boundary
 
-The coding agent can summarize the conversation because it has the relevant chat context. That summary is useful but not treated as proof. At sync time, Collavibe independently compares the repository with the session's starting commit and working tree. The website deliberately labels these two sources separately:
+The hosted service cannot independently inspect a developer laptop. It records two related claims from the coding agent:
 
-- **Agent summary:** intent, decisions, blockers, and proposed next steps.
-- **Verified Git delta:** commits and files observable in the repository.
+- **Agent summary:** intent, decisions, blockers, completed work, and next steps derived from the conversation.
+- **Agent-attested Git delta:** start and end commits, branches, commits, changed files, and working files supplied after the agent inspects Git.
+
+The website names the second source agent-attested instead of verified. The original local development MCP can compute a local Git delta itself and marks that source separately as `local_git`.
 
 ## Components
 
-- `server/mcp.ts`: shared MCP tools and prompts.
-- `server/stdio.ts`: local stdio transport for desktop and CLI clients.
-- `server/http.ts`: authenticated API, hosted sync endpoint, optional Streamable HTTP transport, and project-map host.
-- `src/git.ts`: read-only repository inspection and delta calculation.
-- `src/store.ts`: local Git-adjacent coordination state with atomic writes and an inter-process lock.
-- `src/cloud-sync.ts`: redacted local-to-hosted publishing boundary.
-- `src/supabase.ts`: Supabase Auth, teams, memberships, projects, features, and collaboration sessions.
-- `public/`: dependency-free account onboarding and read-only team project map.
+- `server/hosted-mcp.ts`: cloud-safe MCP tools and prompts.
+- `src/hosted.ts`: team-scoped Supabase workflow for projects, features, and sessions.
+- `server/http.ts`: authentication API, stateless hosted MCP route, and static project-map host.
+- `src/supabase.ts`: Supabase Auth and privileged server-only database access.
+- `server/mcp.ts`, `server/stdio.ts`, `src/git.ts`, `src/store.ts`: local development transport and Git-observed workflow.
+- `public/`: dependency-free account onboarding and team project map.
 
-## Storage and deployment
+## Identity and isolation
 
-The local MCP keeps a small ignored JSON cache beside the checkout so it can verify Git deltas. Atomic rename prevents partial files and a lock coordinates multiple local agent processes. Shared browser state lives in Supabase Postgres; authentication is handled by Supabase Auth, backend credentials remain server-only, row-level security is enabled, and the Vercel deployment serves the team workspace over HTTPS.
+Every hosted call requires an eight-character team code. A stable, sanitized repository key is hashed to create a deterministic project ID. A repository can belong to only one team, and every later feature or session operation checks the project-to-team link before reading or writing it.
 
-The hosted service cannot and should not inspect a developer laptop. The local MCP publishes sanitized snapshots and handoffs using the team code. A production hardening phase should add revocable agent tokens, rate limits, structured audit logs, and repository-provider authorization.
+Browser credentials are managed by Supabase Auth. The service role key remains server-side in Vercel environment variables. The preview still needs revocable agent credentials, request rate limiting, structured audit logs, and repository-provider authorization before broad public deployment.

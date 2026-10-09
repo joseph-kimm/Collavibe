@@ -1,16 +1,8 @@
 {
   "mcpServers": {
     "collavibe": {
-      "type": "stdio",
-      "command": "npx",
-      "args": [
-        "tsx",
-        "server/stdio.ts"
-      ],
-      "env": {
-        "COLLAVIBE_DATA_PATH": ".collavibe/state.json",
-        "COLLAVIBE_CLOUD_URL": "https://collavibe.vercel.app"
-      }
+      "type": "http",
+      "url": "https://collavibe.vercel.app/mcp"
     }
   }
 }

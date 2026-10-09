@@ -1,73 +1,77 @@
 # Connect a coding agent
 
-Collavibe exposes the same coordination workflow through stdio and Streamable HTTP. The host coding agent remains responsible for conversation, planning, and code changes. Collavibe only supplies shared context and records a Git-verified handoff.
+Collavibe's production MCP is a stateless Streamable HTTP service:
+
+```text
+https://collavibe.vercel.app/mcp
+```
+
+The coding agent remains responsible for reading and editing its checkout. At the start and end of a session, it sends a sanitized Git snapshot to the hosted MCP. Collavibe stores the team context and handoff in Supabase. No Collavibe process needs to run on the developer's computer.
 
 ## Claude Code
 
-The repository includes a project-scoped `.mcp.json`:
+Add this project-scoped `.mcp.json`:
 
 ```json
 {
   "mcpServers": {
     "collavibe": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["tsx", "server/stdio.ts"],
-      "env": {
-        "COLLAVIBE_DATA_PATH": ".collavibe/state.json",
-        "COLLAVIBE_CLOUD_URL": "https://collavibe.vercel.app"
-      }
+      "type": "http",
+      "url": "https://collavibe.vercel.app/mcp"
     }
   }
 }
 ```
 
-After opening Claude Code in this repository, run `/mcp` to confirm the server is connected. MCP prompts are exposed as `/mcp__collavibe__start` and `/mcp__collavibe__sync`.
+Run `/mcp` to confirm the server is connected. Clients that surface MCP prompts expose the `start` and `sync` workflows; Claude Code commonly names them `/mcp__collavibe__start` and `/mcp__collavibe__sync`.
 
 ## Codex CLI
 
-For the development server, start Collavibe and register its local HTTP endpoint:
+Register the hosted endpoint once:
 
 ```bash
-npm run start
-codex mcp add collavibe --url http://127.0.0.1:4317/mcp
+codex mcp add collavibe --url https://collavibe.vercel.app/mcp
 ```
 
-For stdio, use absolute paths because `codex mcp add` creates a persistent configuration that may later start from another working directory:
-
-```bash
-codex mcp add collavibe \
-  --env COLLAVIBE_DATA_PATH=/absolute/path/to/Collavibe/.collavibe/state.json \
-  --env COLLAVIBE_CLOUD_URL=https://collavibe.vercel.app \
-  -- /absolute/path/to/Collavibe/node_modules/.bin/tsx \
-  /absolute/path/to/Collavibe/server/stdio.ts
-```
-
-## Claude Desktop
-
-For a development checkout, add a `collavibe` stdio entry to `claude_desktop_config.json` using absolute paths for the `tsx` executable, `server/stdio.ts`, and `COLLAVIBE_DATA_PATH`, then restart Claude Desktop. A packaged desktop extension is a future distribution step; the development server itself does not require one.
+Then open the repository in Codex and ask it to use Collavibe with the team code shown in the workspace.
 
 ## Generic MCP clients
 
-- stdio command: `npm run mcp`
-- Streamable HTTP endpoint: `http://localhost:4317/mcp`
-- health check: `http://localhost:4317/health`
-- authenticated project workspace: `http://localhost:4317/`
-- authenticated project state: `http://localhost:4317/api/state`
+Use Streamable HTTP with the production URL above. The client must support MCP protocol version `2025-03-26` or newer and send both `application/json` and `text/event-stream` in its `Accept` header, as required by Streamable HTTP.
 
-## Team codes
+The hosted tools are:
 
-Create or join a team in the hosted browser workspace first. The workspace header displays an eight-character code. Set `COLLAVIBE_CLOUD_URL` for the local MCP, then pass the code as `teamCode` when calling `get_project_context` or `start_collaboration_session`, or as `team_code` when invoking the `start` prompt. On first use, the local MCP inspects the repository and publishes a redacted snapshot to that team. Later sessions for the same repository resolve to the same shared workspace.
+- `get_project_context`
+- `start_collaboration_session`
+- `choose_work_item`
+- `get_sync_template`
+- `sync_collaboration_session`
 
-The code currently serves as both the invitation and agent capability. Keep it within the intended class or project team. A production release should replace or supplement it with scoped, revocable agent tokens.
+## Team code
+
+Create or join a team at [collavibe.vercel.app](https://collavibe.vercel.app). Copy the eight-character code shown in the workspace. Every hosted MCP tool requires that code, which scopes reads and writes to the matching team.
+
+The current preview treats the team code as both an invitation and an agent capability. Keep it within the intended team. A broader production release should replace it with scoped, revocable agent tokens.
 
 ## Intended session loop
 
-1. Invoke the `start` prompt or ask the agent to call `start_collaboration_session`, including the team code shown in the workspace.
-2. The agent summarizes the current repository and teammate work, then presents the returned work choices.
-3. After the human chooses, the agent calls `choose_work_item` before editing code.
-4. The agent implements and tests the selected work in the normal coding environment.
-5. Invoke the `sync` prompt or ask the agent to call `sync_collaboration_session`.
-6. The agent submits its session summary. Collavibe separately computes the commits and changed files visible in Git and updates the project map.
+1. Invoke the `start` prompt or ask the agent to inspect Git and call `start_collaboration_session` with the team code.
+2. The MCP returns teammate context and concrete work options.
+3. The agent presents those choices and waits for the human to choose.
+4. The agent calls `choose_work_item`, then implements and tests the selected work normally.
+5. Invoke the `sync` prompt or ask the agent to finish the Collavibe handoff.
+6. The agent inspects Git again and calls `sync_collaboration_session` with its summary and final snapshot.
+7. The hosted project map updates for every teammate.
 
-The sync step does not commit or push. Those actions remain explicit decisions in the coding client.
+The remote website labels the repository delta **agent-attested** because a cloud server cannot independently inspect a private laptop. Syncing never commits or pushes code.
+
+## Local development fallback
+
+The repository still contains local HTTP and stdio transports for development:
+
+```bash
+npm run start  # http://127.0.0.1:4317/mcp
+npm run mcp    # stdio
+```
+
+They are not required to use the hosted product.
