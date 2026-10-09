@@ -13,7 +13,8 @@ The suite covers:
 
 - MCP tool and prompt discovery.
 - Streamable HTTP initialization with two independent clients.
-- Invalid HTTP requests without an MCP session.
+- Streamable HTTP content-negotiation enforcement.
+- Hosted tool schemas that require team and repository snapshots instead of local filesystem paths.
 - State recovery after restarting the HTTP server.
 - Concurrent writes from four separate MCP processes.
 - Repository refresh without duplicate projects.
@@ -54,7 +55,18 @@ npx @modelcontextprotocol/inspector --cli \
   --strict
 ```
 
-For release testing, use Inspector to call every tool with both representative and invalid inputs. A complete no-code sequence should produce zero verified commits and zero verified changed files.
+For release testing, use Inspector to call every tool with both representative and invalid inputs.
+
+## Hosted production smoke test
+
+With the Supabase server credentials loaded locally, run the official external MCP-client workflow against a deployment:
+
+```bash
+COLLAVIBE_SMOKE_URL=https://collavibe.vercel.app \
+  node --env-file=.env.local --import tsx scripts/hosted-smoke.ts
+```
+
+The script creates a disposable user and team, connects to the remote `/mcp` endpoint, discovers five tools, completes start, choose, template, and sync across stateless requests, and confirms that the project, completed checklist, and `agent_attested` evidence appear in the dashboard. Its `finally` block removes the disposable session, feature, project, team, and account.
 
 ## Real-agent smoke test
 
@@ -78,10 +90,10 @@ Open `http://127.0.0.1:4317/` and verify:
 - the repository head matches `git rev-parse HEAD`;
 - feature selection updates the detail pane and its pressed state;
 - refresh updates the connection timestamp without console errors;
-- agent summaries remain visually separate from verified commits and files;
+- agent summaries remain visually separate from agent-attested or locally verified commits and files;
 - the layout remains readable at a 390 by 844 viewport;
 - completed checklist items have both a visual check and screen-reader text.
 
 ## Production boundary
 
-The automated suite validates the local collaboration workflow and cloud publishing boundary. The live smoke test validates Supabase Auth/Postgres end to end. Broader production use still needs repository authorization, revocable agent credentials, rate limits, structured logs, and deployment-level load and recovery tests.
+The automated suite validates the local collaboration workflow and hosted tool contract. The live smoke test validates the public Vercel MCP, Supabase Auth/Postgres persistence, dashboard projection, and cleanup end to end. Broader production use still needs repository authorization, revocable agent credentials, rate limits, structured logs, and deployment-level load and recovery tests.

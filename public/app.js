@@ -121,16 +121,16 @@ function render() {
 }
 
 function renderNoProject() {
+  const cloudMode = dashboard.deploymentMode === "cloud";
   elements.projectName.textContent = "No repository yet";
-  elements.projectMeta.textContent = "Connect a local Git repository to this team.";
+  elements.projectMeta.textContent = cloudMode ? "Start the hosted MCP from a coding agent to connect a repository." : "Connect a local Git repository to this team.";
   elements.projectTree.innerHTML = "";
   elements.currentBranch.textContent = "—";
   elements.currentHead.textContent = "—";
   elements.selectionStatus.textContent = "Setup";
   elements.selectionStatus.className = "status";
-  const cloudMode = dashboard.deploymentMode === "cloud";
   elements.activity.replaceChildren(document.querySelector(cloudMode ? "#connect-agent" : "#connect-project").content.cloneNode(true));
-  elements.detail.innerHTML = '<p class="placeholder-detail">Once a repository is connected, its feature tree, teammate sessions, and verified commits will appear here.</p>';
+  elements.detail.innerHTML = `<p class="placeholder-detail">Once a repository is connected, its feature tree, teammate sessions, and ${cloudMode ? "agent-attested" : "verified"} commits will appear here.</p>`;
   if (cloudMode) return;
   const form = document.querySelector("#connect-project-form");
   form.elements.repoPath.value = dashboard.defaultRepoPath || "";
@@ -181,7 +181,7 @@ function renderDetail(feature, sessions) {
   const verified = latestSession?.sync?.verified;
   const attested = verified?.source === "agent_attested";
   const branchTransition = verified && verified.startBranch !== verified.endBranch ? `<p class="branch-transition">${escapeHtml(verified.startBranch)} <span aria-hidden="true">→</span><span class="sr-only">to</span> ${escapeHtml(verified.endBranch)}</p>` : "";
-  const verifiedCommits = verified?.commits.length ? `<ol class="commits">${verified.commits.map((commit) => `<li><code>${escapeHtml(commit.shortHash)}</code><span><strong>${escapeHtml(commit.subject)}</strong><small>${escapeHtml(commit.author)}</small></span></li>`).join("")}</ol>` : '<p class="placeholder-detail">No new commits were verified.</p>';
+  const verifiedCommits = verified?.commits.length ? `<ol class="commits">${verified.commits.map((commit) => `<li><code>${escapeHtml(commit.shortHash)}</code><span><strong>${escapeHtml(commit.subject)}</strong><small>${escapeHtml(commit.author)}</small></span></li>`).join("")}</ol>` : `<p class="placeholder-detail">No new commits were ${attested ? "reported" : "verified"}.</p>`;
   elements.selectionStatus.textContent = feature.status;
   elements.selectionStatus.className = `status ${feature.status}`;
   elements.detail.innerHTML = `<h3>${escapeHtml(feature.title)}</h3><p class="detail-description">${escapeHtml(feature.description)}</p>

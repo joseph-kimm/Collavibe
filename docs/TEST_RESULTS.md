@@ -9,7 +9,7 @@ This report records the local and hosted verification pass for the Collavibe MCP
 | Check | Result |
 | --- | --- |
 | TypeScript compilation | Passed |
-| Vitest suite | 4 files, 28 tests passed |
+| Vitest suite | 4 files, 29 tests passed |
 | Clean `npm ci` | Passed without engine warnings |
 | Full dependency audit | 0 vulnerabilities |
 | Git whitespace validation | Passed |
@@ -30,7 +30,13 @@ The Supabase project was provisioned on the free tier with Auth, seven applicati
 
 Disposable users and orphaned test projects were deleted after verification. Backend Supabase keys are stored only as hidden Vercel secrets and in an ignored local environment file.
 
-The production deployment `dpl_HGGPn5GJQjbRvznoCbTU2t45M74o` completed successfully and is aliased to [collavibe.vercel.app](https://collavibe.vercel.app). Vercel reports the deployment as Ready, all three Supabase values are present in the Production environment, and Vercel Authentication was explicitly disabled so third-party users can reach the signup screen.
+The tested production deployment is aliased to [collavibe.vercel.app](https://collavibe.vercel.app). Vercel reports the deployment as Ready, all three Supabase values are present in the Production environment, and deployment protection is disabled so third-party users can reach the signup screen and hosted MCP.
+
+### Hosted MCP production test
+
+The official TypeScript MCP client connected directly to `https://collavibe.vercel.app/mcp`; no Collavibe process was running on the client machine. The test discovered all five tools and completed `start_collaboration_session`, `choose_work_item`, `get_sync_template`, and `sync_collaboration_session` across independent stateless HTTP requests. Supabase preserved the project, selected feature, completed checklist, synced session, commit, and changed file. The authenticated production dashboard returned the same session with evidence source `agent_attested`.
+
+The same smoke test passed first against a Vercel preview and then against the stable production alias. Both runs deleted their disposable user, team, project, feature, and session afterward. A database audit confirmed that no smoke-test teams or projects remained and that the pre-existing real account and team were untouched.
 
 ### Production end-to-end retest
 
@@ -100,4 +106,4 @@ The browser view was checked at its default desktop size and at a 390 by 844 mob
 
 The development HTTP server now binds to `127.0.0.1` by default. Git credentials are removed from stored remote URLs, state writes are atomic and inter-process locked, inputs are bounded, and internal file fingerprints are not returned to clients.
 
-The hosted preview now has Supabase authentication, transactional shared storage, row-level security, server-only backend credentials, and HTTPS. The local MCP still performs Git inspection so the hosted service never reads a developer filesystem. Before broader production use, persistent team-code agent access should be replaced with scoped revocable tokens, and the service still needs repository-provider authorization, rate limiting, structured operational logs, and deployment-level load and recovery tests.
+The hosted preview now has Supabase authentication, transactional shared storage, row-level security, server-only backend credentials, HTTPS, and a stateless remote MCP endpoint. The coding agent inspects its checkout and sends a sanitized snapshot; the remote service explicitly labels this evidence `agent_attested` because it cannot independently read the developer filesystem. Before broader production use, persistent team-code agent access should be replaced with scoped revocable tokens, and the service still needs repository-provider authorization, rate limiting, structured operational logs, and deployment-level load and recovery tests.
