@@ -15,12 +15,13 @@ function result(message: string, structuredContent: Record<string, unknown>) {
 }
 
 const repoPathSchema = z.string().min(1).max(4096).describe("Absolute path to the local Git repository");
+const teamCodeSchema = z.string().min(8).max(16).describe("Collavibe team invite code");
 const sessionIdSchema = z.string().min(10).max(128);
 const listItemSchema = z.string().min(1).max(2000);
 
 export function createCollavibeMcpServer() {
   const server = new McpServer(
-    { name: "collavibe", version: "0.2.0" },
+    { name: "collavibe", version: "0.3.0" },
     {
       instructions: "Use get_project_context before discussing shared work. At the beginning of a coding session, call start_collaboration_session, present its work options, and call choose_work_item after the user chooses. At the end, the agent must author a concise factual summary and call sync_collaboration_session. Treat agent summaries as claims; Git commits and changed files are independently verified by Collavibe.",
     },
@@ -29,10 +30,10 @@ export function createCollavibeMcpServer() {
   server.registerTool("get_project_context", {
     title: "Get shared project context",
     description: "Use this when the user wants to understand current team work before coding. Reads the repository, refreshes Collavibe's project snapshot, and returns the feature tree and prior sessions without changing source files.",
-    inputSchema: { repoPath: repoPathSchema },
+    inputSchema: { repoPath: repoPathSchema, teamCode: teamCodeSchema.optional() },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-  }, async ({ repoPath }) => {
-    const context = await getProjectContext(repoPath);
+  }, async ({ repoPath, teamCode }) => {
+    const context = await getProjectContext(repoPath, teamCode);
     return result(`Loaded ${context.project.name}: ${context.features.length} feature(s), ${context.sessions.length} recorded session(s), current branch ${context.project.latestGit.branch}.`, { context });
   });
 
@@ -43,6 +44,7 @@ export function createCollavibeMcpServer() {
       repoPath: repoPathSchema,
       participant: z.string().min(2).max(120).describe("Human teammate name"),
       intent: z.string().max(2000).optional().describe("What the user may want to work on, if already known"),
+      teamCode: teamCodeSchema.optional().describe("Optional team code used to attach this repository to a shared workspace"),
     },
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   }, async (input) => {
@@ -114,9 +116,10 @@ export function createCollavibeMcpServer() {
     argsSchema: {
       repo_path: repoPathSchema,
       participant_name: z.string().min(2).max(120).describe("Your name"),
+      team_code: teamCodeSchema.optional().describe("Your Collavibe team code"),
     },
-  }, async ({ repo_path, participant_name }) => ({
-    messages: [{ role: "user", content: { type: "text", text: `Start a Collavibe session for participant ${JSON.stringify(participant_name)} in repository ${JSON.stringify(repo_path)}. Call start_collaboration_session now. Summarize current project and teammate activity, present concrete work choices, and wait for my selection before editing code.` } }],
+  }, async ({ repo_path, participant_name, team_code }) => ({
+    messages: [{ role: "user", content: { type: "text", text: `Start a Collavibe session for participant ${JSON.stringify(participant_name)} in repository ${JSON.stringify(repo_path)}${team_code ? ` using team code ${JSON.stringify(team_code)}` : ""}. Call start_collaboration_session now. Summarize current project and teammate activity, present concrete work choices, and wait for my selection before editing code.` } }],
   }));
 
   server.registerPrompt("sync", {

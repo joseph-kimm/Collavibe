@@ -50,11 +50,18 @@ For a development checkout, add a `collavibe` stdio entry to `claude_desktop_con
 - stdio command: `npm run mcp`
 - Streamable HTTP endpoint: `http://localhost:4317/mcp`
 - health check: `http://localhost:4317/health`
-- read-only project state: `http://localhost:4317/api/state`
+- authenticated project workspace: `http://localhost:4317/`
+- authenticated project state: `http://localhost:4317/api/state`
+
+## Team codes
+
+Create or join a team in the browser first. The workspace header displays an eight-character code. Pass it as `teamCode` when calling `get_project_context` or `start_collaboration_session`, or as `team_code` when invoking the `start` prompt. On the first use, Collavibe attaches that repository identity to the team. Later sessions for the same repository resolve to the same shared workspace.
+
+The code is an invitation mechanism, not a production API credential. Keep it within the intended class or project team. A hosted release should replace or supplement it with scoped, revocable agent tokens.
 
 ## Intended session loop
 
-1. Invoke the `start` prompt or ask the agent to call `start_collaboration_session`.
+1. Invoke the `start` prompt or ask the agent to call `start_collaboration_session`, including the team code shown in the workspace.
 2. The agent summarizes the current repository and teammate work, then presents the returned work choices.
 3. After the human chooses, the agent calls `choose_work_item` before editing code.
 4. The agent implements and tests the selected work in the normal coding environment.

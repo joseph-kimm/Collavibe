@@ -3,56 +3,146 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Collavibe shared coding-session map" />
-    <title>Collavibe project map</title>
+    <meta name="description" content="Collavibe shared coding workspace" />
+    <title>Collavibe</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
-  <body>
-    <header class="topbar">
-      <a class="wordmark" href="/" aria-label="Collavibe home"><span class="mark">c</span><span>collavibe</span></a>
-      <div class="connection"><span class="pulse"></span><span id="connection-label" role="status" aria-live="polite">Local coordination server</span></div>
-      <div class="top-actions">
-        <span class="shortcut"><kbd>⌘</kbd><kbd>K</kbd></span>
-        <button class="refresh" id="refresh" type="button">Refresh context</button>
+  <body class="app-loading">
+    <section id="auth-gate" class="gate" hidden>
+      <div class="gate-story">
+        <a class="wordmark gate-wordmark" href="/" aria-label="Collavibe home"><span class="mark">c</span><span>collavibe</span></a>
+        <div>
+          <p class="kicker">Shared context for coding agents</p>
+          <h1>Pick up where your team left off.</h1>
+          <p>Collavibe gives every coding agent the same map of features, branches, decisions, and verified work.</p>
+        </div>
+        <ol class="gate-steps" aria-label="How Collavibe works">
+          <li><span>01</span>Create or join a team.</li>
+          <li><span>02</span>Connect a Git repository.</li>
+          <li><span>03</span>Start and sync work from any MCP agent.</li>
+        </ol>
       </div>
-    </header>
-
-    <main class="shell">
-      <aside class="tree-pane">
-        <div class="pane-heading">
-          <p class="kicker">Project map</p>
-          <h1 id="project-name">Waiting for a session</h1>
-          <p id="project-meta">Start Collavibe from a coding agent to register this repository.</p>
-        </div>
-        <nav id="project-tree" class="project-tree" aria-label="Repository and feature tree"></nav>
-        <div class="start-hint">
-          <span class="hint-index">01</span>
-          <p>Invoke the MCP <strong>start</strong> prompt before coding. The feature tree appears here as the team works.</p>
-        </div>
-      </aside>
-
-      <section class="activity-pane">
-        <header class="activity-header">
-          <div>
-            <p class="kicker">Shared history</p>
-            <h2>Team activity</h2>
+      <div class="gate-action">
+        <div class="auth-panel">
+          <p class="eyebrow">Welcome</p>
+          <h2 id="auth-title">Create your account</h2>
+          <div class="segmented" role="tablist" aria-label="Account action">
+            <button type="button" role="tab" aria-selected="true" data-auth-mode="signup">Sign up</button>
+            <button type="button" role="tab" aria-selected="false" data-auth-mode="login">Log in</button>
           </div>
-          <div class="branch-readout"><span>HEAD</span><strong id="current-branch">—</strong><code id="current-head">—</code></div>
-        </header>
-        <div id="activity" class="activity" aria-live="polite"></div>
-      </section>
+          <form id="auth-form" class="stack-form">
+            <label id="name-field">Your name<input name="name" autocomplete="name" minlength="2" maxlength="120" required /></label>
+            <label>Email<input name="email" type="email" autocomplete="email" required /></label>
+            <label>Password<input name="password" type="password" autocomplete="new-password" minlength="10" required /><small>At least 10 characters</small></label>
+            <p class="form-error" id="auth-error" role="alert"></p>
+            <button class="primary-action" type="submit">Create account</button>
+          </form>
+        </div>
+      </div>
+    </section>
 
-      <aside class="detail-pane">
-        <div class="detail-topline"><p class="kicker">Selected work</p><span id="selection-status" class="status">No selection</span></div>
-        <div id="detail" class="detail"></div>
-      </aside>
-    </main>
+    <section id="team-gate" class="gate team-gate" hidden>
+      <div class="gate-story">
+        <a class="wordmark gate-wordmark" href="/" aria-label="Collavibe home"><span class="mark">c</span><span>collavibe</span></a>
+        <div>
+          <p class="kicker">Your workspace</p>
+          <h1>Code together, without losing the thread.</h1>
+          <p>A team keeps project context and agent handoffs in one place. Invite codes make joining deliberately simple.</p>
+        </div>
+        <div class="gate-links"><button id="back-workspace" class="quiet-action light" type="button" hidden>Back to workspace</button><button id="team-logout" class="quiet-action light" type="button">Log out</button></div>
+      </div>
+      <div class="gate-action">
+        <div class="auth-panel">
+          <p class="eyebrow">Set up your team</p>
+          <h2 id="team-title">Create a team</h2>
+          <div class="segmented" role="tablist" aria-label="Team action">
+            <button type="button" role="tab" aria-selected="true" data-team-mode="create">Create</button>
+            <button type="button" role="tab" aria-selected="false" data-team-mode="join">Join with code</button>
+          </div>
+          <form id="create-team-form" class="stack-form">
+            <label>Team name<input name="name" minlength="2" maxlength="120" placeholder="Learning Lab" required /></label>
+            <label>Repository path<input name="repoPath" placeholder="/Users/you/projects/app" required /><small>Local path used by this Collavibe server</small></label>
+            <p class="form-error" data-team-error role="alert"></p>
+            <button class="primary-action" type="submit">Create team</button>
+          </form>
+          <form id="join-team-form" class="stack-form" hidden>
+            <label>Team code<input name="joinCode" class="code-input" minlength="8" maxlength="16" autocomplete="off" placeholder="H7K9P2WX" required /></label>
+            <p class="form-note">Ask a teammate to copy the code from their Collavibe workspace.</p>
+            <p class="form-error" data-team-error role="alert"></p>
+            <button class="primary-action" type="submit">Join team</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <div id="workspace" hidden>
+      <header class="topbar">
+        <a class="wordmark" href="/" aria-label="Collavibe home"><span class="mark">c</span><span>collavibe</span></a>
+        <div class="workspace-switcher">
+          <label class="sr-only" for="team-select">Current team</label>
+          <select id="team-select" aria-label="Current team"></select>
+          <button id="copy-code" class="code-button" type="button" title="Copy team code"><span>Team code</span><strong id="team-code">—</strong></button>
+        </div>
+        <div class="top-actions">
+          <div class="connection"><span class="pulse"></span><span id="connection-label" role="status" aria-live="polite">Local coordination server</span></div>
+          <button class="refresh" id="refresh" type="button">Refresh</button>
+          <button class="avatar" id="account-button" type="button" aria-label="Account menu">?</button>
+          <div id="account-menu" class="account-menu" hidden>
+            <strong id="account-name"></strong><span id="account-email"></span>
+            <button id="add-team" class="menu-action" type="button">Create or join another team</button>
+            <button id="logout" type="button">Log out</button>
+          </div>
+        </div>
+      </header>
+
+      <main class="shell">
+        <aside class="tree-pane">
+          <div class="pane-heading">
+            <p class="kicker">Project map</p>
+            <h1 id="project-name">No repository yet</h1>
+            <p id="project-meta">Connect a repository to start sharing context.</p>
+          </div>
+          <nav id="project-tree" class="project-tree" aria-label="Repository and feature tree"></nav>
+          <div class="start-hint">
+            <span class="hint-index">01</span>
+            <p>Give your coding agent the team code above when starting Collavibe. Every sync will return here.</p>
+          </div>
+        </aside>
+
+        <section class="activity-pane">
+          <header class="activity-header">
+            <div><p class="kicker">Shared history</p><h2>Team activity</h2></div>
+            <div class="branch-readout"><span>HEAD</span><strong id="current-branch">—</strong><code id="current-head">—</code></div>
+          </header>
+          <div id="activity" class="activity" aria-live="polite"></div>
+        </section>
+
+        <aside class="detail-pane">
+          <div class="detail-topline"><p class="kicker">Selected work</p><span id="selection-status" class="status">No selection</span></div>
+          <div id="detail" class="detail"></div>
+        </aside>
+      </main>
+    </div>
 
     <template id="empty-activity">
       <div class="empty-state">
         <div class="empty-graph" aria-hidden="true"><i></i><i></i><i></i></div>
         <h3>No coding sessions synced yet.</h3>
-        <p>The first start call records the repository baseline. The sync call adds the agent’s handoff and Git-verified delta.</p>
+        <p>Start Collavibe from a coding agent using this team’s code. The first verified handoff will appear here.</p>
+      </div>
+    </template>
+
+    <template id="connect-project">
+      <div class="connect-project">
+        <p class="kicker">One last step</p>
+        <h3>Connect a repository</h3>
+        <p>This maps agent sessions to the right team workspace.</p>
+        <form id="connect-project-form" class="inline-form">
+          <label class="sr-only" for="repo-path">Repository path</label>
+          <input id="repo-path" name="repoPath" placeholder="/Users/you/projects/app" required />
+          <button class="primary-action" type="submit">Connect</button>
+        </form>
+        <p class="form-error" id="project-error" role="alert"></p>
       </div>
     </template>
 

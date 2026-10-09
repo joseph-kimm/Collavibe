@@ -94,10 +94,54 @@ export interface Project {
   updatedAt: string;
 }
 
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+  createdAt: string;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  joinCode: string;
+  ownerUserId: string;
+  createdAt: string;
+}
+
+export interface TeamMembership {
+  id: string;
+  teamId: string;
+  userId: string;
+  role: "owner" | "member";
+  joinedAt: string;
+}
+
+export interface AuthSession {
+  id: string;
+  tokenHash: string;
+  userId: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface TeamProject {
+  teamId: string;
+  projectId: string;
+  addedByUserId?: string;
+  addedAt: string;
+}
+
 export interface CollavibeState {
   projects: Project[];
   features: Feature[];
   sessions: CollaborationSession[];
+  users: User[];
+  teams: Team[];
+  memberships: TeamMembership[];
+  authSessions: AuthSession[];
+  teamProjects: TeamProject[];
 }
 
 export interface WorkOption {

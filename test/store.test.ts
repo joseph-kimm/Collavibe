@@ -5,7 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { inspectRepository } from "../src/git.js";
-import { chooseWorkItem, getProjectContext, readState, resetStateForTests, startCollaborationSession, syncCollaborationSession } from "../src/store.js";
+import { chooseWorkItem, createTeam, getDashboard, getProjectContext, joinTeam, loginUser, readState, resetStateForTests, signUpUser, startCollaborationSession, syncCollaborationSession } from "../src/store.js";
 
 const exec = promisify(execFile);
 const root = await mkdtemp(path.join(os.tmpdir(), "collavibe-test-"));
@@ -33,6 +33,35 @@ beforeEach(async () => {
 afterAll(async () => rm(root, { recursive: true, force: true }));
 
 describe("agent-to-team session workflow", () => {
+  it("supports account creation, team codes, joining, and team-scoped dashboards", async () => {
+    const owner = await signUpUser({ name: "Amina Yusuf", email: "amina@example.com", password: "a-long-test-password" });
+    const team = await createTeam({ userId: owner.user.id, name: "Learning Lab", repoPath: repo });
+    expect(team.joinCode).toMatch(/^[A-Z2-9]{8}$/);
+    await expect(createTeam({ userId: owner.user.id, name: "Duplicate Lab", repoPath: repo })).rejects.toThrow("already belongs");
+
+    const teammate = await signUpUser({ name: "Shayan Ahmad", email: "shayan@example.com", password: "another-long-password" });
+    const joined = await joinTeam({ userId: teammate.user.id, joinCode: team.joinCode.toLowerCase() });
+    expect(joined.id).toBe(team.id);
+    expect(joined.memberCount).toBe(2);
+
+    const dashboard = await getDashboard(teammate.user.id, team.id);
+    expect(dashboard.selectedTeam?.name).toBe("Learning Lab");
+    expect(dashboard.projects).toHaveLength(1);
+    expect(JSON.stringify(dashboard)).not.toContain("passwordHash");
+
+    await expect(loginUser({ email: "amina@example.com", password: "wrong-password" })).rejects.toThrow("incorrect");
+    await expect(loginUser({ email: "AMINA@example.com", password: "a-long-test-password" })).resolves.toMatchObject({ user: { name: "Amina Yusuf" } });
+  });
+
+  it("can attach an agent repository to a team using its invite code", async () => {
+    const owner = await signUpUser({ name: "Amina Yusuf", email: "amina@example.com", password: "a-long-test-password" });
+    const team = await createTeam({ userId: owner.user.id, name: "Learning Lab" });
+    const context = await getProjectContext(repo, team.joinCode);
+    expect(context.team).toEqual({ id: team.id, name: "Learning Lab" });
+    const dashboard = await getDashboard(owner.user.id, team.id);
+    expect(dashboard.projects.map((project) => project.id)).toContain(context.project.id);
+  });
+
   it("preserves the complete filename for the first modified tracked file", async () => {
     await writeFile(path.join(repo, "README.md"), "# Updated demo\n", "utf8");
     const snapshot = await inspectRepository(repo);

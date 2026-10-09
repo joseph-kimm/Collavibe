@@ -9,13 +9,26 @@ This report records the final local verification pass for the Collavibe MCP prot
 | Check | Result |
 | --- | --- |
 | TypeScript compilation | Passed |
-| Vitest suite | 3 files, 22 tests passed |
+| Vitest suite | 3 files, 25 tests passed |
 | Clean `npm ci` | Passed without engine warnings |
 | Full dependency audit | 0 vulnerabilities |
 | Git whitespace validation | Passed |
 | Working tree before report | Clean |
 
-The suite includes Git edge cases, session-state transitions, concurrent persistence, Streamable HTTP behavior, restart recovery, response redaction, remote-credential stripping, client input limits, and a text fallback for clients that ignore MCP `structuredContent`. The detailed matrix and commands are in [TESTING.md](TESTING.md).
+The suite includes Git edge cases, session-state transitions, concurrent persistence, Streamable HTTP behavior, restart recovery, response redaction, remote-credential stripping, client input limits, a text fallback for clients that ignore MCP `structuredContent`, local account authentication, team membership, invite codes, and team-scoped repository attachment. The detailed matrix and commands are in [TESTING.md](TESTING.md).
+
+## Account and team workflow
+
+A disposable browser and state directory were used to verify the complete human and agent handoff:
+
+1. an owner account created `Learning Lab` with an attached Git repository;
+2. Collavibe generated the eight-character code `9DN438HF` for that disposable team;
+3. a second account logged in and joined using the lowercase-insensitive code;
+4. the workspace reported two members and exposed the shared repository only after membership was established;
+5. a separate HTTP MCP client called `start_collaboration_session` with the team code; and
+6. the new `choosing` session appeared in the joined member's project map after refresh.
+
+The disposable credentials and state were isolated from the main Collavibe data file. Visual checks covered the account gateway, create-or-join step, team selector, copyable code, repository tree, and team-scoped activity feed.
 
 ## MCP protocol verification
 

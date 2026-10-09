@@ -1,12 +1,18 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
 import { mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
 import { inspectDelta, inspectRepository } from "./git.js";
-import type { CollaborationSession, CollavibeState, Feature, FeatureStatus, Project, WorkOption } from "./types.js";
+import type { CollaborationSession, CollavibeState, Feature, FeatureStatus, Project, Team, User, WorkOption } from "./types.js";
 
-const emptyState = (): CollavibeState => ({ projects: [], features: [], sessions: [] });
+const emptyState = (): CollavibeState => ({
+  projects: [], features: [], sessions: [], users: [], teams: [], memberships: [], authSessions: [], teamProjects: [],
+});
 const statePath = () => process.env.COLLAVIBE_DATA_PATH || path.join(process.cwd(), ".collavibe", "state.json");
 let writeQueue: Promise<unknown> = Promise.resolve();
+const scryptAsync = promisify(scrypt);
+const AUTH_SESSION_MS = 1000 * 60 * 60 * 24 * 30;
+const TEAM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 const LOCK_RETRY_MS = 25;
 const LOCK_TIMEOUT_MS = 10_000;
@@ -68,11 +74,195 @@ async function save(state: CollavibeState) {
 
 export async function readState(): Promise<CollavibeState> {
   try {
-    return JSON.parse(await readFile(/* turbopackIgnore: true */ statePath(), "utf8")) as CollavibeState;
+    const stored = JSON.parse(await readFile(/* turbopackIgnore: true */ statePath(), "utf8")) as Partial<CollavibeState>;
+    return { ...emptyState(), ...stored };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     return emptyState();
   }
+}
+
+function publicUser(user: User) {
+  return { id: user.id, name: user.name, email: user.email, createdAt: user.createdAt };
+}
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+function normalizeTeamCode(code: string) {
+  return code.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function newTeamCode(existing: Set<string>) {
+  for (;;) {
+    const bytes = randomBytes(8);
+    const code = Array.from(bytes, (byte) => TEAM_CODE_ALPHABET[byte % TEAM_CODE_ALPHABET.length]).join("");
+    if (!existing.has(code)) return code;
+  }
+}
+
+async function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  const derived = await scryptAsync(password, salt, 64) as Buffer;
+  return `scrypt$${salt}$${derived.toString("hex")}`;
+}
+
+async function verifyPassword(password: string, stored: string) {
+  const [algorithm, salt, expectedHex] = stored.split("$");
+  if (algorithm !== "scrypt" || !salt || !expectedHex) return false;
+  const expected = Buffer.from(expectedHex, "hex");
+  const actual = await scryptAsync(password, salt, expected.length) as Buffer;
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
+function tokenHash(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function issueAuthSession(state: CollavibeState, userId: string) {
+  const token = randomBytes(32).toString("base64url");
+  const now = new Date();
+  state.authSessions = state.authSessions.filter((session) => new Date(session.expiresAt) > now);
+  state.authSessions.push({
+    id: `auth_${randomUUID()}`,
+    tokenHash: tokenHash(token),
+    userId,
+    createdAt: now.toISOString(),
+    expiresAt: new Date(now.getTime() + AUTH_SESSION_MS).toISOString(),
+  });
+  return token;
+}
+
+export async function signUpUser(input: { name: string; email: string; password: string }) {
+  const name = input.name.trim();
+  const email = normalizeEmail(input.email);
+  if (name.length < 2 || name.length > 120) throw new Error("Name must be between 2 and 120 characters.");
+  if (!/^\S+@\S+\.\S+$/.test(email) || email.length > 254) throw new Error("Enter a valid email address.");
+  if (input.password.length < 10 || input.password.length > 256) throw new Error("Password must be at least 10 characters.");
+  const passwordHash = await hashPassword(input.password);
+  return mutate((state) => {
+    if (state.users.some((user) => user.email === email)) throw new Error("An account with this email already exists.");
+    const user: User = { id: `user_${randomUUID()}`, name, email, passwordHash, createdAt: new Date().toISOString() };
+    state.users.push(user);
+    return { user: publicUser(user), token: issueAuthSession(state, user.id) };
+  });
+}
+
+export async function loginUser(input: { email: string; password: string }) {
+  const email = normalizeEmail(input.email);
+  const state = await readState();
+  const user = state.users.find((candidate) => candidate.email === email);
+  if (!user || !await verifyPassword(input.password, user.passwordHash)) throw new Error("Email or password is incorrect.");
+  return mutate((latest) => {
+    const current = latest.users.find((candidate) => candidate.id === user.id);
+    if (!current) throw new Error("Email or password is incorrect.");
+    return { user: publicUser(current), token: issueAuthSession(latest, current.id) };
+  });
+}
+
+export async function logoutUser(token: string) {
+  return mutate((state) => {
+    const before = state.authSessions.length;
+    const hash = tokenHash(token);
+    state.authSessions = state.authSessions.filter((session) => session.tokenHash !== hash);
+    return before !== state.authSessions.length;
+  });
+}
+
+export async function getUserForToken(token: string | undefined) {
+  if (!token) return undefined;
+  const state = await readState();
+  const hash = tokenHash(token);
+  const auth = state.authSessions.find((session) => session.tokenHash === hash && new Date(session.expiresAt) > new Date());
+  const user = auth && state.users.find((candidate) => candidate.id === auth.userId);
+  return user ? publicUser(user) : undefined;
+}
+
+function teamSummary(state: CollavibeState, team: Team) {
+  return {
+    id: team.id,
+    name: team.name,
+    joinCode: team.joinCode,
+    ownerUserId: team.ownerUserId,
+    memberCount: state.memberships.filter((membership) => membership.teamId === team.id).length,
+    projectCount: state.teamProjects.filter((link) => link.teamId === team.id).length,
+    createdAt: team.createdAt,
+  };
+}
+
+function requireMembership(state: CollavibeState, userId: string, teamId: string) {
+  const membership = state.memberships.find((item) => item.userId === userId && item.teamId === teamId);
+  if (!membership) throw new Error("You are not a member of this team.");
+  return membership;
+}
+
+export async function createTeam(input: { userId: string; name: string; repoPath?: string }) {
+  const name = input.name.trim();
+  if (name.length < 2 || name.length > 120) throw new Error("Team name must be between 2 and 120 characters.");
+  const projectContext = input.repoPath?.trim() ? await getProjectContext(input.repoPath.trim()) : undefined;
+  return mutate((state) => {
+    if (!state.users.some((user) => user.id === input.userId)) throw new Error("Unknown user.");
+    if (projectContext && state.teamProjects.some((link) => link.projectId === projectContext.project.id)) {
+      throw new Error("This project already belongs to another team.");
+    }
+    const timestamp = new Date().toISOString();
+    const team: Team = {
+      id: `team_${randomUUID()}`,
+      name,
+      joinCode: newTeamCode(new Set(state.teams.map((item) => item.joinCode))),
+      ownerUserId: input.userId,
+      createdAt: timestamp,
+    };
+    state.teams.push(team);
+    state.memberships.push({ id: `member_${randomUUID()}`, teamId: team.id, userId: input.userId, role: "owner", joinedAt: timestamp });
+    if (projectContext) {
+      state.teamProjects.push({ teamId: team.id, projectId: projectContext.project.id, addedByUserId: input.userId, addedAt: timestamp });
+    }
+    return teamSummary(state, team);
+  });
+}
+
+export async function joinTeam(input: { userId: string; joinCode: string }) {
+  const joinCode = normalizeTeamCode(input.joinCode);
+  return mutate((state) => {
+    const team = state.teams.find((candidate) => candidate.joinCode === joinCode);
+    if (!team) throw new Error("That team code is not valid.");
+    if (!state.memberships.some((item) => item.teamId === team.id && item.userId === input.userId)) {
+      state.memberships.push({ id: `member_${randomUUID()}`, teamId: team.id, userId: input.userId, role: "member", joinedAt: new Date().toISOString() });
+    }
+    return teamSummary(state, team);
+  });
+}
+
+export async function addProjectToTeam(input: { userId: string; teamId: string; repoPath: string }) {
+  const context = await getProjectContext(input.repoPath);
+  return mutate((state) => {
+    requireMembership(state, input.userId, input.teamId);
+    const existing = state.teamProjects.find((link) => link.projectId === context.project.id);
+    if (existing && existing.teamId !== input.teamId) throw new Error("This project already belongs to another team.");
+    if (!existing) state.teamProjects.push({ teamId: input.teamId, projectId: context.project.id, addedByUserId: input.userId, addedAt: new Date().toISOString() });
+    return context.project;
+  });
+}
+
+export async function getDashboard(userId: string, requestedTeamId?: string) {
+  const state = await readState();
+  const user = state.users.find((candidate) => candidate.id === userId);
+  if (!user) throw new Error("Unknown user.");
+  const memberships = state.memberships.filter((item) => item.userId === userId);
+  const teams = memberships.map((membership) => state.teams.find((team) => team.id === membership.teamId)).filter((team): team is Team => Boolean(team));
+  const selectedTeam = teams.find((team) => team.id === requestedTeamId) || teams[0];
+  const projectIds = new Set(state.teamProjects.filter((link) => link.teamId === selectedTeam?.id).map((link) => link.projectId));
+  return {
+    user: publicUser(user),
+    teams: teams.map((team) => teamSummary(state, team)),
+    selectedTeam: selectedTeam ? teamSummary(state, selectedTeam) : undefined,
+    projects: state.projects.filter((project) => projectIds.has(project.id)),
+    features: state.features.filter((feature) => projectIds.has(feature.projectId)),
+    sessions: state.sessions.filter((session) => projectIds.has(session.projectId)),
+    defaultRepoPath: process.cwd(),
+  };
 }
 
 async function mutate<T>(operation: (state: CollavibeState) => Promise<T> | T): Promise<T> {
@@ -119,7 +309,7 @@ function buildWorkOptions(project: Project, features: Feature[], participant: st
   return options;
 }
 
-export async function getProjectContext(repoPath: string) {
+export async function getProjectContext(repoPath: string, teamCode?: string) {
   const git = await inspectRepository(repoPath);
   return mutate((state) => {
     const id = projectId(git.remote, git.root);
@@ -134,14 +324,25 @@ export async function getProjectContext(repoPath: string) {
       project.root = git.root;
       project.updatedAt = timestamp;
     }
+    let team = state.teamProjects.find((link) => link.projectId === id);
+    if (teamCode) {
+      const requestedTeam = state.teams.find((candidate) => candidate.joinCode === normalizeTeamCode(teamCode));
+      if (!requestedTeam) throw new Error("That team code is not valid.");
+      if (team && team.teamId !== requestedTeam.id) throw new Error("This project already belongs to another team.");
+      if (!team) {
+        team = { teamId: requestedTeam.id, projectId: id, addedAt: timestamp };
+        state.teamProjects.push(team);
+      }
+    }
+    const linkedTeam = team ? state.teams.find((candidate) => candidate.id === team.teamId) : undefined;
     const features = state.features.filter((item) => item.projectId === id);
     const sessions = state.sessions.filter((item) => item.projectId === id).sort((a, b) => b.startedAt.localeCompare(a.startedAt));
-    return { project, features, sessions };
+    return { project, features, sessions, team: linkedTeam ? { id: linkedTeam.id, name: linkedTeam.name } : undefined };
   });
 }
 
-export async function startCollaborationSession(input: { repoPath: string; participant: string; intent?: string }) {
-  const context = await getProjectContext(input.repoPath);
+export async function startCollaborationSession(input: { repoPath: string; participant: string; intent?: string; teamCode?: string }) {
+  const context = await getProjectContext(input.repoPath, input.teamCode);
   return mutate((state) => {
     const session: CollaborationSession = {
       id: `session_${randomUUID()}`,
@@ -158,6 +359,7 @@ export async function startCollaborationSession(input: { repoPath: string; parti
     return {
       session,
       project: context.project,
+      team: context.team,
       teammates,
       workOptions: buildWorkOptions(context.project, context.features, input.participant),
       agentInstructions: "Briefly summarize the repository and recent teammate activity. Present 3 to 6 concrete work options, including Define a new feature. Ask the user to choose or refine one. After the user decides, call choose_work_item before editing code.",

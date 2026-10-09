@@ -25,6 +25,10 @@ The suite covers:
 - Rejection of incomplete `done` claims, ambiguous feature selection, duplicate sync, and post-sync selection.
 - Removal of credentials embedded in Git remote URLs.
 - Removal of internal working-tree fingerprints from MCP and browser responses.
+- Account signup and login with scrypt password verification.
+- Team creation, unique invite codes, idempotent joining, and member-scoped dashboards.
+- Repository attachment through both the browser flow and MCP `teamCode` input.
+- Authentication enforcement on browser project-state endpoints.
 
 ## MCP Inspector
 
@@ -65,6 +69,10 @@ The test passes when the agent completes the sequence and Collavibe reports a sy
 
 Open `http://127.0.0.1:4317/` and verify:
 
+- signup and login lead to the correct next step;
+- creating a team produces a copyable eight-character code;
+- a second account can join with that code and see only the team workspace;
+- an MCP session started with `teamCode` appears in that workspace;
 - the repository head matches `git rev-parse HEAD`;
 - feature selection updates the detail pane and its pressed state;
 - refresh updates the connection timestamp without console errors;
@@ -74,4 +82,4 @@ Open `http://127.0.0.1:4317/` and verify:
 
 ## Production boundary
 
-These tests validate the local collaboration prototype. A shared deployment still needs authenticated users, repository authorization, a transactional database, rate limits, structured logs, and deployment-level concurrency and recovery tests.
+These tests validate the local collaboration prototype, including local accounts and team membership. A shared deployment still needs production identity, repository authorization, revocable agent credentials, a transactional database, rate limits, structured logs, HTTPS, and deployment-level concurrency and recovery tests.

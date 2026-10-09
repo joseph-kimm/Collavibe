@@ -1,23 +1,43 @@
 const elements = {
-  projectName: document.querySelector("#project-name"),
-  projectMeta: document.querySelector("#project-meta"),
-  projectTree: document.querySelector("#project-tree"),
-  activity: document.querySelector("#activity"),
-  detail: document.querySelector("#detail"),
-  selectionStatus: document.querySelector("#selection-status"),
-  currentBranch: document.querySelector("#current-branch"),
-  currentHead: document.querySelector("#current-head"),
-  refresh: document.querySelector("#refresh"),
-  connectionLabel: document.querySelector("#connection-label"),
+  authGate: document.querySelector("#auth-gate"), teamGate: document.querySelector("#team-gate"), workspace: document.querySelector("#workspace"),
+  authForm: document.querySelector("#auth-form"), authTitle: document.querySelector("#auth-title"), authError: document.querySelector("#auth-error"), nameField: document.querySelector("#name-field"),
+  createTeamForm: document.querySelector("#create-team-form"), joinTeamForm: document.querySelector("#join-team-form"), teamTitle: document.querySelector("#team-title"),
+  projectName: document.querySelector("#project-name"), projectMeta: document.querySelector("#project-meta"), projectTree: document.querySelector("#project-tree"),
+  activity: document.querySelector("#activity"), detail: document.querySelector("#detail"), selectionStatus: document.querySelector("#selection-status"),
+  currentBranch: document.querySelector("#current-branch"), currentHead: document.querySelector("#current-head"), refresh: document.querySelector("#refresh"),
+  connectionLabel: document.querySelector("#connection-label"), teamSelect: document.querySelector("#team-select"), teamCode: document.querySelector("#team-code"), copyCode: document.querySelector("#copy-code"),
+  accountButton: document.querySelector("#account-button"), accountMenu: document.querySelector("#account-menu"), accountName: document.querySelector("#account-name"), accountEmail: document.querySelector("#account-email"),
+  logout: document.querySelector("#logout"), teamLogout: document.querySelector("#team-logout"), addTeam: document.querySelector("#add-team"), backWorkspace: document.querySelector("#back-workspace"),
 };
 
-let state = { projects: [], features: [], sessions: [] };
+let dashboard = { user: null, teams: [], selectedTeam: null, projects: [], features: [], sessions: [] };
+let selectedTeamId = localStorage.getItem("collavibe-team") || "";
 let selectedFeatureId = null;
+let authMode = "signup";
+let teamMode = "create";
 let latestFingerprint = "";
 let loadSequence = 0;
 
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
 const shortDate = (value) => new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
+
+async function request(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: { "content-type": "application/json", ...(options.headers || {}) },
+  });
+  const data = response.status === 204 ? null : await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data?.error || "Something went wrong.");
+  return data;
+}
+
+function show(view) {
+  elements.authGate.hidden = view !== "auth";
+  elements.teamGate.hidden = view !== "team";
+  elements.workspace.hidden = view !== "workspace";
+  document.body.classList.remove("app-loading");
+  document.body.dataset.view = view;
+}
 
 async function load({ quiet = false } = {}) {
   const sequence = ++loadSequence;
@@ -26,35 +46,65 @@ async function load({ quiet = false } = {}) {
     elements.refresh.textContent = "Refreshing…";
   }
   try {
-    const response = await fetch("/api/state", { cache: "no-store" });
-    if (!response.ok) throw new Error("Could not load project state");
-    const nextState = await response.json();
+    const query = selectedTeamId ? `?teamId=${encodeURIComponent(selectedTeamId)}` : "";
+    const response = await fetch(`/api/dashboard${query}`, { cache: "no-store" });
+    if (response.status === 401) {
+      dashboard = { user: null, teams: [], selectedTeam: null, projects: [], features: [], sessions: [] };
+      show("auth");
+      return;
+    }
+    const nextDashboard = await response.json();
+    if (!response.ok) throw new Error(nextDashboard.error || "Could not load workspace.");
     if (sequence !== loadSequence) return;
-    const fingerprint = JSON.stringify(nextState);
+    dashboard = nextDashboard;
+    if (dashboard.selectedTeam) {
+      selectedTeamId = dashboard.selectedTeam.id;
+      localStorage.setItem("collavibe-team", selectedTeamId);
+    }
+    if (!dashboard.teams.length) {
+      elements.backWorkspace.hidden = true;
+      const repoInput = elements.createTeamForm.elements.repoPath;
+      if (!repoInput.value) repoInput.value = dashboard.defaultRepoPath || "";
+      show("team");
+      return;
+    }
+    show("workspace");
+    const fingerprint = JSON.stringify(dashboard);
     if (fingerprint !== latestFingerprint) {
-      state = nextState;
       latestFingerprint = fingerprint;
       render();
     }
     elements.connectionLabel.textContent = `Connected · ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
   } catch (error) {
-    elements.connectionLabel.textContent = error.message;
+    if (elements.workspace.hidden) {
+      elements.authError.textContent = error.message;
+    } else {
+      elements.connectionLabel.textContent = error.message;
+    }
   } finally {
     if (!quiet) {
       elements.refresh.disabled = false;
-      elements.refresh.textContent = "Refresh context";
+      elements.refresh.textContent = "Refresh";
     }
   }
 }
 
 function render() {
-  const project = state.projects.at(-1);
+  const project = dashboard.projects.at(-1);
+  const team = dashboard.selectedTeam;
+  elements.teamSelect.innerHTML = dashboard.teams.map((item) => `<option value="${item.id}" ${item.id === team?.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("");
+  elements.teamCode.textContent = team?.joinCode || "—";
+  elements.copyCode.disabled = !team?.joinCode;
+  elements.accountName.textContent = dashboard.user.name;
+  elements.accountEmail.textContent = dashboard.user.email;
+  elements.accountButton.textContent = dashboard.user.name.slice(0, 1).toUpperCase();
+
   if (!project) {
-    renderEmpty();
+    renderNoProject();
     return;
   }
-  const features = state.features.filter((feature) => feature.projectId === project.id);
-  const sessions = state.sessions.filter((session) => session.projectId === project.id).sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+  const features = dashboard.features.filter((feature) => feature.projectId === project.id);
+  const sessions = dashboard.sessions.filter((session) => session.projectId === project.id).sort((a, b) => b.startedAt.localeCompare(a.startedAt));
   if (!selectedFeatureId || !features.some((feature) => feature.id === selectedFeatureId)) selectedFeatureId = features[0]?.id || null;
 
   elements.projectName.textContent = project.name;
@@ -66,22 +116,28 @@ function render() {
   renderDetail(features.find((feature) => feature.id === selectedFeatureId), sessions);
 }
 
-function renderEmpty() {
+function renderNoProject() {
+  elements.projectName.textContent = "No repository yet";
+  elements.projectMeta.textContent = "Connect a local Git repository to this team.";
   elements.projectTree.innerHTML = "";
-  elements.activity.replaceChildren(document.querySelector("#empty-activity").content.cloneNode(true));
-  elements.detail.innerHTML = '<p class="placeholder-detail">Choose a feature after the first MCP session starts. Its owner, branch, description, checklist, and latest verified sync will appear here.</p>';
+  elements.currentBranch.textContent = "—";
+  elements.currentHead.textContent = "—";
+  elements.selectionStatus.textContent = "Setup";
+  elements.selectionStatus.className = "status";
+  elements.activity.replaceChildren(document.querySelector("#connect-project").content.cloneNode(true));
+  elements.detail.innerHTML = '<p class="placeholder-detail">Once a repository is connected, its feature tree, teammate sessions, and verified commits will appear here.</p>';
+  const form = document.querySelector("#connect-project-form");
+  form.elements.repoPath.value = dashboard.defaultRepoPath || "";
+  form.addEventListener("submit", connectProject);
 }
 
 function renderTree(project, features) {
-  const branches = project.latestGit.branches;
   elements.projectTree.innerHTML = `<div class="tree-root">
     <div class="root-label"><span class="root-dot"></span><span>${escapeHtml(project.name)}</span><code>${project.latestGit.head.slice(0, 7)}</code></div>
-    ${branches.map((branch) => {
+    ${project.latestGit.branches.map((branch) => {
       const branchFeatures = features.filter((feature) => feature.branch === branch.name || (!feature.branch && branch.current));
-      return `<div class="branch-group">
-        <div class="branch-label"><strong>${branch.current ? "● " : ""}${escapeHtml(branch.name)}</strong><code>${escapeHtml(branch.head)}</code></div>
-        <div class="feature-nodes">${branchFeatures.length ? branchFeatures.map((feature) => `<button class="tree-node ${feature.status} ${feature.id === selectedFeatureId ? "selected" : ""}" type="button" data-feature-id="${feature.id}" aria-pressed="${feature.id === selectedFeatureId}"><span>${escapeHtml(feature.title)}</span></button>`).join("") : '<span class="tree-node"><span>No recorded feature</span></span>'}</div>
-      </div>`;
+      return `<div class="branch-group"><div class="branch-label"><strong>${branch.current ? "● " : ""}${escapeHtml(branch.name)}</strong><code>${escapeHtml(branch.head)}</code></div>
+        <div class="feature-nodes">${branchFeatures.length ? branchFeatures.map((feature) => `<button class="tree-node ${feature.status} ${feature.id === selectedFeatureId ? "selected" : ""}" type="button" data-feature-id="${feature.id}" aria-pressed="${feature.id === selectedFeatureId}"><span>${escapeHtml(feature.title)}</span></button>`).join("") : '<span class="tree-node"><span>No recorded feature</span></span>'}</div></div>`;
     }).join("")}
   </div>`;
   elements.projectTree.querySelectorAll("[data-feature-id]").forEach((button) => button.addEventListener("click", () => {
@@ -97,17 +153,12 @@ function renderActivity(features, sessions) {
   }
   elements.activity.innerHTML = sessions.map((session, index) => {
     const feature = features.find((item) => item.id === session.featureId);
-    const sync = session.sync;
-    const verified = sync?.verified;
+    const verified = session.sync?.verified;
     return `<article class="session-entry ${session.status}" style="--delay:${index * 45}ms">
       <div class="session-meta"><strong>${escapeHtml(session.participant)}</strong><span>${shortDate(session.startedAt)}</span><span>${escapeHtml(session.startSnapshot.branch)}</span><span class="session-state">${escapeHtml(session.status)}</span></div>
       <h3>${escapeHtml(feature?.title || session.intent || "Choosing work")}</h3>
-      <p class="session-summary">${escapeHtml(sync?.summary || "Session started. Waiting for the agent to sync its handoff.")}</p>
-      ${verified ? `<div class="verified-row">
-        <span class="verified-chip"><strong>${verified.commits.length}</strong> verified commits</span>
-        <span class="verified-chip"><strong>${verified.changedFiles.length}</strong> changed files</span>
-        ${verified.reportedButUnverified.length ? `<span class="verified-chip unverified"><strong>${verified.reportedButUnverified.length}</strong> unverified claims</span>` : ""}
-      </div>` : ""}
+      <p class="session-summary">${escapeHtml(session.sync?.summary || "Session started. Waiting for the agent to sync its handoff.")}</p>
+      ${verified ? `<div class="verified-row"><span class="verified-chip"><strong>${verified.commits.length}</strong> verified commits</span><span class="verified-chip"><strong>${verified.changedFiles.length}</strong> changed files</span>${verified.reportedButUnverified.length ? `<span class="verified-chip unverified"><strong>${verified.reportedButUnverified.length}</strong> unverified claims</span>` : ""}</div>` : ""}
     </article>`;
   }).join("");
 }
@@ -121,25 +172,133 @@ function renderDetail(feature, sessions) {
   }
   const latestSession = sessions.find((session) => session.featureId === feature.id && session.sync);
   const verified = latestSession?.sync?.verified;
-  const branchTransition = verified && verified.startBranch !== verified.endBranch
-    ? `<p class="branch-transition">${escapeHtml(verified.startBranch)} <span aria-hidden="true">→</span><span class="sr-only">to</span> ${escapeHtml(verified.endBranch)}</p>`
-    : "";
-  const verifiedCommits = verified?.commits.length
-    ? `<ol class="commits">${verified.commits.map((commit) => `<li><code>${escapeHtml(commit.shortHash)}</code><span><strong>${escapeHtml(commit.subject)}</strong><small>${escapeHtml(commit.author)}</small></span></li>`).join("")}</ol>`
-    : '<p class="placeholder-detail">No new commits were verified.</p>';
+  const branchTransition = verified && verified.startBranch !== verified.endBranch ? `<p class="branch-transition">${escapeHtml(verified.startBranch)} <span aria-hidden="true">→</span><span class="sr-only">to</span> ${escapeHtml(verified.endBranch)}</p>` : "";
+  const verifiedCommits = verified?.commits.length ? `<ol class="commits">${verified.commits.map((commit) => `<li><code>${escapeHtml(commit.shortHash)}</code><span><strong>${escapeHtml(commit.subject)}</strong><small>${escapeHtml(commit.author)}</small></span></li>`).join("")}</ol>` : '<p class="placeholder-detail">No new commits were verified.</p>';
   elements.selectionStatus.textContent = feature.status;
   elements.selectionStatus.className = `status ${feature.status}`;
-  elements.detail.innerHTML = `
-    <h3>${escapeHtml(feature.title)}</h3>
-    <p class="detail-description">${escapeHtml(feature.description)}</p>
+  elements.detail.innerHTML = `<h3>${escapeHtml(feature.title)}</h3><p class="detail-description">${escapeHtml(feature.description)}</p>
     <div class="detail-block detail-grid"><div><span>Owner</span><strong>${escapeHtml(feature.owner || "Unclaimed")}</strong></div><div><span>Branch</span><strong>${escapeHtml(feature.branch || "Not set")}</strong></div></div>
     <div class="detail-block"><h4>Completion checklist</h4><ul class="checklist">${feature.checklist.map((item) => `<li class="${item.done ? "done" : ""}"><span class="checkmark" aria-hidden="true">${item.done ? "✓" : ""}</span><span><span class="sr-only">${item.done ? "Completed" : "Incomplete"}: </span>${escapeHtml(item.text)}</span></li>`).join("")}</ul></div>
     <div class="detail-block"><h4>Verified commits</h4>${verified ? `${branchTransition}${verifiedCommits}` : '<p class="placeholder-detail">No completed sync for this feature yet.</p>'}</div>
-    <div class="detail-block"><h4>Verified files</h4>${verified ? `<ul class="files">${verified.changedFiles.map((file) => `<li>${escapeHtml(file)}</li>`).join("") || "<li>No changed files</li>"}</ul>` : '<p class="placeholder-detail">No completed sync for this feature yet.</p>'}</div>
-  `;
+    <div class="detail-block"><h4>Verified files</h4>${verified ? `<ul class="files">${verified.changedFiles.map((file) => `<li>${escapeHtml(file)}</li>`).join("") || "<li>No changed files</li>"}</ul>` : '<p class="placeholder-detail">No completed sync for this feature yet.</p>'}</div>`;
 }
 
+function setAuthMode(mode) {
+  authMode = mode;
+  elements.authTitle.textContent = mode === "signup" ? "Create your account" : "Welcome back";
+  elements.nameField.hidden = mode === "login";
+  elements.nameField.querySelector("input").required = mode === "signup";
+  elements.authForm.elements.password.autocomplete = mode === "signup" ? "new-password" : "current-password";
+  elements.authForm.querySelector("button[type=submit]").textContent = mode === "signup" ? "Create account" : "Log in";
+  document.querySelectorAll("[data-auth-mode]").forEach((button) => button.setAttribute("aria-selected", String(button.dataset.authMode === mode)));
+  elements.authError.textContent = "";
+}
+
+function setTeamMode(mode) {
+  teamMode = mode;
+  elements.teamTitle.textContent = mode === "create" ? "Create a team" : "Join your team";
+  elements.createTeamForm.hidden = mode !== "create";
+  elements.joinTeamForm.hidden = mode !== "join";
+  document.querySelectorAll("[data-team-mode]").forEach((button) => button.setAttribute("aria-selected", String(button.dataset.teamMode === mode)));
+  document.querySelectorAll("[data-team-error]").forEach((error) => { error.textContent = ""; });
+}
+
+async function submitAuth(event) {
+  event.preventDefault();
+  const submit = elements.authForm.querySelector("button[type=submit]");
+  submit.disabled = true;
+  elements.authError.textContent = "";
+  try {
+    const form = new FormData(elements.authForm);
+    await request(`/api/auth/${authMode}`, { method: "POST", body: JSON.stringify(Object.fromEntries(form)) });
+    elements.authForm.reset();
+    await load();
+  } catch (error) {
+    elements.authError.textContent = error.message;
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+async function submitCreateTeam(event) {
+  event.preventDefault();
+  const error = elements.createTeamForm.querySelector("[data-team-error]");
+  error.textContent = "";
+  try {
+    const body = Object.fromEntries(new FormData(elements.createTeamForm));
+    const { team } = await request("/api/teams", { method: "POST", body: JSON.stringify(body) });
+    selectedTeamId = team.id;
+    localStorage.setItem("collavibe-team", selectedTeamId);
+    await load();
+  } catch (caught) {
+    error.textContent = caught.message;
+  }
+}
+
+async function submitJoinTeam(event) {
+  event.preventDefault();
+  const error = elements.joinTeamForm.querySelector("[data-team-error]");
+  error.textContent = "";
+  try {
+    const body = Object.fromEntries(new FormData(elements.joinTeamForm));
+    const { team } = await request("/api/teams/join", { method: "POST", body: JSON.stringify(body) });
+    selectedTeamId = team.id;
+    localStorage.setItem("collavibe-team", selectedTeamId);
+    await load();
+  } catch (caught) {
+    error.textContent = caught.message;
+  }
+}
+
+async function connectProject(event) {
+  event.preventDefault();
+  const error = document.querySelector("#project-error");
+  error.textContent = "";
+  try {
+    const repoPath = new FormData(event.currentTarget).get("repoPath");
+    await request(`/api/teams/${encodeURIComponent(dashboard.selectedTeam.id)}/projects`, { method: "POST", body: JSON.stringify({ repoPath }) });
+    await load();
+  } catch (caught) {
+    error.textContent = caught.message;
+  }
+}
+
+async function logOut() {
+  await request("/api/auth/logout", { method: "POST" });
+  localStorage.removeItem("collavibe-team");
+  selectedTeamId = "";
+  latestFingerprint = "";
+  show("auth");
+}
+
+document.querySelectorAll("[data-auth-mode]").forEach((button) => button.addEventListener("click", () => setAuthMode(button.dataset.authMode)));
+document.querySelectorAll("[data-team-mode]").forEach((button) => button.addEventListener("click", () => setTeamMode(button.dataset.teamMode)));
+elements.authForm.addEventListener("submit", submitAuth);
+elements.createTeamForm.addEventListener("submit", submitCreateTeam);
+elements.joinTeamForm.addEventListener("submit", submitJoinTeam);
 elements.refresh.addEventListener("click", () => load());
+elements.teamSelect.addEventListener("change", () => { selectedTeamId = elements.teamSelect.value; localStorage.setItem("collavibe-team", selectedTeamId); selectedFeatureId = null; load(); });
+elements.copyCode.addEventListener("click", async () => {
+  await navigator.clipboard.writeText(dashboard.selectedTeam.joinCode);
+  const previous = elements.copyCode.querySelector("span").textContent;
+  elements.copyCode.querySelector("span").textContent = "Copied";
+  setTimeout(() => { elements.copyCode.querySelector("span").textContent = previous; }, 1400);
+});
+elements.accountButton.addEventListener("click", () => { elements.accountMenu.hidden = !elements.accountMenu.hidden; });
+elements.addTeam.addEventListener("click", () => {
+  elements.accountMenu.hidden = true;
+  const repoInput = elements.createTeamForm.elements.repoPath;
+  if (!repoInput.value) repoInput.value = dashboard.defaultRepoPath || "";
+  setTeamMode("create");
+  elements.backWorkspace.hidden = false;
+  show("team");
+});
+elements.backWorkspace.addEventListener("click", () => show("workspace"));
+elements.logout.addEventListener("click", logOut);
+elements.teamLogout.addEventListener("click", logOut);
+document.addEventListener("click", (event) => {
+  if (!elements.accountMenu.contains(event.target) && event.target !== elements.accountButton) elements.accountMenu.hidden = true;
+});
 document.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
     event.preventDefault();
@@ -147,5 +306,7 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+setAuthMode("signup");
+setTeamMode("create");
 load();
-setInterval(() => load({ quiet: true }), 5000);
+setInterval(() => { if (!elements.workspace.hidden) load({ quiet: true }); }, 5000);

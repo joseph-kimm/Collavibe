@@ -13,12 +13,23 @@ The agent does the language work. Collavibe provides the durable coordination la
 
 Collavibe never commits, pushes, or edits project source code.
 
+## Team onboarding
+
+The local app now includes account and team onboarding:
+
+1. Sign up with a name, email, and password.
+2. Create a named team and connect a local Git repository, or join an existing team using its eight-character invite code.
+3. Copy the team code from the workspace header and give it to the coding agent when starting Collavibe.
+4. Every MCP session attached with that code appears in the same team workspace.
+
+Passwords are hashed with scrypt and browser sessions use `HttpOnly`, `SameSite=Strict` cookies. The browser state API requires an authenticated team member. This is suitable for the local prototype; a public deployment still needs production identity, HTTPS, repository authorization, abuse controls, and a database.
+
 ## Current MCP surface
 
 | Capability | MCP primitive | Purpose |
 | --- | --- | --- |
-| `get_project_context` | Tool | Refresh repository, feature, and session context. |
-| `start_collaboration_session` | Tool | Capture starting Git state and generate work choices. |
+| `get_project_context` | Tool | Refresh repository, feature, and session context, optionally attaching it with a team code. |
+| `start_collaboration_session` | Tool | Capture starting Git state, attach it to a team code, and generate work choices. |
 | `choose_work_item` | Tool | Claim an existing feature or define a new one with a checklist. |
 | `get_sync_template` | Tool | Tell the agent exactly what to summarize from the chat. |
 | `sync_collaboration_session` | Tool | Save the summary and reconcile it with verified Git changes. |
@@ -48,7 +59,7 @@ State is stored at `.collavibe/state.json` by default and is not committed. Set 
 
 The HTTP server binds to `127.0.0.1` by default so repository metadata is not exposed to the local network. Set `HOST` deliberately when testing from another machine; a shared deployment still requires authentication and a transactional database.
 
-Open `http://localhost:4317/` for the read-only project map. See [client integration](docs/INTEGRATION.md) for Claude Code, Claude Desktop, Codex, and generic MCP clients, [architecture](docs/ARCHITECTURE.md) for the trust boundary and data flow, [testing](docs/TESTING.md) for the repeatable verification matrix, and [QA results](docs/TEST_RESULTS.md) for the latest executed evidence.
+Open `http://localhost:4317/` to sign in, create or join a team, and view its read-only project map. See [client integration](docs/INTEGRATION.md) for Claude Code, Claude Desktop, Codex, and generic MCP clients, [architecture](docs/ARCHITECTURE.md) for the trust boundary and data flow, [testing](docs/TESTING.md) for the repeatable verification matrix, and [QA results](docs/TEST_RESULTS.md) for the latest executed evidence.
 
 ## Important boundary
 
