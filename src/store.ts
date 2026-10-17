@@ -4,6 +4,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { inspectDelta, inspectRepository } from "./git.js";
 import { cloudSyncUrl, publishCloudState } from "./cloud-sync.js";
+import { editFeature, makeFeature, makeProject, WorkspaceError, type FeatureFields } from "./workspace-model.js";
 import type { CollaborationSession, CollavibeState, Feature, FeatureStatus, Project, Team, User, WorkOption } from "./types.js";
 
 const emptyState = (): CollavibeState => ({
@@ -194,7 +195,7 @@ function teamSummary(state: CollavibeState, team: Team) {
 
 function requireMembership(state: CollavibeState, userId: string, teamId: string) {
   const membership = state.memberships.find((item) => item.userId === userId && item.teamId === teamId);
-  if (!membership) throw new Error("You are not a member of this team.");
+  if (!membership) throw new WorkspaceError("You are not a member of this team.", 403);
   return membership;
 }
 
@@ -265,6 +266,83 @@ export async function getDashboard(userId: string, requestedTeamId?: string) {
     defaultRepoPath: process.cwd(),
     deploymentMode: "local" as const,
   };
+}
+
+export async function listTeamMembers(userId: string, teamId: string) {
+  const state = await readState();
+  requireMembership(state, userId, teamId);
+  return state.memberships.filter((item) => item.teamId === teamId).map((item) => {
+    const user = state.users.find((candidate) => candidate.id === item.userId)!;
+    return { userId: user.id, name: user.name, email: user.email, role: item.role, joinedAt: item.joinedAt };
+  });
+}
+
+function requireOwner(state: CollavibeState, userId: string, teamId: string) {
+  requireMembership(state, userId, teamId);
+  const team = state.teams.find((item) => item.id === teamId)!;
+  if (team.ownerUserId !== userId) throw new WorkspaceError("Only the team owner can change this setting.", 403);
+  return team;
+}
+
+export async function updateTeamName(userId: string, teamId: string, name: string) {
+  return mutate((state) => { requireOwner(state, userId, teamId).name = name; });
+}
+
+export async function rotateTeamCode(userId: string, teamId: string) {
+  return mutate((state) => {
+    const team = requireOwner(state, userId, teamId);
+    team.joinCode = newTeamCode(new Set(state.teams.map((item) => item.joinCode)));
+    return team.joinCode;
+  });
+}
+
+export async function removeTeamMember(userId: string, teamId: string, targetId: string) {
+  return mutate((state) => {
+    requireMembership(state, userId, teamId);
+    const team = state.teams.find((item) => item.id === teamId)!;
+    if (targetId !== userId) requireOwner(state, userId, teamId);
+    if (targetId === team.ownerUserId) throw new Error("The team owner cannot leave or be removed.");
+    team.joinCode = newTeamCode(new Set(state.teams.map((item) => item.joinCode)));
+    state.memberships = state.memberships.filter((item) => item.teamId !== teamId || item.userId !== targetId);
+    return team.joinCode;
+  });
+}
+
+export async function addRemoteProject(userId: string, teamId: string, input: { name: string; repositoryUrl: string }) {
+  const project = makeProject(input);
+  return mutate((state) => {
+    requireMembership(state, userId, teamId);
+    const link = state.teamProjects.find((item) => item.projectId === project.id);
+    if (link) throw new Error(link.teamId === teamId ? "This repository is already in your team." : "This repository is already connected to another team.");
+    if (!state.projects.some((item) => item.id === project.id)) state.projects.push(project);
+    state.teamProjects.push({ teamId, projectId: project.id, addedByUserId: userId, addedAt: project.createdAt });
+    return project;
+  });
+}
+
+function requireTeamProject(state: CollavibeState, userId: string, teamId: string, projectId: string) {
+  requireMembership(state, userId, teamId);
+  if (!state.teamProjects.some((item) => item.teamId === teamId && item.projectId === projectId)) throw new WorkspaceError("Project not found in this team.", 404);
+}
+
+export async function createPlannedFeature(userId: string, teamId: string, projectId: string, input: FeatureFields) {
+  return mutate((state) => {
+    requireTeamProject(state, userId, teamId, projectId);
+    const feature = makeFeature(projectId, input);
+    state.features.push(feature);
+    return feature;
+  });
+}
+
+export async function updatePlannedFeature(userId: string, teamId: string, featureId: string, input: Parameters<typeof editFeature>[1]) {
+  return mutate((state) => {
+    const index = state.features.findIndex((feature) => feature.id === featureId);
+    if (index === -1) throw new WorkspaceError("Feature not found.", 404);
+    requireTeamProject(state, userId, teamId, state.features[index].projectId);
+    const updated = editFeature(state.features[index], input);
+    state.features[index] = updated;
+    return updated;
+  });
 }
 
 async function mutate<T>(operation: (state: CollavibeState) => Promise<T> | T): Promise<T> {
@@ -389,6 +467,7 @@ export async function chooseWorkItem(input: { sessionId: string; featureId?: str
     if (input.featureId) {
       feature = state.features.find((item) => item.id === input.featureId && item.projectId === session.projectId);
       if (!feature) throw new Error("The selected feature does not belong to this project.");
+      if (feature.status === "active" && feature.owner && feature.owner !== session.participant) throw new Error(`This feature is already in progress with ${feature.owner}. Choose another feature or ask the team to reassign it.`);
     } else if (input.newFeature) {
       if (!input.newFeature.checklist.length) throw new Error("A feature needs at least one completion checklist item.");
       const timestamp = new Date().toISOString();

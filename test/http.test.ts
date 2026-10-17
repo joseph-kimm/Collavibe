@@ -73,9 +73,8 @@ describe("Streamable HTTP transport", () => {
     expect(response.status).toBe(200);
     const html = await response.text();
     expect(html).toContain('id="agent-connect-dialog"');
-    expect(html).toContain('href="https://chatgpt.com/plugins"');
-    expect(html).toContain('href="https://claude.ai/settings/connectors"');
-    expect(html).toContain("No authentication");
+    expect(html).toContain('id="project-form"');
+    expect(html).toContain('id="feature-form"');
   });
 
   it("initializes independent clients and persists shared state", async () => {
@@ -131,6 +130,30 @@ describe("Streamable HTTP transport", () => {
     });
     expect(response.status).toBe(406);
     await expect(response.json()).resolves.toMatchObject({ error: { message: expect.stringMatching(/accept both application\/json and text\/event-stream/i) } });
+  });
+
+  it("supports browser planning and rejects stale, cross-team, and cross-origin writes", async () => {
+    const call = (pathname: string, method = "GET", body?: unknown, cookie = authCookie, headers = {}) => fetch(baseUrl + pathname, { method, headers: { "content-type": "application/json", cookie, ...headers }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    const dashboard = await (await call("/api/dashboard")).json();
+    const teamId = dashboard.selectedTeam.id;
+    const added = await call(`/api/teams/${teamId}/projects`, "POST", { name: "Planned project", repositoryUrl: "https://github.com/test-team/planned-project" });
+    expect(added.status).toBe(201);
+    const project = (await added.json()).project;
+    const created = await call(`/api/teams/${teamId}/projects/${project.id}/features`, "POST", { title: "First planned feature", checklist: [{ text: "Verify behavior" }] });
+    expect(created.status).toBe(201);
+    const feature = (await created.json()).feature;
+    const patch = { ...feature, owner: "HTTP Owner", expectedUpdatedAt: feature.updatedAt };
+    const changed = await call(`/api/teams/${teamId}/features/${feature.id}`, "PATCH", patch);
+    expect(changed.status).toBe(200);
+    expect((await changed.json()).feature.owner).toBe("HTTP Owner");
+    expect((await call(`/api/teams/${teamId}/features/${feature.id}`, "PATCH", patch)).status).toBe(409);
+    expect((await call(`/api/teams/${teamId}`, "PATCH", { name: "Attacker rename" }, authCookie, { origin: "https://not-collavibe.example" })).status).toBe(403);
+    const stranger = await call("/api/auth/signup", "POST", { name: "Stranger", email: "stranger@example.com", password: "a-different-test-password" }, "");
+    const strangerCookie = stranger.headers.get("set-cookie")!.split(";")[0];
+    expect((await call(`/api/teams/${teamId}/members`, "GET", undefined, strangerCookie)).status).toBe(403);
+    expect((await call(`/api/teams/${teamId}/projects/${project.id}/features`, "POST", { title: "Unauthorized feature" }, strangerCookie)).status).toBe(403);
+    expect((await call("/api/readiness")).status).toBe(200);
+    expect((await call(`/api/teams/${teamId}/members`)).status).toBe(200);
   });
 
   it("requires a signed-in account for the team dashboard", async () => {

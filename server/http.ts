@@ -9,9 +9,26 @@ import { addProjectToTeam, createTeam, getDashboard, getUserForToken, joinTeam, 
 import { withoutInternalGitEvidence } from "../src/public.js";
 import { cloudAgentSync, cloudCreateTeam, cloudDashboard, cloudJoinTeam, cloudLogin, cloudLogout, cloudSignUp, cloudUserForSession, isSupabaseConfigured, type CloudSession } from "../src/supabase.js";
 import type { NextFunction, Request, Response } from "express";
+import { addRemoteProject, createPlannedFeature, listTeamMembers, removeTeamMember, rotateTeamCode, updatePlannedFeature, updateTeamName } from "../src/store.js";
+import { cloudAddProject, cloudCreateFeature, cloudEditFeature, cloudMembers, cloudReadiness, cloudRemoveMember, cloudRotateCode, cloudUpdateTeam } from "../src/cloud-workspace.js";
+import { featureFields, featurePatchSchema, WorkspaceError } from "../src/workspace-model.js";
 
 export const app = express();
 app.use(express.json({ limit: "1mb" }));
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "same-origin");
+  if (req.path.startsWith("/api/")) {
+    res.setHeader("Cache-Control", "no-store");
+    // Browser writes require the caller's own origin; native MCP calls use /mcp.
+    const origin = req.headers.origin;
+    if (origin && !["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+      try { if (new URL(origin).host !== req.get("host")) return void res.status(403).json({ error: "This request must come from Collavibe." }); }
+      catch { return void res.status(403).json({ error: "Invalid request origin." }); }
+    }
+  }
+  next();
+});
 
 const AUTH_COOKIE = "collavibe_session";
 const cookieOptions = { httpOnly: true, sameSite: "strict" as const, secure: process.env.NODE_ENV === "production", maxAge: 1000 * 60 * 60 * 24 * 30, path: "/" };
@@ -143,9 +160,56 @@ app.post("/api/teams/join", requireUser, api(async (req, res) => {
 }));
 
 app.post("/api/teams/:teamId/projects", requireUser, api(async (req, res) => {
-  if (isSupabaseConfigured()) throw new Error("Connect a hosted team from the local MCP using its team code.");
-  const project = await addProjectToTeam({ userId: req.collavibeUser!.id, teamId: String(req.params.teamId), repoPath: String(req.body?.repoPath || "") });
+  const userId = req.collavibeUser!.id;
+  const teamId = String(req.params.teamId);
+  if (!isSupabaseConfigured() && req.body?.repoPath) {
+    const project = await addProjectToTeam({ userId, teamId, repoPath: String(req.body.repoPath) });
+    res.status(201).json({ project: withoutInternalGitEvidence(project) });
+    return;
+  }
+  const input = z.object({ name: z.string().trim().min(2).max(200), repositoryUrl: z.string().trim().min(8).max(2048) }).parse(req.body);
+  const project = isSupabaseConfigured() ? await cloudAddProject(userId, teamId, input) : await addRemoteProject(userId, teamId, input);
   res.status(201).json({ project: withoutInternalGitEvidence(project) });
+}));
+
+app.get("/api/teams/:teamId/members", requireUser, api(async (req, res) => {
+  const members = isSupabaseConfigured() ? await cloudMembers(req.collavibeUser!.id, String(req.params.teamId)) : await listTeamMembers(req.collavibeUser!.id, String(req.params.teamId));
+  res.json({ members });
+}));
+
+app.patch("/api/teams/:teamId", requireUser, api(async (req, res) => {
+  const { name } = z.object({ name: z.string().trim().min(2).max(120) }).parse(req.body);
+  if (isSupabaseConfigured()) await cloudUpdateTeam(req.collavibeUser!.id, String(req.params.teamId), name);
+  else await updateTeamName(req.collavibeUser!.id, String(req.params.teamId), name);
+  res.status(204).end();
+}));
+
+app.post("/api/teams/:teamId/rotate-code", requireUser, api(async (req, res) => {
+  const joinCode = isSupabaseConfigured() ? await cloudRotateCode(req.collavibeUser!.id, String(req.params.teamId)) : await rotateTeamCode(req.collavibeUser!.id, String(req.params.teamId));
+  res.json({ joinCode });
+}));
+
+app.delete("/api/teams/:teamId/members/:userId", requireUser, api(async (req, res) => {
+  if (isSupabaseConfigured()) await cloudRemoveMember(req.collavibeUser!.id, String(req.params.teamId), String(req.params.userId));
+  else await removeTeamMember(req.collavibeUser!.id, String(req.params.teamId), String(req.params.userId));
+  res.status(204).end();
+}));
+
+app.post("/api/teams/:teamId/projects/:projectId/features", requireUser, api(async (req, res) => {
+  const input = featureFields.parse(req.body);
+  const feature = isSupabaseConfigured() ? await cloudCreateFeature(req.collavibeUser!.id, String(req.params.teamId), String(req.params.projectId), input) : await createPlannedFeature(req.collavibeUser!.id, String(req.params.teamId), String(req.params.projectId), input);
+  res.status(201).json({ feature });
+}));
+
+app.patch("/api/teams/:teamId/features/:featureId", requireUser, api(async (req, res) => {
+  const input = featurePatchSchema.parse(req.body);
+  const feature = isSupabaseConfigured() ? await cloudEditFeature(req.collavibeUser!.id, String(req.params.teamId), String(req.params.featureId), input) : await updatePlannedFeature(req.collavibeUser!.id, String(req.params.teamId), String(req.params.featureId), input);
+  res.json({ feature });
+}));
+
+app.get("/api/readiness", api(async (_req, res) => {
+  const ready = !isSupabaseConfigured() || await cloudReadiness();
+  res.status(ready ? 200 : 503).json({ ok: ready, database: ready ? "available" : "unavailable", message: ready ? "Collavibe is available." : "The database is unavailable. Please try again shortly." });
 }));
 
 const agentSyncSchema = z.object({
@@ -186,13 +250,16 @@ for (const method of ["get", "delete"] as const) {
   app[method]("/mcp", (_req, res) => res.status(405).json({ jsonrpc: "2.0", error: { code: -32000, message: "Method not allowed for stateless MCP." }, id: null }));
 }
 
-app.get("/health", (_req, res) => res.json({ ok: true, service: "collavibe", version: "0.5.0", mode: isSupabaseConfigured() ? "hosted-mcp" : "local" }));
+app.get("/health", (_req, res) => res.json({ ok: true, service: "collavibe", version: "0.6.0", mode: isSupabaseConfigured() ? "hosted-mcp" : "local" }));
 
 const publicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
 app.use(express.static(publicDirectory));
 
 app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
+  if (error instanceof WorkspaceError) return void res.status(error.status).json({ error: error.message });
+  if (error instanceof z.ZodError) return void res.status(400).json({ error: error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ") });
   const message = error instanceof Error ? error.message : "Something went wrong.";
+  if (/fetch failed|ENOTFOUND|ECONNREFUSED|ETIMEDOUT/i.test(message)) return void res.status(503).json({ error: "The database is unavailable. Please try again shortly." });
   const status = /incorrect|sign in|not a member|unknown user/i.test(message) ? 401 : 400;
   res.status(status).json({ error: message });
 });

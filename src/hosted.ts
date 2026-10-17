@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { getSupabaseAdmin, throwSupabaseError } from "./supabase.js";
 import type { CollaborationSession, Feature, FeatureStatus, GitSnapshot, Project, VerifiedDelta, WorkOption } from "./types.js";
+import { repositoryKey } from "./workspace-model.js";
 
 export interface HostedProjectInput {
   key: string;
@@ -16,14 +17,17 @@ function normalizeTeamCode(value: string) {
 function safeRepositoryKey(value: string) {
   const key = value.trim();
   if (!key) throw new Error("A stable repository key is required.");
+  let url: URL;
   try {
-    const url = new URL(key);
-    url.username = "";
-    url.password = "";
-    return url.toString();
+    url = new URL(key);
   } catch {
     return key;
   }
+  url.username = "";
+  url.password = "";
+  url.search = "";
+  url.hash = "";
+  return repositoryKey(url.toString());
 }
 
 function hostedProjectId(key: string) {
@@ -103,7 +107,7 @@ export async function startHostedSession(input: { teamCode: string; participant:
   const existingProject = await getSupabaseAdmin().from("projects").select("*").eq("id", id).maybeSingle();
   throwSupabaseError(existingProject.error);
   const project: Project = existingProject.data
-    ? { ...projectFromRow(existingProject.data), name: input.project.name, root: key, remote: input.project.remote, latestGit: input.project.git, updatedAt: now }
+    ? { ...projectFromRow(existingProject.data), root: key, remote: input.project.remote, latestGit: input.project.git, updatedAt: now }
     : { id, name: input.project.name, root: key, remote: input.project.remote, latestGit: input.project.git, createdAt: now, updatedAt: now };
   const projectWrite = await getSupabaseAdmin().from("projects").upsert({ id, name: project.name, root: key, remote: project.remote || null, latest_git: project.latestGit, created_at: project.createdAt, updated_at: now });
   throwSupabaseError(projectWrite.error);
@@ -159,6 +163,7 @@ export async function chooseHostedWorkItem(input: { teamCode: string; sessionId:
     throwSupabaseError(found.error);
     if (!found.data) throw new Error("The selected feature does not belong to this project.");
     feature = found.data.payload as Feature;
+    if (feature.status === "active" && feature.owner && feature.owner !== session.participant) throw new Error(`This feature is already in progress with ${feature.owner}. Choose another feature or ask the team to reassign it.`);
   } else {
     if (!input.newFeature?.checklist.length) throw new Error("A feature needs at least one completion checklist item.");
     const now = new Date().toISOString();

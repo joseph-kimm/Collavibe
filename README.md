@@ -21,7 +21,7 @@ The hosted preview includes Supabase-backed account and team onboarding:
 
 1. Sign up with a name, email, and password.
 2. Create a named team or join an existing team using its eight-character invite code.
-3. Copy the team code from the workspace header and give it to the coding agent when starting Collavibe.
+3. Add a repository, plan its features, and open **Connect agent** for the hosted MCP URL and prepared start/sync prompts.
 4. Every MCP session attached with that code appears in the same team workspace.
 
 Supabase Auth stores account credentials, browser sessions use `HttpOnly`, `SameSite=Strict` cookies, and team/project state lives in Postgres with row-level security enabled. The browser never receives the backend secret key. The team code is also the current agent capability, so treat it like an invitation and share it only with intended teammates.
@@ -79,7 +79,9 @@ node --env-file=.env.local --import tsx server/http.ts
 
 The local HTTP server binds to `127.0.0.1` by default. Set `HOST` deliberately when testing from another machine.
 
-Open `http://localhost:4317/` to sign in, create or join a team, and view its read-only project map. See [client integration](docs/INTEGRATION.md) for Claude Code, Claude Desktop, Codex, and generic MCP clients, [architecture](docs/ARCHITECTURE.md) for the trust boundary and data flow, [testing](docs/TESTING.md) for the repeatable verification matrix, and [QA results](docs/TEST_RESULTS.md) for the latest executed evidence.
+Open `http://localhost:4317/` to sign in, create or join a team, and use the workspace. See [workspace features and limits](docs/WORKSPACE.md), [client integration](docs/INTEGRATION.md), [architecture](docs/ARCHITECTURE.md), and [testing](docs/TESTING.md).
+
+You can inspect the interface without an account from **View a sample workspace**, or `/?demo=1`. Sample records are fictional, read-only, and never stored in the database.
 
 ## Important boundary
 

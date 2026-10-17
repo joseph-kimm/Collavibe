@@ -270,7 +270,7 @@ describe("agent-to-team session workflow", () => {
   });
 
   it("rejects ambiguous selections and terminal session transitions", async () => {
-    const setup = await startCollaborationSession({ repoPath: repo, participant: "Amina" });
+    const setup = await startCollaborationSession({ repoPath: repo, participant: "Shayan" });
     const first = await chooseWorkItem({
       sessionId: setup.session.id,
       newFeature: { title: "First feature", description: "Create a first concrete test feature.", checklist: ["Make a change"] },
@@ -292,6 +292,13 @@ describe("agent-to-team session workflow", () => {
     await syncCollaborationSession(payload);
     await expect(syncCollaborationSession(payload)).rejects.toThrow("already been synced");
     await expect(chooseWorkItem({ sessionId: started.session.id, featureId: first.feature.id })).rejects.toThrow("already been synced");
+  });
+
+  it("does not let an agent take work already active with a different teammate", async () => {
+    const first = await startCollaborationSession({ repoPath: repo, participant: "Amina" });
+    const chosen = await chooseWorkItem({ sessionId: first.session.id, newFeature: { title: "Claimed feature", description: "Amina is actively working on this feature.", checklist: ["Finish the implementation"] } });
+    const second = await startCollaborationSession({ repoPath: repo, participant: "Shayan" });
+    await expect(chooseWorkItem({ sessionId: second.session.id, featureId: chosen.feature.id })).rejects.toThrow("already in progress with Amina");
   });
 
   it("preserves sessions written concurrently by separate MCP processes", async () => {

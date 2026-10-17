@@ -1,0 +1,30 @@
+// Sample data is only loaded by the explicit demo action. It is never sent to the API.
+export function sampleWorkspace() {
+  const date = (days, hours = 0) => new Date(Date.now() - days * 86400000 - hours * 3600000).toISOString();
+  const git = { root: "https://github.com/example/course-planner.git", remote: "https://github.com/example/course-planner.git", branch: "feature/assignments", head: "a14c72f".padEnd(40, "0"), dirty: false, workingFiles: [], branches: [{ name: "main", head: "7d9b1e3", current: false }, { name: "feature/assignments", head: "a14c72f", current: true }, { name: "feature/calendar", head: "3eb7841", current: false }], recentCommits: [], trackedFiles: ["src/app.ts", "src/calendar.ts", "src/assignments.ts", "src/auth.ts", "src/styles.css", "tests/assignments.test.ts", "README.md"], capturedAt: date(0, 1) };
+  const specifications = [
+    ["f1", "Assignment due dates", "Add due dates to assignments and show overdue work on the course page.", "active", "Maya", "feature/assignments", ["Store a due date with each assignment", "Show dates in the student's timezone", "Cover overdue and missing dates in tests"], 1],
+    ["f2", "Weekly calendar", "A weekly view showing classes and assignment deadlines in one place.", "review", "Sam", "feature/calendar", ["Render classes for the current week", "Navigate between weeks", "Handle overlapping events"], 3],
+    ["f3", "Email reminders", "Send a reminder the day before an assignment is due.", "blocked", "Maya", "", ["Choose an email provider", "Let students disable reminders"], 0],
+    ["f4", "Course search", "Find courses by name, subject, or instructor.", "planned", "", "", ["Search updates as the student types", "Show a helpful no-results state"], 0],
+    ["f5", "Invite classmates", "Allow a student to share a course with a classmate.", "planned", "Sam", "", ["Generate a course invite link", "Check access before joining"], 0],
+    ["f6", "Student login", "Email and password login with readable validation errors.", "done", "Alex", "feature/auth", ["Create account form", "Keep sessions after refresh", "Test incorrect passwords"], 3],
+  ];
+  const features = specifications.map(([id, title, description, status, owner, branch, items, completed], index) => ({ id, projectId: "p1", title, description, status, owner, branch, checklist: items.map((text, i) => ({ id: `check_${id}_${i}`, text, done: i < completed })), createdAt: date(6), updatedAt: date(index < 3 ? 0 : 1, index + 1) }));
+  const session = (id, participant, featureId, summary, completed, decisions, blockers, nextSteps, files, days, hours) => ({ id, participant, featureId, projectId: "p1", repoPath: git.root, startedAt: date(days, hours + 1), syncedAt: date(days, hours), status: "synced", startSnapshot: git, sync: { summary, workCompleted: completed, decisions, blockers, nextSteps, agentReportedFiles: files, verified: { source: "agent_attested", startHead: "7d9b1e3".padEnd(40,"0"), endHead: git.head, startBranch: git.branch, endBranch: git.branch, commits: [{ hash: git.head, shortHash: "a14c72f", author: participant, subject: summary.split(".")[0], authoredAt: date(days,hours) }], changedFiles: files, workingFiles: [], reportedButUnverified: [] } } });
+  return {
+    user: { id: "u1", name: "Maya Chen", email: "maya@example.com" },
+    teams: [{ id: "t1", name: "Course project", joinCode: "DEMOONLY", ownerUserId: "u1", memberCount: 3, projectCount: 2 }],
+    selectedTeam: { id: "t1", name: "Course project", joinCode: "DEMOONLY", ownerUserId: "u1", memberCount: 3, projectCount: 2 },
+    projects: [{ id: "p1", name: "Course planner", root: git.root, remote: git.remote, latestGit: git, createdAt: date(7), updatedAt: date(0,1) }, { id: "p2", name: "Project website", root: "https://github.com/example/project-website.git", remote: "https://github.com/example/project-website.git", latestGit: { ...git, branch: "", head: "", branches: [], trackedFiles: [] }, createdAt: date(3), updatedAt: date(3) }],
+    features,
+    sessions: [
+      session("s1", "Maya", "f1", "Added due-date storage and validation. The course page displays dates; timezone handling is still in progress.", ["Added a nullable due-date field", "Validated dates in the assignment form", "Added tests for missing and invalid dates"], ["Store dates in UTC and format them for each student", "Keep undated assignments visible below dated work"], [], ["Finish timezone display", "Test dates around midnight"], ["src/assignments.ts", "tests/assignments.test.ts"], 0, 1),
+      session("s2", "Sam", "f2", "The weekly calendar is ready for review. Overlapping classes now display side by side.", ["Added week navigation", "Placed deadlines alongside classes", "Tested overlapping events"], ["Start the week on Monday", "Use the same course colors as the list"], [], ["Ask a teammate to review on mobile", "Check keyboard navigation"], ["src/calendar.ts", "src/styles.css"], 0, 3),
+      session("s3", "Maya", "f3", "Drafted the reminder flow. Sending is blocked until we choose an email provider.", ["Added reminder preferences to the settings page"], ["Reminders should be optional"], ["Email provider and sender domain are not configured"], ["Choose a provider as a team", "Decide whether reminders run daily or hourly"], ["src/app.ts"], 1, 1),
+      session("s4", "Alex", "f6", "Login and signup are complete. Invalid passwords show a readable error and sessions survive refresh.", ["Built the signup and login forms", "Added session persistence", "Tested sign out and invalid passwords"], ["Use the existing auth service rather than store passwords ourselves"], [], ["Review the assignment work"], ["src/auth.ts", "src/app.ts"], 2, 0),
+    ],
+    members: [{ userId: "u1", name: "Maya Chen", email: "maya@example.com", role: "owner", joinedAt: date(7) }, { userId: "u2", name: "Sam Patel", email: "sam@example.com", role: "member", joinedAt: date(6) }, { userId: "u3", name: "Alex Rivera", email: "alex@example.com", role: "member", joinedAt: date(6) }],
+    deploymentMode: "cloud",
+  };
+}
