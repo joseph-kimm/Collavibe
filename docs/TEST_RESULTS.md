@@ -9,6 +9,8 @@ Branch: `codex/collavibe-workspace`. Version: `0.6.0`.
 - Desktop and 390 × 844 mobile layouts are inspected with screenshots. Sample data is explicitly labeled and does not write to the server.
 - Browser testing caught an input-reset bug caused by asynchronous member loading. Team name input is now preserved while the user types.
 - The database was found paused in the Supabase dashboard and resumed. Before cloud tests, there were two existing accounts and two teams, with no projects/features/sessions; those records are preserved.
+- The final cloud smoke test passed on preview `collavibe-5w8ym2wg6-shayan-ahmads-projects.vercel.app` and production `https://collavibe.vercel.app/mcp`. It also verified that an agent session preserves the project's website-defined name. Production deployment `dpl_Fvtdubo5fPHr1sTD8m5RVk35GhP7` is Ready.
+- The deployed preview passed browser signup, cloud team/project/feature creation, editing, checklist persistence after reload, a project JSON download, team rename, agent setup, and logout with no console errors. Search, filters, handoff Markdown downloads, mobile project switching, and mobile agent setup also passed.
 
 This release still uses a team code for MCP authorization. OAuth, individual agent credentials, GitHub webhook verification, and atomic multi-record MCP transactions remain outside this verification claim. See [WORKSPACE.md](WORKSPACE.md) for capabilities and limits.
 
