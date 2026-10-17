@@ -16,6 +16,7 @@ let userId: string | undefined;
 let teamId: string | undefined;
 let projectId: string | undefined;
 let client: Client | undefined;
+let teammateUserId: string | undefined;
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -56,6 +57,10 @@ async function cleanup() {
     const deleted = await admin.auth.admin.deleteUser(userId);
     throwSupabaseError(deleted.error);
   }
+  if (teammateUserId) {
+    const deleted = await admin.auth.admin.deleteUser(teammateUserId);
+    throwSupabaseError(deleted.error);
+  }
 }
 
 try {
@@ -73,7 +78,30 @@ try {
     body: JSON.stringify({ name: `Hosted MCP Smoke ${runId}` }),
   })).json() as { team: { id: string; joinCode: string } };
   teamId = createdTeam.team.id;
-  const teamCode = createdTeam.team.joinCode;
+  let teamCode = createdTeam.team.joinCode;
+
+  const readiness = await (await api("/api/readiness")).json() as { ok: boolean };
+  assert(readiness.ok, "Database readiness failed.");
+  const plannedProject = await (await api(`/api/teams/${teamId}/projects`, { method: "POST", body: JSON.stringify({ name: `Smoke Repository ${runId}`, repositoryUrl: repoKey }) })).json() as { project: { id: string; latestGit: { head: string } } };
+  projectId = plannedProject.project.id;
+  assert(plannedProject.project.latestGit.head === "", "Project creation invented a Git snapshot.");
+  const planned = await (await api(`/api/teams/${teamId}/projects/${projectId}/features`, { method: "POST", body: JSON.stringify({ title: "Hosted smoke workflow", description: "Plan on the website, then claim and sync from an external MCP client.", checklist: [{ text: "Start, choose, and sync through the hosted MCP", done: false }] }) })).json() as { feature: { id: string; updatedAt: string; title: string; description: string; status: string; checklist: Array<{ id: string; text: string; done: boolean }> } };
+  const patch = { ...planned.feature, expectedUpdatedAt: planned.feature.updatedAt, owner: "", branch: "feature/hosted-smoke" };
+  await api(`/api/teams/${teamId}/features/${planned.feature.id}`, { method: "PATCH", body: JSON.stringify(patch) });
+  const stale = await fetch(`${baseUrl}/api/teams/${teamId}/features/${planned.feature.id}`, { method: "PATCH", headers: { cookie: authCookie, "content-type": "application/json" }, body: JSON.stringify(patch) });
+  assert(stale.status === 409, "Stale browser edit was not rejected.");
+
+  const teammateResponse = await fetch(`${baseUrl}/api/auth/signup`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "Workspace Teammate", email: `collavibe-member-${runId}@example.com`, password }) });
+  assert(teammateResponse.ok, "Teammate signup failed.");
+  teammateUserId = ((await teammateResponse.json()) as { user: { id: string } }).user.id;
+  const teammateCookie = teammateResponse.headers.get("set-cookie")!.split(";")[0];
+  const teammateApi = (pathname: string, method = "GET", body?: unknown) => fetch(`${baseUrl}${pathname}`, { method, headers: { cookie: teammateCookie, "content-type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  assert((await teammateApi(`/api/teams/${teamId}/members`)).status === 403, "An outsider could read team members.");
+  assert((await teammateApi("/api/teams/join", "POST", { joinCode: teamCode })).ok, "Teammate could not join.");
+  assert((await teammateApi(`/api/teams/${teamId}`, "PATCH", { name: "Unauthorized rename" })).status === 403, "A member could rename the team.");
+  await api(`/api/teams/${teamId}`, { method: "PATCH", body: JSON.stringify({ name: `Hosted MCP Smoke ${runId} updated` }) });
+  const memberList = await (await api(`/api/teams/${teamId}/members`)).json() as { members: unknown[] };
+  assert(memberList.members.length === 2, "Member list did not include both accounts.");
 
   client = new Client({ name: "collavibe-production-smoke", version: "1.0.0" });
   await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`)));
@@ -90,7 +118,7 @@ try {
       intent: "Verify the deployed hosted workflow.",
       project: {
         key: repoKey,
-        name: `Smoke Repository ${runId}`,
+        name: "Agent checkout label",
         remote: repoKey,
         git: {
           branch: "feature/hosted-smoke",
@@ -104,19 +132,16 @@ try {
       },
     },
   });
-  const started = structured<{ started: { session: { id: string }; project: { id: string } } }>(startedResponse, "start_collaboration_session").started;
+  const started = structured<{ started: { session: { id: string }; project: { id: string; name: string } } }>(startedResponse, "start_collaboration_session").started;
   projectId = started.project.id;
+  assert(started.project.name === `Smoke Repository ${runId}`, "Starting an agent session overwrote the project's chosen name.");
 
   const chosenResponse = await client.callTool({
     name: "choose_work_item",
     arguments: {
       teamCode,
       sessionId: started.session.id,
-      newFeature: {
-        title: "Hosted smoke workflow",
-        description: "Exercise the production MCP across independent stateless requests.",
-        checklist: ["Start, choose, and sync through the hosted MCP"],
-      },
+      featureId: planned.feature.id,
       intendedBranch: "feature/hosted-smoke",
     },
   });
@@ -170,11 +195,20 @@ try {
   assert(dashboard.features.some((feature) => feature.status === "done" && feature.checklist.every((item) => item.done)), "The completed feature is missing from the dashboard.");
   assert(dashboard.sessions.some((session) => session.id === started.session.id && session.status === "synced" && session.sync?.verified?.source === "agent_attested"), "The synced session is missing from the dashboard.");
 
+  await api(`/api/teams/${teamId}/members/${teammateUserId}`, { method: "DELETE" });
+  assert((await teammateApi(`/api/teams/${teamId}/members`)).status === 403, "Removed member retained website access.");
+  const oldCode = await client.callTool({ name: "get_project_context", arguments: { teamCode } });
+  assert(oldCode.isError === true, "Removed member's old team code still authorized MCP access.");
+  const refreshedTeam = await (await api(`/api/dashboard?teamId=${teamId}`)).json() as { selectedTeam: { joinCode: string } };
+  teamCode = refreshedTeam.selectedTeam.joinCode;
+  const context = await client.callTool({ name: "get_project_context", arguments: { teamCode } });
+  structured(context, "get_project_context after code reset");
+
   console.log(JSON.stringify({
     ok: true,
     endpoint: `${baseUrl}/mcp`,
     tools: tools.tools.map((tool) => tool.name),
-    workflow: ["signup", "create_team", "start", "choose", "template", "sync", "dashboard"],
+    workflow: ["signup", "create_team", "readiness", "add_project", "plan_feature", "edit_feature", "reject_stale_edit", "reject_outsider", "join_team", "owner_permissions", "rename_team", "list_members", "start", "choose_planned_feature", "template", "sync", "dashboard", "remove_member", "invalidate_old_mcp_code"],
     evidence: "agent_attested",
     cleanup: "pending",
   }, null, 2));

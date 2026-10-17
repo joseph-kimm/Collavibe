@@ -1,4 +1,18 @@
-# QA results — 2026-10-09
+# QA results — 2026-10-17
+
+Branch: `codex/collavibe-workspace`. Version: `0.6.0`.
+
+- TypeScript and 38 automated tests pass across five files. The new checks cover project URL validation, project and feature access boundaries, owner-only team operations, stale edit rejection, checklist IDs, code rotation, removal, and HTTP origin checks.
+- The cloud smoke workflow passes against the Supabase backend: signup, team creation, readiness, website project creation, feature planning/editing, stale-edit rejection, outsider rejection, invitation joining, owner permission checks, team renaming, member listing, MCP start, claiming the planned feature, template, sync, dashboard, member removal, and invalidation of the old MCP code. The script removes the accounts and records it created.
+- Real browser checks cover signup, team/project/feature creation, feature editing, checklist persistence after reload, search, team rename persistence, invitation copying, client configuration, and repository-specific prompts.
+- A two-account browser test verifies that an invite survives signup, members see the shared project, owner controls stay disabled for members, removal resets the code, and the removed account loses website access.
+- Desktop and 390 × 844 mobile layouts are inspected with screenshots. Sample data is explicitly labeled and does not write to the server.
+- Browser testing caught an input-reset bug caused by asynchronous member loading. Team name input is now preserved while the user types.
+- The database was found paused in the Supabase dashboard and resumed. Before cloud tests, there were two existing accounts and two teams, with no projects/features/sessions; those records are preserved.
+
+This release still uses a team code for MCP authorization. OAuth, individual agent credentials, GitHub webhook verification, and atomic multi-record MCP transactions remain outside this verification claim. See [WORKSPACE.md](WORKSPACE.md) for capabilities and limits.
+
+## Historical verification — 2026-10-09
 
 Branch tested: `codex/collavibe-session-sync`
 
