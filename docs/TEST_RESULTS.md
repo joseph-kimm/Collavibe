@@ -1,4 +1,35 @@
-# QA results — 2026-10-17
+# QA results — 2026-10-17 — v0.7.0
+
+Branch: `codex/collavibe-workspace`. Runtime commit: `e5ff9ee`.
+Production: https://collavibe.vercel.app
+Production deployment: `dpl_dcwfg4mPqSmY4rPyDaheoWUNVATg` (Ready).
+
+## Executed verification
+
+- TypeScript and all 42 automated tests pass across six files. Dependency audit reports zero vulnerabilities.
+- Both cloud scripts pass on preview `collavibe-3s68owo5q-shayan-ahmads-projects.vercel.app` and the stable production alias.
+- `hosted-smoke.ts`: signup, create/join team, readiness, website project/feature planning and editing, stale-edit rejection, outsider and owner permissions, MCP start/claim/template/sync, shared dashboard, member removal, preservation of another member's connection, and personal-key revocation.
+- `access-smoke.ts`: official MCP SDK discovery and dynamic registration; public and confidential OAuth clients; browser-bound consent; cancellation; PKCE rejection; code replay rejection; exact resource binding; account-bound sessions; cross-session denial; token refresh rotation and replay rejection; revocation; member removal; secret redaction; trusted/untrusted browser origin checks; and distributed rate budgets.
+- Direct database requests authenticated as an ordinary user cannot read another team's seeded feature or session, or read the credential table. These checks do not rely only on the application's service-role API.
+- Two independent teams can track the same repository without sharing records.
+- Simultaneous claims produce exactly one winner. Simultaneous syncs produce exactly one saved outcome. Unknown checklist identifiers fail without partially syncing.
+- Browser QA in Chrome covers real cloud signup, team/project/feature creation, OAuth consent followed by an authenticated MCP request, personal-key creation/use/revocation, and immediate clearing of the raw key when the dialog closes.
+- Chrome at 390 × 844 and WebKit with iPhone 15 emulation pass responsive checks. WebKit search, sessions, mobile navigation, and agent setup work; form text is 16 px to avoid mobile input zoom. No horizontal overflow is observed, the detail drawer fills the viewport, and primary mobile controls are 44 px tall.
+- The production sample and connection panel render with zero browser console errors or warnings. Sample records remain explicitly fictional and read-only.
+- Repeated local OAuth testing reached the configured 120-request budget: attempt 121 was rejected. One test run stopped at that rate limit; the full access flow subsequently passed on preview and production without disabling limits.
+- Concurrency testing exposed delayed responses when application conflicts used SQLSTATE `40001`. Changing those conflicts to explicit `PT409` responses eliminated the failure; both race checks pass.
+
+## Changes and boundary
+
+Invitation codes no longer authorize MCP calls. OAuth and personal keys authorize one account, team, and resource. The bulk state-replacement bridge is retired. The original database feature/session read policies were corrected, and multi-record MCP changes now use atomic PostgreSQL transactions with revision checks.
+
+All disposable script records and the separately named Browser QA fixture were removed. Existing accounts and teams are preserved. No branch was merged into main. See [ACCESS.md](ACCESS.md) for the migration, trust model, and remaining work.
+
+This is a testable beta, not an independent security certification or an unlimited-scale production claim. OAuth was exercised using the official SDK and a browser consent flow; this release was not separately approved through every vendor's desktop/mobile client. Email verification/recovery delivery, repository-provider push verification, retention/deletion controls, and sustained load testing remain further work.
+
+---
+
+## Earlier workspace verification — v0.6.0
 
 Branch: `codex/collavibe-workspace`. Version: `0.6.0`.
 
