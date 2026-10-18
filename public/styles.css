@@ -223,6 +223,16 @@ dialog[open] { animation: dialog-in .15s ease; }
 .prompt-section h3 { font-size: 14px; }
 .prompt-section p { margin-top: 9px; color: var(--muted); font-size: 11px; }
 .connect-dialog .subtle { margin-top: 25px; font-size: 10px; }
+.consent-permissions { color: var(--muted); font-size: 12px; line-height: 1.7; }
+.consent-permissions ul { padding-left: 19px; margin: 8px 0 16px; }
+.agent-connection { display: flex; gap: 12px; align-items: center; padding: 15px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+.agent-connection > div { flex: 1; min-width: 0; }
+.agent-connection strong { display: block; font-weight: 550; overflow-wrap: anywhere; }
+.agent-connection small { display: block; margin-top: 6px; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.connect-dialog summary { font-size: 13px; font-weight: 600; cursor: pointer; }
+.connect-dialog details > p { margin: 12px 0 20px; color: var(--muted); font-size: 12px; }
+.connect-dialog details .form { margin-top: 20px; }
+#agent-key-value { min-width: 0; flex: 1; width: 100%; background: transparent; border: 0; font: 12px ui-monospace, monospace; }
 .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 1000; width: max-content; max-width: calc(100vw - 40px); padding: 12px 18px; border-radius: 7px; background: #292e2a; color: #fff; box-shadow: 0 3px 20px #242d2320; font-size: 12px; line-height: 1.5; }
 .toast.error { background: #8f3838; }
 @keyframes detail-in { from { opacity: .3; transform: translateX(5px); } to { opacity: 1; transform: none; } }
@@ -240,12 +250,18 @@ dialog[open] { animation: dialog-in .15s ease; }
   .header-actions .connection { display: none; }
 }
 @media (max-width:900px) {
-  .detail-pane { position: fixed; right: 0; top: 0; bottom: 0; width: min(430px,100vw); max-height: 100svh; z-index: 30; border-left: 1px solid #d0d9cd; box-shadow: -15px 0 60px #24302318; }
+  .detail-pane { position: fixed; right: 0; top: 0; bottom: 0; width: min(430px,100vw); height: 100svh; max-height: 100svh; z-index: 30; border-left: 1px solid #d0d9cd; box-shadow: -15px 0 60px #24302318; overscroll-behavior: contain; }
   .auth-layout { gap: 45px; grid-template-columns: 1fr 320px; }
   .work-meta code { display: block; }
   .view-tabs { padding-inline: 24px; }
 }
 @media (max-width:700px) {
+  .button, .button.compact { min-height: 44px; }
+  .icon-button { min-width: 44px; width: 44px; height: 44px; }
+  .nav-button, .project-link { min-height: 44px; }
+  .form input, .form select, .form textarea, .search-wrap input, .connect-dialog select { font-size: 16px; }
+  .checklist label { min-height: 44px; align-items: center; font-size: 12px; }
+  .checklist input { width: 18px; height: 18px; }
   .workspace { display: block; }
   .sidebar { display: none; position: fixed; top: 0; left: 0; bottom: 0; width: 245px; box-shadow: 10px 0 60px #24302330; }
   .workspace.mobile-nav .sidebar { display: flex; }
@@ -258,11 +274,11 @@ dialog[open] { animation: dialog-in .15s ease; }
   .page-title h1 { font-size: 25px; }
   .page-title p { font-size: 11px; max-width: 220px; }
   .title-actions { flex-wrap: wrap; justify-content: flex-end; }
-  .title-actions .button { font-size: 11px; min-height: 32px; padding: 6px 9px; }
+  .title-actions .button { font-size: 11px; min-height: 44px; padding: 6px 9px; }
   .view-tabs { gap: 23px; padding-inline: 20px; }
   .view-tabs button { font-size: 11px; }
   .toolbar { gap: 8px; padding: 14px 20px; }
-  .toolbar select { font-size: 10px; padding: 6px; max-width: 120px; }
+  .toolbar select { font-size: 16px; min-height: 44px; padding: 6px; flex: 1; width: 0; min-width: 0; max-width: none; }
   .work-row { padding: 16px 20px; gap: 10px; }
   .work-group-heading { padding: 13px 20px; }
   .work-meta code { display: none; }

@@ -92,6 +92,10 @@ try {
   const otherTeam = (await body(await api("/api/teams", member.cookie, "POST", { name: "Other Access Smoke " + run }))).team; teams.push(otherTeam.id);
   const key = (await body(await api(`/api/teams/${team.id}/agent-connections`, owner.cookie, "POST", { label: "Owner test key" })));
   const memberKey = (await body(await api(`/api/teams/${team.id}/agent-connections`, member.cookie, "POST", { label: "Member test key" })));
+  const preflight = await fetch(base + "/mcp", { method: "OPTIONS", headers: { origin: "https://claude.ai", "access-control-request-method": "POST", "access-control-request-headers": "authorization,content-type" } });
+  assert(preflight.status === 204 && preflight.headers.get("access-control-allow-origin") === "https://claude.ai", "Trusted browser client cannot preflight MCP.");
+  const foreign = await fetch(base + "/mcp", { method: "OPTIONS", headers: { origin: "https://attacker.example" } });
+  assert(foreign.status === 403, "Untrusted browser origin was accepted.");
   throwSupabaseError((await db.from("agent_connections").update({ resource: "https://other.example/mcp" }).eq("id", key.connection.id)).error);
   assert(await mcpStatus(key.token) === 401, "A credential for another resource authorized this MCP endpoint.");
   throwSupabaseError((await db.from("agent_connections").update({ resource: base + "/mcp" }).eq("id", key.connection.id)).error);
@@ -150,10 +154,11 @@ try {
   assert(await mcpStatus(oauth.saved!.access_token) === 401, "Old access token remained usable after refresh.");
   assert(await mcpStatus(refreshed.access_token) === 200, "Refreshed token did not authorize MCP.");
   const connection = (await body(await api(`/api/teams/${team.id}/agent-connections`, owner.cookie))).connections.find((row: any) => row.client_id === oauth.info!.client_id);
-  await api(`/api/teams/${team.id}/agent-connections/${connection.id}`, owner.cookie, "DELETE");
+  assert((await api(`/api/teams/${team.id}/agent-connections/${connection.id}`, owner.cookie, "DELETE")).ok, "Connection revocation request failed.");
   assert(await mcpStatus(refreshed.access_token) === 401, "Revocation did not invalidate OAuth access.");
-  assert((await apiTokenRefresh(oauth.info!, refreshed.refresh_token)).status === 400, "Revocation did not invalidate refresh.");
-  await api(`/api/teams/${team.id}/members/${member.id}`, owner.cookie, "DELETE");
+  const revokedRefresh = await apiTokenRefresh(oauth.info!, refreshed.refresh_token);
+  assert(revokedRefresh.status === 400, `Expected invalid-grant after revocation; got HTTP ${revokedRefresh.status}. A 429 means the test exhausted the configured rate budget.`);
+  assert((await api(`/api/teams/${team.id}/members/${member.id}`, owner.cookie, "DELETE")).ok, "Member removal request failed.");
   assert(await mcpStatus(memberKey.token) === 401, "Removed member retained agent access.");
   assert(await mcpStatus(key.token) === 200, "Member removal broke the owner's agent connection.");
   const outsider = await api(`/api/teams/${team.id}/agent-connections`, member.cookie);

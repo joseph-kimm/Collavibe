@@ -8,7 +8,7 @@ https://collavibe.vercel.app/mcp
 
 The coding agent remains responsible for reading and editing its checkout. At the start and end of a session, it sends a sanitized Git snapshot to the hosted MCP. Collavibe stores the team context and handoff in Supabase. No Collavibe process needs to run on the developer's computer.
 
-The signed-in workspace also has a **Connect agent** button that prepares the current team's code, installation details, and a starter prompt for each supported client.
+The signed-in workspace also has a **Connect agent** button that provides browser sign-in instructions, personal-key controls, and starter prompts for each supported client.
 
 ## ChatGPT
 
@@ -16,13 +16,13 @@ Open [ChatGPT Plugins](https://chatgpt.com/plugins), click **+**, and choose **A
 
 - Name: `Collavibe`
 - URL: `https://collavibe.vercel.app/mcp`
-- Authentication: `No authentication`
+- Authentication: `OAuth` / browser sign-in
 
-Create and install the plugin. In a Work chat, invoke `@Collavibe`, then provide the team code shown in the Collavibe workspace. The website's connection sheet prepares a complete first prompt for this step.
+Create and install the plugin. In a Work chat, invoke `@Collavibe`, complete Collavibe browser sign-in, and choose your team. The website's connection sheet prepares a complete first prompt for this step.
 
 ## Claude and Claude Desktop
 
-Go to **Settings → Connectors → Add custom connector**. Name the connector `Collavibe`, paste the hosted MCP URL, and add it. Enable Collavibe from **Search and tools** in a new chat before using the prepared starter prompt.
+Go to **Settings → Connectors → Add custom connector**. Name the connector `Collavibe`, paste the hosted MCP URL, and add it. Complete browser sign-in and approve a team. Enable Collavibe from **Search and tools** in a new chat before using the prepared starter prompt.
 
 Claude Code can instead register it from the terminal:
 
@@ -55,7 +55,7 @@ Register the hosted endpoint once:
 codex mcp add collavibe --url https://collavibe.vercel.app/mcp
 ```
 
-Then open the repository in Codex and ask it to use Collavibe with the team code shown in the workspace.
+Run `codex mcp login collavibe`, complete browser sign-in, and choose a team. Then open the repository in Codex and use the prepared start prompt.
 
 ## Generic MCP clients
 
@@ -69,15 +69,9 @@ The hosted tools are:
 - `get_sync_template`
 - `sync_collaboration_session`
 
-## Team code
+## Authentication\n\nInvitation codes only join website teams. They are not MCP credentials. Prefer browser OAuth; personal agent keys are available in Connect agent for clients that only support Authorization headers. Never paste a key into chat or commit it to Git. See [ACCESS.md](ACCESS.md) for expiry, revocation, and exact scopes.\n\n## Intended session loop
 
-Create or join a team at [collavibe.vercel.app](https://collavibe.vercel.app). Copy the eight-character code shown in the workspace. Every hosted MCP tool requires that code, which scopes reads and writes to the matching team.
-
-The current preview treats the team code as both an invitation and an agent capability. Keep it within the intended team. A broader production release should replace it with scoped, revocable agent tokens.
-
-## Intended session loop
-
-1. Invoke the `start` prompt or ask the agent to inspect Git and call `start_collaboration_session` with the team code.
+1. Invoke the `start` prompt or ask the agent to inspect Git and call `start_collaboration_session` with a sanitized repository snapshot. The connection identifies the account and team.
 2. The MCP returns teammate context and concrete work options.
 3. The agent presents those choices and waits for the human to choose.
 4. The agent calls `choose_work_item`, then implements and tests the selected work normally.
@@ -97,3 +91,4 @@ npm run mcp    # stdio
 ```
 
 They are not required to use the hosted product.
+\nSetup references: [official OpenAI MCP guidance](https://learn.chatgpt.com/docs/extend/mcp?surface=cli), [Claude Code MCP](https://code.claude.com/docs/en/mcp), and [MCP SDK authentication](https://ts.sdk.modelcontextprotocol.io/server#bearer-token-authentication). Client labels and availability can vary by version, plan, and workspace policy.\n

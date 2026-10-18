@@ -10,7 +10,7 @@ Hosted team workspace ───────────────────�
                                                      |
 Coding agent (Codex, Claude, or another MCP client) |
   |                                                  |
-  | HTTPS Streamable HTTP                            |
+  | HTTPS + browser OAuth / personal key                            |
   v                                                  |
 Hosted Collavibe MCP                                 |
 (stateless Vercel handler)                           |
@@ -40,6 +40,8 @@ The website names the second source agent-attested instead of verified. The orig
 
 ## Components
 
+- `server/oauth.ts`, `src/agent-access.ts`: browser authorization, key lifecycle, and account/resource binding.
+- `server/request-limits.ts`: durable request budgets.
 - `server/hosted-mcp.ts`: cloud-safe MCP tools and prompts.
 - `src/hosted.ts`: team-scoped Supabase workflow for projects, features, and sessions.
 - `server/http.ts`: authentication API, stateless hosted MCP route, and static project-map host.
@@ -49,6 +51,6 @@ The website names the second source agent-attested instead of verified. The orig
 
 ## Identity and isolation
 
-Every hosted call requires an eight-character team code. A stable, sanitized repository key is hashed to create a deterministic project ID. A repository can belong to only one team, and every later feature or session operation checks the project-to-team link before reading or writing it.
+Every hosted call requires a revocable credential bound to one user, team, and MCP resource. Sessions bind to the account, not an agent-supplied participant name. New project IDs include the team namespace, so independent teams can track the same repository without sharing state. Every operation checks membership and project linkage. Atomic PostgreSQL mutations serialize conflicting claims and reject stale revisions.
 
-Browser credentials are managed by Supabase Auth. The service role key remains server-side in Vercel environment variables. The preview still needs revocable agent credentials, request rate limiting, structured audit logs, and repository-provider authorization before broad public deployment.
+Browser credentials are managed by Supabase Auth. The service role key remains server-side in Vercel environment variables. OAuth discovery and consent, personal key management, and database-backed request limits are implemented. Repository-provider authorization, account recovery email delivery, retention/deletion controls, sustained load testing, and an independent security audit remain further work. See [ACCESS.md](ACCESS.md).

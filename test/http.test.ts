@@ -173,6 +173,10 @@ describe("Streamable HTTP transport", () => {
     expect(page.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
     expect(page.headers.get("x-powered-by")).toBeNull();
     expect((await fetch(`${baseUrl}/api/agent/sync`, { method: "POST" })).status).toBe(410);
+    expect((await fetch(`${baseUrl}/mcp`, { method: "OPTIONS", headers: { origin: "https://attacker.example" } })).status).toBe(403);
+    const preflight = await fetch(`${baseUrl}/mcp`, { method: "OPTIONS", headers: { origin: baseUrl } });
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers.get("access-control-allow-origin")).toBe(baseUrl);
   });
 
   it("restores shared project state after a server restart", async () => {

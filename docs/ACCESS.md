@@ -15,6 +15,8 @@ The consent request is bound to an HttpOnly browser cookie, expires after 10 min
 
 The service implements OAuth discovery, dynamic registration, authorization code + PKCE, refresh, and revocation through the official MCP SDK. It does not implement URL-based Client ID metadata documents or arbitrary OAuth grant types. Client-specific account, plan, and workspace restrictions still apply.
 
+Native clients do not need a browser Origin header. Hosted browser calls allow the service's own origin, `https://chatgpt.com`, and `https://claude.ai`, with bearer authentication and no cookie credentials. Other browser frontends need an explicit origin in `COLLAVIBE_MCP_ORIGINS` (comma-separated). The local, unauthenticated development transport remains same-origin only.
+
 ## Personal keys
 
 For clients without browser OAuth, create a key under **Connect agent → Advanced: personal agent key**. Name it for the device or app, choose a 7-, 30-, or 90-day expiry, and copy it immediately. Only its SHA-256 fingerprint is stored. The full key is cleared when the setup dialog closes and is never returned by connection listing. Send it as `Authorization: Bearer …`, not in a URL, chat message, or Git file.

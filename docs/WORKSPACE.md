@@ -7,7 +7,7 @@ The website and MCP use the same project, feature, checklist, and session record
 1. Create an account, then create a team or open an invitation link.
 2. Add a project using its Git repository URL. The URL is saved without fetching the repository. The project starts without fabricated branches, commits, or files.
 3. Add features and their completion checklists. Set an owner, status, and branch when useful.
-4. Open **Connect agent**, choose a client, and follow its setup instructions. The server is a general remote MCP endpoint at `https://collavibe.vercel.app/mcp`.
+4. Open **Connect agent**, choose a client, and follow its setup instructions and approve a team through browser sign-in. Personal agent keys are available for clients without OAuth. The server is a general remote MCP endpoint at `https://collavibe.vercel.app/mcp`.
 5. Send the prepared start prompt from a chat whose agent can access the repository. The agent supplies a Git snapshot, loads teammates' context, and asks which feature to work on.
 6. At the end, send the prepared sync prompt. The agent records the handoff; syncing does not commit or push source code.
 
@@ -15,7 +15,7 @@ The **Work** view supports status and owner filtering, search, editing, completi
 
 ## Team management
 
-Members can view the teammate list, copy invitation links, create projects, and edit features. The owner can rename a team, reset its code, and remove members. Members can leave, but the owner cannot remove themselves. Removing or leaving automatically resets the code to prevent continued use of the old MCP capability. Existing members retain website access and must give agents the new code.
+Members can view the teammate list, copy invitation links, create projects, and edit features. The owner can rename a team, reset its code, and remove members. Members can leave, but the owner cannot remove themselves. Removing or leaving resets the invitation code and revokes the departing member's agent connections. Other members retain their website and agent access.
 
 The server checks membership on each operation. Ownership is checked on team administration. Feature writes carry an expected revision and return HTTP 409 if another edit changed the feature first. Checklist identifiers are validated against the existing feature. An agent cannot claim an active feature owned by another participant without the team reassigning it first.
 
@@ -31,12 +31,12 @@ Supabase free projects can pause after inactivity. The project can be resumed fr
 
 ## Current limits
 
-- MCP access still uses a shared team code. Browser OAuth and scoped, revocable credentials for individual clients remain future work; this is a beta trust model.
+- Browser OAuth and personal keys authorize one user in one team. Existing code-only clients must reconnect; see [agent access](ACCESS.md).
 - Remote Git snapshots and summaries are supplied by agents. There is no GitHub app or webhook that independently verifies commits or imports every push.
-- A repository can currently belong to one team. GitHub URLs with and without a trailing slash or `.git` are canonicalized for new remote projects.
-- Team member identities come from accounts; MCP participant names are agent-supplied and are not yet bound to an authenticated account.
+- Independent teams can track the same repository without sharing state. GitHub URLs with and without a trailing slash or `.git` are canonicalized.
+- MCP session identity is bound to the authorizing account; teammate context remains shared within the team.
 - There are no email invitations, password reset emails, notifications, or background jobs in this release.
-- Concurrent browser feature edits are protected; multi-record MCP sync operations are not yet a single database transaction.
+- Browser feature edits use revision checks. MCP start, claim, and sync are atomic transactions; simultaneous conflicting changes require reloading context.
 
 ## API additions
 

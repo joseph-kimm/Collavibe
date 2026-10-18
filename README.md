@@ -22,15 +22,15 @@ The hosted preview includes Supabase-backed account and team onboarding:
 1. Sign up with a name, email, and password.
 2. Create a named team or join an existing team using its eight-character invite code.
 3. Add a repository, plan its features, and open **Connect agent** for the hosted MCP URL and prepared start/sync prompts.
-4. Every MCP session attached with that code appears in the same team workspace.
+4. Add the MCP URL to your agent, complete browser sign-in, and choose a team. Each session appears in that team's workspace.
 
-Supabase Auth stores account credentials, browser sessions use `HttpOnly`, `SameSite=Strict` cookies, and team/project state lives in Postgres with row-level security enabled. The browser never receives the backend secret key. The team code is also the current agent capability, so treat it like an invitation and share it only with intended teammates.
+Supabase Auth stores account credentials, browser sessions use `HttpOnly`, `SameSite=Strict` cookies, and team/project state lives in Postgres with row-level security enabled. The browser never receives the backend secret key. Invite codes only let people join a team. MCP access uses browser OAuth or personal, revocable keys.
 
 ## Current MCP surface
 
 | Capability | MCP primitive | Purpose |
 | --- | --- | --- |
-| `get_project_context` | Tool | Load hosted team, project, feature, and session context using a team code. |
+| `get_project_context` | Tool | Load hosted team, project, feature, and session context for the authenticated connection's team. |
 | `start_collaboration_session` | Tool | Record the agent-supplied starting Git state and generate work choices. |
 | `choose_work_item` | Tool | Claim an existing feature or define a new one with a checklist. |
 | `get_sync_template` | Tool | Tell the agent exactly what to summarize from the chat. |
@@ -46,7 +46,7 @@ The production Streamable HTTP endpoint is:
 https://collavibe.vercel.app/mcp
 ```
 
-No Collavibe process needs to run on the developer's laptop. Add that URL to an MCP-compatible client, copy the team code from the hosted workspace, and ask the agent to start a Collavibe session. The agent uses its normal repository tools to create the sanitized Git snapshot that the hosted MCP stores.
+No Collavibe process needs to run on the developer's laptop. Add that URL to an MCP-compatible client, complete browser sign-in, choose a team, and ask the agent to start a Collavibe session. The agent uses its normal repository tools to create the sanitized Git snapshot that the hosted MCP stores.
 
 This repository includes a project-scoped `.mcp.json` already pointed at the production endpoint. See [client integration](docs/INTEGRATION.md) for Codex, Claude Code, and generic clients.
 
@@ -74,7 +74,7 @@ State is stored at `.collavibe/state.json` by default and is not committed. Set 
 To run the hosted dashboard backend locally, copy `.env.example` to `.env.local`, add the Supabase values, and start it with:
 
 ```bash
-node --env-file=.env.local --import tsx server/http.ts
+COLLAVIBE_PUBLIC_URL=http://127.0.0.1:4317 node --env-file=.env.local --import tsx server/http.ts
 ```
 
 The local HTTP server binds to `127.0.0.1` by default. Set `HOST` deliberately when testing from another machine.
@@ -87,4 +87,4 @@ You can inspect the interface without an account from **View a sample workspace*
 
 The hosted service cannot independently read a developer's laptop. The conversation summary and Git snapshot are supplied by the coding agent, and the website labels remote repository evidence as **agent-attested**. The local development transport can still compute an independently observed local Git delta. Those two evidence levels are deliberately not presented as equivalent.
 
-This is a classroom-ready preview, not a production security release. Before broad public use, replace persistent team-code agent access with revocable scoped tokens and add rate limiting, audit logs, and repository-provider authorization.
+This is a testable beta with account-bound OAuth, revocable agent keys, database-backed rate limits, and transactional session updates. It has not undergone an independent security audit or sustained load test. Account recovery email delivery and GitHub webhook verification remain further work. See [agent access](docs/ACCESS.md) for the trust model, migration steps, and remaining limits.

@@ -32,8 +32,17 @@ app.use((req, res, next) => {
   res.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   if (req.path === "/mcp" && req.headers.origin) {
-    // Native and hosted clients do not need browser CORS. Block hostile pages.
-    if (req.headers.origin !== serviceOrigin()) return void res.status(403).json({ error: "Untrusted browser origin." });
+    // Browser MCP clients use bearer auth, never browser session cookies here.
+    // Keep the unauthenticated local-development transport same-origin only.
+    const allowed = isSupabaseConfigured()
+      ? [serviceOrigin(), "https://chatgpt.com", "https://claude.ai", ...(process.env.COLLAVIBE_MCP_ORIGINS || "").split(",").map((value) => value.trim()).filter(Boolean)]
+      : [`${req.protocol}://${req.get("host")}`];
+    if (!allowed.includes(req.headers.origin)) return void res.status(403).json({ error: "Untrusted browser origin." });
+    res.setHeader("Access-Control-Allow-Origin", req.headers.origin);
+    res.vary("Origin");
+    res.setHeader("Access-Control-Allow-Methods", "POST, GET, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, MCP-Protocol-Version, MCP-Session-Id, Last-Event-ID");
+    res.setHeader("Access-Control-Expose-Headers", "WWW-Authenticate, MCP-Session-Id");
   }
   if (req.path.startsWith("/api/")) {
     res.setHeader("Cache-Control", "no-store");
@@ -47,6 +56,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json({ limit: "1mb" }));
+app.options("/mcp", (_req, res) => res.status(204).end());
 
 const AUTH_COOKIE = "collavibe_session";
 const cookieOptions = { httpOnly: true, sameSite: "strict" as const, secure: process.env.NODE_ENV === "production", maxAge: 1000 * 60 * 60 * 24 * 30, path: "/" };

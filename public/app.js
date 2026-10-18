@@ -5,7 +5,7 @@ const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (c) => ({ "
 const e = escapeHtml;
 const statuses = { planned: "Planned", active: "In progress", review: "In review", blocked: "Blocked", done: "Done" };
 const sessionStatuses = { choosing: "Choosing work", active: "In progress", synced: "Synced" };
-const mcpUrl = "https://collavibe.vercel.app/mcp";
+const mcpUrl = location.origin + "/mcp";
 let data = { user: null, teams: [], projects: [], features: [], sessions: [] };
 let members = [];
 let demo = false;
@@ -20,6 +20,9 @@ let busyLoad = false;
 let fingerprint = "";
 let toastTimer;
 let memberError = "";
+let issuedKey = "";
+let connections = [];
+let authorizationId = new URLSearchParams(location.search).get("authorize") || "";
 let invitation = new URLSearchParams(location.search).get("join") || "";
 const hash = new URLSearchParams(location.hash.slice(1));
 if (hash.get("team")) teamId = hash.get("team");
@@ -51,6 +54,7 @@ function showGate(which) {
   $("auth-gate").hidden = which !== "auth";
   $("team-gate").hidden = which !== "team";
   $("workspace").hidden = which !== "workspace";
+  $("consent-gate").hidden = which !== "consent";
 }
 function toast(message, error = false) {
   clearTimeout(toastTimer);
@@ -117,6 +121,7 @@ async function load({ quiet = false } = {}) {
       selection = null;
     }
     localStorage.setItem("collavibe-project", projectId);
+    if (authorizationId) { await showConsent(); return; }
     showGate("workspace");
     $("load-error").hidden = true;
     $("connection-label").classList.remove("offline");
@@ -282,7 +287,7 @@ function renderTeam() {
   // Background member refreshes must not discard a name being typed.
   if (document.activeElement?.id === "team-name-input" && !$("team-name-form")?.dataset.busy) return;
   const owner = team.ownerUserId === data.user.id;
-  $("team-content").innerHTML = `<h1>Team & invitations</h1><p>Manage who works in ${e(team.name)}.</p><section class="team-section"><h2>Team name</h2><form id="team-name-form" class="form"><div class="team-name-form"><label class="sr-only" for="team-name-input">Team name</label><input id="team-name-input" name="name" value="${e(team.name)}" minlength="2" maxlength="120" required ${!owner || demo ? "disabled" : ""}/><button class="button" type="submit" ${!owner || demo ? "disabled" : ""}>Save</button></div><p class="form-error" role="alert"></p></form></section><section class="team-section"><h2>Invite a teammate</h2><p>Share a code or link. They’ll log in or create an account, then join this team.</p><div class="copy-field"><div><span>Invite code</span><code class="team-code">${e(team.joinCode)}</code></div><button class="button compact" type="button" data-action="copy-team">Copy code</button></div><div class="team-invite-actions"><button class="button" data-action="copy-invite" type="button">Copy invite link</button>${owner ? '<button class="button" data-action="reset-code" type="button"' + (demo ? " disabled" : "") + '>Reset code</button>' : ""}</div><p class="subtle" style="margin-top:16px">The code also grants MCP access in this beta. Resetting it invalidates old invitations and requires agents to use the new code.</p></section><section class="team-section"><h2>Members <span class="subtle">${members.length}</span></h2>${memberError ? '<p class="form-error">' + e(memberError) + '</p><button class="button" type="button" data-action="retry-members">Retry</button>' : ""}${members.map((member) => `<div class="team-member"><span class="avatar" aria-hidden="true">${e(initial(member.name))}</span><div><strong>${e(member.name)}${member.userId === data.user.id ? ' <span class="subtle">(you)</span>' : ""}</strong><small>${e(member.email)}</small></div><span>${member.role === "owner" ? "Owner" : "Member"}</span>${owner && member.userId !== data.user.id ? '<button class="text-button" type="button" data-remove-member="' + e(member.userId) + '"' + (demo ? " disabled" : "") + '>Remove</button>' : ""}</div>`).join("") || (!memberError ? '<p class="subtle">Loading members…</p>' : "")}${!owner ? '<div class="team-invite-actions"><button class="button" type="button" data-action="leave-team"' + (demo ? " disabled" : "") + '>Leave team</button></div>' : ""}</section>`;
+  $("team-content").innerHTML = `<h1>Team & invitations</h1><p>Manage who works in ${e(team.name)}.</p><section class="team-section"><h2>Team name</h2><form id="team-name-form" class="form"><div class="team-name-form"><label class="sr-only" for="team-name-input">Team name</label><input id="team-name-input" name="name" value="${e(team.name)}" minlength="2" maxlength="120" required ${!owner || demo ? "disabled" : ""}/><button class="button" type="submit" ${!owner || demo ? "disabled" : ""}>Save</button></div><p class="form-error" role="alert"></p></form></section><section class="team-section"><h2>Invite a teammate</h2><p>Share a code or link. They’ll log in or create an account, then join this team.</p><div class="copy-field"><div><span>Invite code</span><code class="team-code">${e(team.joinCode)}</code></div><button class="button compact" type="button" data-action="copy-team">Copy code</button></div><div class="team-invite-actions"><button class="button" data-action="copy-invite" type="button">Copy invite link</button>${owner ? '<button class="button" data-action="reset-code" type="button"' + (demo ? " disabled" : "") + '>Reset code</button>' : ""}</div><p class="subtle" style="margin-top:16px">This code is for invitations only. Agent connections use browser sign-in or a personal key. Reset the code if an invitation was shared too widely.</p></section><section class="team-section"><h2>Members <span class="subtle">${members.length}</span></h2>${memberError ? '<p class="form-error">' + e(memberError) + '</p><button class="button" type="button" data-action="retry-members">Retry</button>' : ""}${members.map((member) => `<div class="team-member"><span class="avatar" aria-hidden="true">${e(initial(member.name))}</span><div><strong>${e(member.name)}${member.userId === data.user.id ? ' <span class="subtle">(you)</span>' : ""}</strong><small>${e(member.email)}</small></div><span>${member.role === "owner" ? "Owner" : "Member"}</span>${owner && member.userId !== data.user.id ? '<button class="text-button" type="button" data-remove-member="' + e(member.userId) + '"' + (demo ? " disabled" : "") + '>Remove</button>' : ""}</div>`).join("") || (!memberError ? '<p class="subtle">Loading members…</p>' : "")}${!owner ? '<div class="team-invite-actions"><button class="button" type="button" data-action="leave-team"' + (demo ? " disabled" : "") + '>Leave team</button></div>' : ""}</section>`;
 }
 function switchView(next) {
   view = next; selection = null; $("workspace").classList.remove("mobile-nav");
@@ -322,16 +327,14 @@ function openFeature(item = null) {
   $("feature-dialog").showModal();
 }
 function setupValues() {
-  const code = data.selectedTeam?.joinCode || "YOUR_TEAM_CODE";
-  const name = data.user?.name || "Your name";
   const project = currentProject();
   return {
     mcp: mcpUrl,
     command: "codex mcp add collavibe --url " + mcpUrl,
     claude: "claude mcp add --transport http --scope user collavibe " + mcpUrl,
     cursor: JSON.stringify({ mcpServers: { collavibe: { url: mcpUrl } } }, null, 2),
-    start: `Use the Collavibe MCP. My team code is "${code}" and my name is "${name}".${project ? ' The repository is "' + project.root + '".' : ""} Inspect the local Git state and call start_collaboration_session with a sanitized repository snapshot. Show recent teammate work and available features. Ask me what to work on and wait for my choice before editing code.`,
-    sync: `Use the Collavibe MCP with team code "${code}". Get the sync template for this chat's collaboration session. Inspect the final Git state. Summarize completed work, decisions, blockers, and next steps, then call sync_collaboration_session. Do not commit or push just because I asked to sync.`,
+    start: `Use the Collavibe MCP with the team I authorized during sign-in.${project ? ' The repository is "' + project.root + '".' : ""} Inspect the local Git state and call start_collaboration_session with a sanitized repository snapshot. Show recent teammate work and available features. Ask me what to work on and wait for my choice before editing code.`,
+    sync: `Use the Collavibe MCP. Get the sync template for this chat's collaboration session. Inspect the final Git state. Summarize completed work, decisions, blockers, and next steps, then call sync_collaboration_session. Do not commit or push just because I asked to sync.`,
   };
 }
 function renderAgentSetup() {
@@ -340,15 +343,54 @@ function renderAgentSetup() {
   $("setup-start-prompt").textContent = values.start;
   $("setup-sync-prompt").textContent = values.sync;
   const guides = {
-    codex: '<p class="subtle">Add the hosted server using the Codex CLI. Then open or restart your agent chat.</p><pre>' + e(values.command) + '</pre><button class="button compact" data-copy-setup="command" type="button">Copy command</button><ol><li>Run the command above in Terminal.</li><li>Check the connection with <code>codex mcp list</code>.</li><li>Open your repository and send the start prompt below.</li></ol>',
-    claude: '<p class="subtle">In Claude Desktop, open Settings → Connectors → Add custom connector. Enter Collavibe and the MCP URL above, then enable it in your chat’s tools. Availability depends on your plan and workspace settings.</p><a class="button" href="https://claude.ai/settings/connectors" target="_blank" rel="noreferrer">Open Claude connectors ↗</a><p class="subtle" style="margin-top:20px">For Claude Code:</p><pre>' + e(values.claude) + '</pre><button class="button compact" data-copy-setup="claude" type="button">Copy command</button>',
-    cursor: '<p class="subtle">Open Cursor Settings → Tools & MCP and add a remote MCP server, or merge this entry into your existing <code>~/.cursor/mcp.json</code>. Keep other server entries.</p><pre>' + e(values.cursor) + '</pre><button class="button compact" data-copy-setup="cursor" type="button">Copy configuration</button>',
-    chatgpt: '<p class="subtle">Open ChatGPT Plugins, use + → Add custom MCP server, and enter Collavibe with the MCP URL above. Choose No authentication for this beta. Install the custom connection and enable it in a Work chat. Your account or workspace must allow custom MCP servers.</p><a class="button" href="https://chatgpt.com/plugins" target="_blank" rel="noreferrer">Open ChatGPT Plugins ↗</a>',
-    other: '<p class="subtle">Add a remote MCP server using Streamable HTTP and the URL above. Use No authentication for this beta. Enable the server in your chat, then use the start prompt. The client must support remote MCP tools.</p>',
+    codex: '<p class="subtle">In MCP settings, add a remote server named Collavibe with the URL above. Choose browser sign-in / OAuth when offered and approve only the team you want to connect.</p><p class="subtle">Or add it from the terminal:</p><pre>' + e(values.command) + '</pre><button class="button compact" data-copy-setup="command" type="button">Copy command</button><ol><li>Run the command, then <code>codex mcp login collavibe</code>.</li><li>Sign in to Collavibe in the browser and choose your team.</li><li>Open your repository and send the start prompt below.</li></ol>',
+    claude: '<p class="subtle">In Claude Desktop or claude.ai, open Settings → Connectors → Add custom connector. Enter Collavibe and the MCP URL above. Connect, sign in to Collavibe, and approve a team. Enable the connector in your chat. Custom connectors depend on your plan and workspace settings.</p><a class="button" href="https://claude.ai/settings/connectors" target="_blank" rel="noreferrer">Open Claude connectors ↗</a><p class="subtle">For Claude Code:</p><pre>' + e(values.claude) + '</pre><button class="button compact" data-copy-setup="claude" type="button">Copy command</button><p class="subtle">Then run <code>/mcp</code> in Claude Code and complete the browser sign-in.</p>',
+    cursor: '<p class="subtle">Open Cursor Settings → Tools & MCP and add a remote MCP server, or merge this entry into your existing <code>~/.cursor/mcp.json</code>. Keep other server entries. Connect and complete the browser sign-in.</p><pre>' + e(values.cursor) + '</pre><button class="button compact" data-copy-setup="cursor" type="button">Copy configuration</button>',
+    chatgpt: '<p class="subtle">In this desktop app, open Plugins → + → Add custom MCP server, enter the URL above, and choose OAuth / browser authentication. Sign in to Collavibe and choose your team. Enable the connection in your chat. Labels and availability vary by app version, plan, and workspace policy.</p><p class="subtle">If your ChatGPT client does not offer custom MCP connections, use an MCP-capable coding agent such as Codex CLI, Claude Code, or Cursor. The website still works in your phone’s browser.</p>',
+    other: '<p class="subtle">Add the URL as a remote Streamable HTTP MCP server. The client discovers the OAuth endpoints, opens Collavibe in your browser, and lets you choose a team. If it supports only custom Authorization headers, use a personal key below.</p>',
   };
   $("agent-instructions").innerHTML = '<div class="agent-guide">' + guides[$("agent-client").value] + "</div>";
 }
-function openAgent() { renderAgentSetup(); $("agent-connect-dialog").showModal(); }
+async function openAgent() {
+  issuedKey = ""; $("issued-agent-key").hidden = true; $("agent-key-value").value = "";
+  $("agent-key-form").reset(); $("agent-key-form").querySelector(".form-error").textContent = "";
+  $("agent-key-form").querySelector('[type="submit"]').disabled = demo || data.deploymentMode !== "cloud";
+  $("agent-key-example").textContent = '[mcp_servers.collavibe]\nurl = "' + mcpUrl + '"\nbearer_token_env_var = "COLLAVIBE_AGENT_KEY"\n\n# Put the key in your agent process environment, not in chat or Git.';
+  renderAgentSetup(); $("agent-connect-dialog").showModal();
+  await loadConnections();
+}
+async function loadConnections() {
+  const expectedTeam = teamId;
+  $("agent-connections").textContent = "Loading connections…";
+  if (demo) { $("agent-connections").textContent = "Sign in to manage your own connections."; return; }
+  try {
+    const result = await api("/api/teams/" + teamId + "/agent-connections");
+    if (teamId !== expectedTeam) return;
+    connections = result.connections;
+    $("agent-connections").innerHTML = result.available ? connections.map((item) => {
+      const expired = new Date(item.refresh_expires_at || item.expires_at).getTime() <= Date.now();
+      const state = item.revoked_at ? "Revoked" : expired ? "Expired" : item.client_id ? "Browser sign-in" : "Personal key";
+      return '<div class="agent-connection"><div><strong>' + e(item.label) + '</strong><small>' + e(state) + ' · created ' + e(date(item.created_at)) + '<br>Last used: ' + e(date(item.last_used_at)) + '</small></div>' + (!item.revoked_at && !expired ? '<button class="button compact" type="button" data-revoke-connection="' + e(item.id) + '">Revoke</button>' : '') + '</div>';
+    }).join("") || '<p class="subtle">No connections yet. Add Collavibe in your agent and complete browser sign-in, or create a personal key below.</p>' : '<p class="subtle">Agent connections require the hosted service.</p>';
+  } catch (error) { $("agent-connections").textContent = error.message; }
+}
+async function showConsent() {
+  showGate("consent");
+  $("consent-form").querySelector('[type="submit"]').disabled = true;
+  try {
+    const request = await api("/api/oauth/request/" + encodeURIComponent(authorizationId));
+    $("consent-title").textContent = "Connect " + request.clientName;
+    $("consent-description").textContent = "Choose one team. This agent will act as " + data.user.name + ".";
+    $("consent-destination").textContent = "Return to: " + request.redirectOrigin + ". Client names are supplied by the app. Only approve a connection you just requested.";
+    $("consent-team").innerHTML = data.teams.map((item) => '<option value="' + e(item.id) + '"' + (item.id === teamId ? ' selected' : '') + '>' + e(item.name) + '</option>').join("");
+    $("consent-form").querySelector(".form-error").textContent = "";
+    $("consent-form").querySelector('[type="submit"]').disabled = false;
+  } catch (error) { $("consent-form").querySelector(".form-error").textContent = error.message; }
+}
+async function finishConsent(allow) {
+  const result = await api("/api/oauth/approve", { method: "POST", body: JSON.stringify({ requestId: authorizationId, teamId: $("consent-team").value || undefined, allow }) });
+  location.assign(result.redirect);
+}
 async function confirmAction(title, message, action) {
   $("confirm-title").textContent = title; $("confirm-message").textContent = message;
   const dialog = $("confirm-dialog"); const accept = $("confirm-accept"); accept.disabled = false;
@@ -411,7 +453,7 @@ document.addEventListener("click", async (event) => {
   const button = event.target.closest("button");
   if (!button) return;
   try {
-    if (button.dataset.closeDialog !== undefined) { button.closest("dialog").close(); return; }
+    if (button.dataset.closeDialog !== undefined) { const dialog = button.closest("dialog"); if (dialog.id === "agent-connect-dialog") clearAgentKey(); dialog.close(); return; }
     if (button.dataset.authMode) { setAuthMode(button.dataset.authMode); return; }
     if (button.dataset.teamMode) { setTeamMode(button.dataset.teamMode); return; }
     if (button.dataset.view) { switchView(button.dataset.view); return; }
@@ -419,9 +461,15 @@ document.addEventListener("click", async (event) => {
     if (button.dataset.feature) { selection = { kind: "feature", id: button.dataset.feature }; renderContent(); updateHash(); return; }
     if (button.dataset.session) { selection = { kind: "session", id: button.dataset.session }; view = "sessions"; render(); return; }
     if (button.dataset.copySetup) { await copy(setupValues()[button.dataset.copySetup]); return; }
+    if (button.dataset.revokeConnection && canWrite()) {
+      await confirmAction("Revoke this connection?", "The agent will lose access immediately. You can reconnect later.", async () => {
+        await api("/api/teams/" + teamId + "/agent-connections/" + button.dataset.revokeConnection, { method: "DELETE" });
+        await loadConnections(); toast("Connection revoked.");
+      }); return;
+    }
     if (button.dataset.removeMember && canWrite()) {
       const member = members.find((item) => item.userId === button.dataset.removeMember);
-      await confirmAction("Remove " + member.name + "?", "They will lose website access to this team. The team code will also reset, so existing agents will need the new code.", async () => {
+      await confirmAction("Remove " + member.name + "?", "They will lose website and agent access to this team. The invitation code will reset; other members’ agent connections keep working.", async () => {
         await api("/api/teams/" + teamId + "/members/" + member.userId, { method: "DELETE" }); await load(); await loadMembers(); toast("Member removed and team code reset.");
       }); return;
     }
@@ -440,7 +488,7 @@ document.addEventListener("click", async (event) => {
     if (action === "copy-invite") await copy(location.origin + "/?join=" + encodeURIComponent(data.selectedTeam.joinCode));
     if (action === "retry-members") await loadMembers();
     if (action === "copy-link") { updateHash(); await copy(location.href); }
-    if (action === "reset-code" && canWrite()) await confirmAction("Reset the team code?", "Old invite links and MCP access codes will stop working. Members remain in the team and must give their agents the new code.", async () => { await api("/api/teams/" + teamId + "/rotate-code", { method: "POST" }); await load(); toast("Team code reset."); });
+    if (action === "reset-code" && canWrite()) await confirmAction("Reset the team code?", "Old invite links will stop working. Existing members and agent connections remain unchanged.", async () => { await api("/api/teams/" + teamId + "/rotate-code", { method: "POST" }); await load(); toast("Team code reset."); });
     if (action === "leave-team" && canWrite()) await confirmAction("Leave this team?", "You will need a new invitation to rejoin. The code will reset for remaining teammates.", async () => { await api("/api/teams/" + teamId + "/members/" + data.user.id, { method: "DELETE" }); teamId = ""; members = []; await load(); toast("You left the team."); });
   } catch (error) { toast(error.message, true); }
 });
@@ -458,7 +506,7 @@ for (const [id, path] of [["create-team-form", "/api/teams"], ["join-team-form",
     formAction(form, async () => {
       const result = await api(path, { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(form))) });
       teamId = result.team.id; invitation = ""; members = [];
-      history.replaceState(null, "", location.pathname); form.reset(); view = "work";
+      history.replaceState(null, "", location.pathname + (authorizationId ? "?authorize=" + encodeURIComponent(authorizationId) : "")); form.reset(); view = "work";
       await load(); toast(id === "create-team-form" ? "Team created." : "You joined the team.");
     });
   });
@@ -501,6 +549,26 @@ $("new-feature").addEventListener("click", () => openFeature());
 $("export-project").addEventListener("click", exportProject);
 $("open-agent-setup").addEventListener("click", openAgent);
 $("agent-client").addEventListener("change", renderAgentSetup);
+$("agent-key-form").addEventListener("submit", (event) => {
+  event.preventDefault(); if (!canWrite()) return;
+  formAction(event.currentTarget, async () => {
+    const form = $("agent-key-form");
+    const expectedTeam = teamId;
+    const result = await api("/api/teams/" + teamId + "/agent-connections", { method: "POST", body: JSON.stringify({ label: form.elements.label.value, days: Number(form.elements.days.value) }) });
+    if (expectedTeam !== teamId || !$("agent-connect-dialog").open) { toast("Key created. Revoke it from Your connections if you no longer need it."); return; }
+    issuedKey = result.token; $("agent-key-value").value = issuedKey; $("issued-agent-key").hidden = false;
+    form.reset(); await loadConnections(); toast("Key created. Copy it before closing this window.");
+  });
+});
+$("copy-agent-key").addEventListener("click", () => copy(issuedKey).catch((error) => toast(error.message, true)));
+function clearAgentKey() { issuedKey = ""; $("agent-key-value").value = ""; $("issued-agent-key").hidden = true; }
+$("agent-connect-dialog").addEventListener("close", clearAgentKey);
+$("agent-connect-dialog").addEventListener("cancel", clearAgentKey);
+$("consent-form").addEventListener("submit", (event) => { event.preventDefault(); formAction(event.currentTarget, () => finishConsent(true)); });
+$("deny-agent").addEventListener("click", async () => {
+  try { await finishConsent(false); }
+  catch { authorizationId = ""; history.replaceState(null, "", location.pathname); await load(); }
+});
 $("refresh").addEventListener("click", () => demo ? toast("This workspace contains sample data.") : load());
 $("team-select").addEventListener("change", async () => {
   teamId = $("team-select").value; members = []; selection = null; fingerprint = "";
@@ -515,10 +583,11 @@ document.querySelector(".main").addEventListener("click", (event) => { if (!even
 async function logout() {
   try { if (!demo) await api("/api/auth/logout", { method: "POST" }); }
   catch (error) { toast(error.message, true); return; }
+  issuedKey = ""; connections = []; $("agent-key-value").value = ""; document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
   requestSequence++; busyLoad = false; demo = false; members = []; fingerprint = ""; selection = null; view = "work";
   data = { user: null, teams: [], projects: [], features: [], sessions: [] };
   teamId = ""; projectId = ""; localStorage.removeItem("collavibe-team"); localStorage.removeItem("collavibe-project");
-  history.replaceState(null, "", location.pathname); $("search").value = ""; showGate("auth");
+  history.replaceState(null, "", location.pathname + (authorizationId ? "?authorize=" + encodeURIComponent(authorizationId) : "")); $("search").value = ""; showGate("auth");
 }
 $("logout").addEventListener("click", logout);
 $("team-logout").addEventListener("click", logout);
