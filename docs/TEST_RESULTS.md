@@ -1,18 +1,28 @@
 # QA results — 2026-10-17
 
-## Pending lifecycle/discussion release (not deployed)
+## Released v0.8.0: lifecycle and discussion
 
-- TypeScript and 48 automated tests pass across six files. Dependency audit: zero vulnerabilities. Git whitespace checks pass.
+Runtime commit: `11b878f`. Branch: `codex/collavibe-workspace` (main unchanged).
+Final tested preview: https://collavibe-qphlf61av-shayan-ahmads-projects.vercel.app (`dpl_2wS88xHfYXU7HtC5SLjXo2hwHHYm`).
+Production: https://collavibe.vercel.app (`dpl_7WL1xJCP1DnHhK2jgL9o132XYK8M`, Ready).
+
+- TypeScript and 49 automated tests pass across six files. Dependency audit: zero vulnerabilities. Git whitespace checks pass.
 - New tests cover valid/invalid calendar dates and priority values, concurrent comments, identity binding, comment-author/owner permissions, preserving discussions during feature edits, stale revisions, recoverable feature/project archives, archived write/claim rejection, and active-session archive rejection. The HTTP tests exercise the new routes, not only pure helpers.
 - Local Chrome browser QA passed actual signup, team/project/feature creation, priority/due-date entry, posting and reopening a comment after reload, HTML escaping, feature archive/restore, owner project rename/archive/restore, discussion-draft preservation on Refresh, and preservation/recovery during an injected 503 outage.
 - Local WebKit iPhone 15 emulation verified posting a comment and editing priority/due date, with both persisted after reload. A test initially attempted to click the covered list behind an open mobile drawer; it was corrected to close the drawer first. No force-click or UI bypass was used. WebKit reported no browser console errors/warnings.
 - Chrome at 390 × 844: document width 390, full-height 844 detail drawer, 16 px comment input. WebKit emulation: document width matches its 393 px viewport. These are emulated checks, not physical-device certification.
 - Two-account mobile QA exposed the sidebar remaining open after logout and a new login. The account/team gate now resets mobile navigation; this is included in the regression checks.
 - The corrected two-account mobile run passed shared discussion, hidden owner-only project controls, own-comment removal controls, and logout/login navigation reset. Logout also returns the form to Log in instead of leaving Create account selected.
-- Existing production v0.7.0 passed fresh `hosted-smoke.ts` and `access-smoke.ts` runs. The runs verify signup/join/planning/MCP handoffs, OAuth public/confidential clients, PKCE, resource binding, RLS, concurrent claims/syncs, refresh rotation, revocation, and distributed rate limits. Disposable records were removed.
-- The Mac lock was resolved and the lifecycle migration was applied through the Supabase SQL editor, with an explicit Success result. All three scripts passed against the local HTTP service connected to the real cloud database. `workspace-smoke.ts` verified concurrent comments, identity and revision protection, owner settings, archive/restore history, active-session guards, and feature/project archive-versus-claim races with exactly one winner. No new preview or production deployment has been published yet.
+- Before this release, the then-live v0.7.0 passed fresh `hosted-smoke.ts` and `access-smoke.ts` runs. The runs verify signup/join/planning/MCP handoffs, OAuth public/confidential clients, PKCE, resource binding, RLS, concurrent claims/syncs, refresh rotation, revocation, and distributed rate limits. Disposable records were removed.
+- The Mac lock was resolved and the lifecycle migration was applied through the Supabase SQL editor, with an explicit Success result. All three scripts passed against the local HTTP service connected to the real cloud database, the deployed preview, and the stable production alias.
+- `workspace-smoke.ts` verified concurrent comments, identity and revision protection, owner settings, archive/restore history, active-session guards, and feature/project archive-versus-claim races with exactly one winner. Anonymous and ordinary authenticated clients cannot execute the new service-only transaction RPC directly.
+- Upgrade verification found that an older browser could omit the newly added metadata fields when editing. The final runtime preserves existing priority/date values when fields are omitted, while explicit clearing remains possible. Both the automated suite and final preview/production lifecycle smoke runs verify this fix.
+- Preview browser QA passed priority sorting, due-date sorting, priority filtering, and a real JSON download. The downloaded file was parsed separately and contained all three features, their priority/date values, and the discussion.
+- The production browser passed fresh signup, team/project/feature creation, priority/date entry, comment persistence after reload, and project/feature archive and restore. Production health returns version `0.8.0`, mode `hosted-mcp`; readiness returns 200.
+- Production Chrome at 390 × 844 passed comment posting and priority/date editing, with both persisted after reload. Document width was 390, drawer height 844, and form text 16 px. Production WebKit iPhone emulation passed filters, archive navigation, and agent setup with a 393 px document matching its viewport. Fresh production sample pages reported no console errors or warnings.
+- Script and browser fixtures were removed by exact IDs. The final database audit returned the original two profiles and two teams, with zero projects, features, sessions, agent connections, OAuth clients, requests, or codes. Operational rate-limit records were preserved. An open QA page correctly lost authentication after its disposable account was removed.
 
-Release gate: unlock Mac → apply migration → run local cloud-backed lifecycle and existing smoke tests → deploy preview → run all three cloud scripts and browser checks → deploy production → repeat production smoke tests and fixture audit. Do not mark the release complete before those steps pass.
+This is a tested public beta, not certification for every physical device or every vendor client. Email verification/recovery delivery, provider-verified Git pushes, retention controls, independent security review, and sustained load testing remain outside this release. See [WORKSPACE.md](WORKSPACE.md) and [ACCESS.md](ACCESS.md).
 
 ## Released v0.7.0
 

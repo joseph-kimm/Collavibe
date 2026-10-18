@@ -1,8 +1,8 @@
 # Workspace
 
-## Next release: lifecycle and discussion (not deployed yet)
+## Lifecycle and discussion (v0.8)
 
-The feature branch adds priority and due-date fields, priority filtering and due-date sorting, feature discussions, and recoverable archives. Members can archive/restore features and post comments. Only comment authors and the team owner can remove comments. The team owner can rename, archive, or restore projects. Archived projects and features remain readable/exportable but cannot accept edits or agent claims. Active sessions must be synced before their work is archived.
+The workspace includes priority and due-date fields, priority filtering and due-date sorting, feature discussions, and recoverable archives. Members can archive/restore features and post comments. Only comment authors and the team owner can remove comments. The team owner can rename, archive, or restore projects. Archived projects and features remain readable/exportable but cannot accept edits or agent claims. Active sessions must be synced before their work is archived.
 
 Discussion drafts survive in-page refreshes and temporary outages; they are not saved across a full browser reload. Posting uses bounded compare-and-swap retries so concurrent comments are preserved. Form edits and archives return 409 on stale revisions, rather than overwriting newer work. Comments are plain text, limited to 2,000 characters each and 200 per feature.
 
@@ -16,7 +16,7 @@ COLLAVIBE_SMOKE_URL=<preview-or-production-origin> node --env-file=.env.local --
 
 New authenticated routes are `PATCH /api/teams/:teamId/projects/:projectId` (owner-only, revision required) and `POST /api/teams/:teamId/features/:featureId/actions` (`comment`, `remove-comment`, or revision-bound `archive`). Existing feature create/edit routes also accept `priority` and a calendar `dueDate` in `YYYY-MM-DD` form. Authors and timestamps are server-generated; submitted author fields cannot impersonate a teammate.
 
-The public website is still v0.7.0 until the migration, preview checks, and production checks have been completed.
+The hosted v0.8 release is available at https://collavibe.vercel.app. An older, already-open browser cannot erase priority or due-date values merely by omitting those fields from an edit. A deliberately empty due date still clears the date.
 
 The website and MCP use the same project, feature, checklist, and session records. A feature planned on the website is returned to a coding agent as a work option. A session synced by an agent is visible on the website.
 
@@ -24,12 +24,12 @@ The website and MCP use the same project, feature, checklist, and session record
 
 1. Create an account, then create a team or open an invitation link.
 2. Add a project using its Git repository URL. The URL is saved without fetching the repository. The project starts without fabricated branches, commits, or files.
-3. Add features and their completion checklists. Set an owner, status, and branch when useful.
+3. Add features and their completion checklists. Set an owner, status, priority, due date, and branch when useful. Discuss questions and decisions on the feature itself.
 4. Open **Connect agent**, choose a client, and follow its setup instructions and approve a team through browser sign-in. Personal agent keys are available for clients without OAuth. The server is a general remote MCP endpoint at `https://collavibe.vercel.app/mcp`.
 5. Send the prepared start prompt from a chat whose agent can access the repository. The agent supplies a Git snapshot, loads teammates' context, and asks which feature to work on.
 6. At the end, send the prepared sync prompt. The agent records the handoff; syncing does not commit or push source code.
 
-The **Work** view supports status and owner filtering, search, editing, completion checklists, and copying a feature-specific agent prompt. The **Sessions** view searches summaries, decisions, blockers, and next steps and shows full handoffs. **Branches & files** displays the most recent agent-supplied snapshot. **Export** downloads the selected project as JSON; session handoffs can be copied or downloaded as Markdown.
+The **Work** view supports status, priority and owner filtering, search (including discussion text), editing, completion checklists, and copying a feature-specific agent prompt. Sort by priority or due date within each status group. Toggle **Archived features** to find and restore older work. Archived projects appear in a separate sidebar disclosure. The **Sessions** view searches summaries, decisions, blockers, and next steps and shows full handoffs. **Branches & files** displays the most recent agent-supplied snapshot. **Export** downloads the selected project, including discussion and archived history, as JSON; session handoffs can be copied or downloaded as Markdown.
 
 ## Team management
 
@@ -69,10 +69,12 @@ All workspace routes require the browser session cookie except readiness. Team m
 | DELETE | `/api/teams/:teamId/members/:userId` | Remove a member or leave; rotate code |
 | POST | `/api/teams/:teamId/projects/:projectId/features` | Create a feature |
 | PATCH | `/api/teams/:teamId/features/:featureId` | Save feature fields and checklist with `expectedUpdatedAt` |
+| PATCH | `/api/teams/:teamId/projects/:projectId` | Owner-only rename/archive/restore with `expectedUpdatedAt` |
+| POST | `/api/teams/:teamId/features/:featureId/actions` | Post/remove a comment, or archive/restore a feature |
 | GET | `/api/readiness` | Check database availability |
 
 ## Verification
 
-`npm run check` runs the TypeScript checks and local automated contracts. `scripts/hosted-smoke.ts` exercises both the cloud workspace API and the five hosted MCP tools with disposable accounts, then removes only the records created by that run. It verifies planning before an agent session, stale edits, membership access, owner permissions, synced data, and code invalidation.
+`npm run check` runs the TypeScript checks and local automated contracts. `scripts/hosted-smoke.ts` exercises the cloud workspace API and five hosted MCP tools. `scripts/access-smoke.ts` checks OAuth, team/session isolation, revocation, and concurrency. `scripts/workspace-smoke.ts` checks lifecycle/discussion persistence, legacy-edit compatibility, service-only RPC permissions, and archive/claim races. All three scripts use disposable records and remove only their own fixtures.
 
 The client setup guidance follows [OpenAI's MCP setup](https://developers.openai.com/learn/docs-mcp), [Claude's remote connector guidance](https://support.anthropic.com/en/articles/11175166-about-custom-integrations-using-remote-mcp), and [Cursor's MCP documentation](https://docs.cursor.com/context/model-context-protocol).

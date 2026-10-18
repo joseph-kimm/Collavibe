@@ -4,6 +4,8 @@ Collavibe is an agent-agnostic MCP server for collaborative coding. It gives an 
 
 Hosted workspace: **https://collavibe.vercel.app**
 
+The v0.8 workspace supports priorities, due dates, feature discussions, and recoverable project/feature archives. See [workspace usage](docs/WORKSPACE.md) and [executed QA results](docs/TEST_RESULTS.md) for behavior, permissions, and current limits.
+
 The agent does the language work. Collavibe provides the durable coordination layer:
 
 1. Let the coding agent inspect the current Git repository and load prior teammate sessions.
