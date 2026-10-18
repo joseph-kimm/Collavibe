@@ -11,6 +11,14 @@ export function sampleWorkspace() {
     ["f6", "Student login", "Email and password login with readable validation errors.", "done", "Alex", "feature/auth", ["Create account form", "Keep sessions after refresh", "Test incorrect passwords"], 3],
   ];
   const features = specifications.map(([id, title, description, status, owner, branch, items, completed], index) => ({ id, projectId: "p1", title, description, status, owner, branch, checklist: items.map((text, i) => ({ id: `check_${id}_${i}`, text, done: i < completed })), createdAt: date(6), updatedAt: date(index < 3 ? 0 : 1, index + 1) }));
+  const dueDay = (offset) => { const day = new Date(); day.setDate(day.getDate() + offset); return day.getFullYear() + "-" + String(day.getMonth() + 1).padStart(2,"0") + "-" + String(day.getDate()).padStart(2,"0"); };
+  Object.assign(features[0], { priority: "high", dueDate: dueDay(3), comments: [
+    { id: "demo-comment-1", userId: "u2", author: "Sam Patel", text: "Can we keep undated assignments visible too? Some instructors add the deadline later.", createdAt: date(0, 3) },
+    { id: "demo-comment-2", userId: "u1", author: "Maya Chen", text: "Yes. I’m keeping those below the dated work, and adding a midnight timezone case to the tests.", createdAt: date(0, 2) },
+  ] });
+  Object.assign(features[1], { priority: "high", dueDate: dueDay(1) });
+  Object.assign(features[2], { priority: "normal" });
+  Object.assign(features[3], { priority: "low" });
   const session = (id, participant, featureId, summary, completed, decisions, blockers, nextSteps, files, days, hours) => ({ id, participant, featureId, projectId: "p1", repoPath: git.root, startedAt: date(days, hours + 1), syncedAt: date(days, hours), status: "synced", startSnapshot: git, sync: { summary, workCompleted: completed, decisions, blockers, nextSteps, agentReportedFiles: files, verified: { source: "agent_attested", startHead: "7d9b1e3".padEnd(40,"0"), endHead: git.head, startBranch: git.branch, endBranch: git.branch, commits: [{ hash: git.head, shortHash: "a14c72f", author: participant, subject: summary.split(".")[0], authoredAt: date(days,hours) }], changedFiles: files, workingFiles: [], reportedButUnverified: [] } } });
   return {
     user: { id: "u1", name: "Maya Chen", email: "maya@example.com" },

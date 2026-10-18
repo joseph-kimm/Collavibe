@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { createClient } from "@supabase/supabase-js";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { getSupabaseAdmin, throwSupabaseError } from "../src/supabase.js";
@@ -17,7 +18,7 @@ async function account(label: string) {
   const email = `collavibe-lifecycle-${label}-${run}@example.com`, password = "QA-" + randomUUID();
   const created = await db.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { name: `Lifecycle ${label}` } }); throwSupabaseError(created.error); users.push(created.data.user!.id);
   const response = await request("", "/api/auth/login", "POST", { email, password }); const result = await json(response);
-  return { id: result.user.id, name: result.user.name, cookie: response.headers.get("set-cookie")!.split(";")[0] };
+  return { id: result.user.id, name: result.user.name, email, password, cookie: response.headers.get("set-cookie")!.split(";")[0] };
 }
 async function tool(name: string, args: Record<string, unknown>, success = true) {
   const result = await client!.callTool({ name, arguments: args });
@@ -31,6 +32,12 @@ try {
   await json(await request(member.cookie, "/api/teams/join", "POST", { joinCode: team.joinCode }));
   const root = `/api/teams/${team.id}`;
   let project: Project = (await json(await request(owner.cookie, root + "/projects", "POST", { name: "Lifecycle repository", repositoryUrl: `https://github.com/collavibe-lifecycle/${run}` }))).project; projects.push(project.id);
+  const direct = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
+  const bypass = { target_team: team.id, actor: owner.id, pid: project.id, kind: "project", document: { ...project, name: "Direct RPC bypass" }, expected: project.updatedAt };
+  assert((await direct.rpc("mutate_workspace", bypass)).error?.code === "42501", "Anonymous client could execute service-only workspace transactions.");
+  throwSupabaseError((await direct.auth.signInWithPassword({ email: owner.email, password: owner.password })).error);
+  assert((await direct.rpc("mutate_workspace", bypass)).error?.code === "42501", "Browser user could bypass the application through its transaction RPC.");
+  await direct.auth.signOut({ scope: "local" });
   const projectRoute = root + "/projects/" + project.id;
   let feature: Feature = (await json(await request(member.cookie, projectRoute + "/features", "POST", { title: "Test lifecycle", priority: "urgent", dueDate: "2026-12-15", checklist: [{ text: "Preserve context" }] }))).feature;
   assert(feature.priority === "urgent" && feature.dueDate === "2026-12-15", "Planning metadata was lost.");
