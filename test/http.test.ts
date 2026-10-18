@@ -162,6 +162,19 @@ describe("Streamable HTTP transport", () => {
     await expect(response.json()).resolves.toEqual({ error: "Sign in to continue." });
   });
 
+  it("handles malformed input without leaking server details", async () => {
+    const malformedCookie = await fetch(`${baseUrl}/api/auth/status`, { headers: { cookie: "collavibe_session=%E0%A4%A" } });
+    expect(malformedCookie.status).toBe(200);
+    await expect(malformedCookie.json()).resolves.toEqual({ authenticated: false });
+    const malformedJson = await fetch(`${baseUrl}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: "{broken" });
+    expect(malformedJson.status).toBe(400);
+    await expect(malformedJson.json()).resolves.toEqual({ error: "Send a valid JSON request." });
+    const page = await fetch(baseUrl);
+    expect(page.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+    expect(page.headers.get("x-powered-by")).toBeNull();
+    expect((await fetch(`${baseUrl}/api/agent/sync`, { method: "POST" })).status).toBe(410);
+  });
+
   it("restores shared project state after a server restart", async () => {
     await stopServer();
     launchServer();

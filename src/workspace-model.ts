@@ -28,12 +28,12 @@ export function repositoryKey(value: string) {
   return url.toString();
 }
 
-export function makeProject(input: { name: string; repositoryUrl: string }): Project {
+export function makeProject(input: { name: string; repositoryUrl: string }, namespace = ""): Project {
   const key = repositoryKey(input.repositoryUrl);
   const name = z.string().trim().min(2).max(200).parse(input.name);
   const now = new Date().toISOString();
   return {
-    id: `project_${createHash("sha256").update(key).digest("hex").slice(0, 12)}`,
+    id: `project_${createHash("sha256").update(namespace ? namespace + ":" + key : key).digest("hex").slice(0, namespace ? 20 : 12)}`,
     name, root: key, remote: key, createdAt: now, updatedAt: now,
     latestGit: { root: key, remote: key, branch: "", head: "", dirty: false, workingFiles: [], branches: [], recentCommits: [], trackedFiles: [], capturedAt: now },
   };
@@ -54,5 +54,5 @@ export function editFeature(current: Feature, input: z.input<typeof featurePatch
   if (new Set(ids).size !== ids.length || ids.some((id) => !existingIds.has(id))) throw new Error("Invalid checklist items. Reload the feature and try again.");
   if (fields.status === "done" && fields.checklist.some((item) => !item.done)) throw new Error("Complete the checklist before marking this feature done.");
   const updatedAt = new Date(Math.max(Date.now(), new Date(current.updatedAt).getTime() + 1)).toISOString();
-  return { ...current, ...fields, checklist: fields.checklist.map((item) => ({ ...item, id: item.id || `check_${randomUUID()}` })), updatedAt };
+  return { ...current, ...fields, ownerUserId: fields.owner === current.owner ? current.ownerUserId : undefined, checklist: fields.checklist.map((item) => ({ ...item, id: item.id || `check_${randomUUID()}` })), updatedAt };
 }

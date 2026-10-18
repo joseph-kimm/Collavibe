@@ -103,8 +103,14 @@ try {
   const memberList = await (await api(`/api/teams/${teamId}/members`)).json() as { members: unknown[] };
   assert(memberList.members.length === 2, "Member list did not include both accounts.");
 
+  const createdKey = await (await api(`/api/teams/${teamId}/agent-connections`, { method: "POST", body: JSON.stringify({ label: "Smoke MCP client", days: 1 }) })).json() as { token: string; connection: { id: string } };
+  const token = createdKey.token;
+  assert(token.startsWith("cv_"), "Agent key was not created.");
+  const noAuth = await fetch(baseUrl + "/mcp", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) });
+  assert(noAuth.status === 401 && noAuth.headers.get("www-authenticate")?.includes("resource_metadata"), "MCP did not require discoverable authentication.");
+  assert((await fetch(baseUrl + "/api/agent/sync", { method: "POST" })).status === 410, "Unsafe bulk sync is still enabled.");
   client = new Client({ name: "collavibe-production-smoke", version: "1.0.0" });
-  await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`)));
+  await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { authorization: "Bearer " + token } } }));
 
   const tools = await client.listTools();
   assert(tools.tools.length === 5, `Expected five hosted tools, received ${tools.tools.length}.`);
@@ -113,8 +119,6 @@ try {
   const startedResponse = await client.callTool({
     name: "start_collaboration_session",
     arguments: {
-      teamCode,
-      participant: "External MCP Client",
       intent: "Verify the deployed hosted workflow.",
       project: {
         key: repoKey,
@@ -139,7 +143,6 @@ try {
   const chosenResponse = await client.callTool({
     name: "choose_work_item",
     arguments: {
-      teamCode,
       sessionId: started.session.id,
       featureId: planned.feature.id,
       intendedBranch: "feature/hosted-smoke",
@@ -151,14 +154,13 @@ try {
 
   const templateResponse = await client.callTool({
     name: "get_sync_template",
-    arguments: { teamCode, sessionId: started.session.id },
+    arguments: { sessionId: started.session.id },
   });
   structured(templateResponse, "get_sync_template");
 
   const syncedResponse = await client.callTool({
     name: "sync_collaboration_session",
     arguments: {
-      teamCode,
       sessionId: started.session.id,
       summary: "The external MCP client completed the hosted start, choose, template, and sync workflow.",
       workCompleted: ["Called all hosted workflow tools successfully"],
@@ -197,18 +199,17 @@ try {
 
   await api(`/api/teams/${teamId}/members/${teammateUserId}`, { method: "DELETE" });
   assert((await teammateApi(`/api/teams/${teamId}/members`)).status === 403, "Removed member retained website access.");
-  const oldCode = await client.callTool({ name: "get_project_context", arguments: { teamCode } });
-  assert(oldCode.isError === true, "Removed member's old team code still authorized MCP access.");
-  const refreshedTeam = await (await api(`/api/dashboard?teamId=${teamId}`)).json() as { selectedTeam: { joinCode: string } };
-  teamCode = refreshedTeam.selectedTeam.joinCode;
-  const context = await client.callTool({ name: "get_project_context", arguments: { teamCode } });
-  structured(context, "get_project_context after code reset");
+  const context = await client.callTool({ name: "get_project_context", arguments: {} });
+  structured(context, "get_project_context after member removal");
+  await api(`/api/teams/${teamId}/agent-connections/${createdKey.connection.id}`, { method: "DELETE" });
+  const revoked = await fetch(baseUrl + "/mcp", { method: "POST", headers: { authorization: "Bearer " + token, "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) });
+  assert(revoked.status === 401, "Revoked agent key retained MCP access.");
 
   console.log(JSON.stringify({
     ok: true,
     endpoint: `${baseUrl}/mcp`,
     tools: tools.tools.map((tool) => tool.name),
-    workflow: ["signup", "create_team", "readiness", "add_project", "plan_feature", "edit_feature", "reject_stale_edit", "reject_outsider", "join_team", "owner_permissions", "rename_team", "list_members", "start", "choose_planned_feature", "template", "sync", "dashboard", "remove_member", "invalidate_old_mcp_code"],
+    workflow: ["signup", "create_team", "readiness", "add_project", "plan_feature", "edit_feature", "reject_stale_edit", "reject_outsider", "join_team", "owner_permissions", "rename_team", "list_members", "start", "choose_planned_feature", "template", "sync", "dashboard", "remove_member", "preserve_other_agent_connections", "revoke_agent_key"],
     evidence: "agent_attested",
     cleanup: "pending",
   }, null, 2));

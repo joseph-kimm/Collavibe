@@ -52,7 +52,7 @@ describe("MCP contract", () => {
 
   it("exposes the hosted contract without local filesystem arguments", async () => {
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-    const server = createHostedCollavibeMcpServer();
+    const server = createHostedCollavibeMcpServer({ userId: "schema-user", teamId: "schema-team", name: "Schema Test", tokenId: "schema-token" });
     const client = new Client({ name: "hosted-contract-test", version: "1.0.0" });
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
 
@@ -65,7 +65,9 @@ describe("MCP contract", () => {
       "sync_collaboration_session",
     ]);
     const start = tools.tools.find((tool) => tool.name === "start_collaboration_session")!;
-    expect(start.inputSchema.required).toEqual(expect.arrayContaining(["teamCode", "participant", "project"]));
+    expect(start.inputSchema.required).toEqual(["project"]);
+    expect(start.inputSchema.properties).not.toHaveProperty("teamCode");
+    expect(start.inputSchema.properties).not.toHaveProperty("participant");
     expect(start.inputSchema.properties).not.toHaveProperty("repoPath");
     expect(start.inputSchema.properties).toHaveProperty("project");
 

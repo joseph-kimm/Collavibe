@@ -1,6 +1,6 @@
 {
   "name": "collavibe",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,6 +10,7 @@
     "start": "tsx server/http.ts",
     "mcp": "tsx server/stdio.ts",
     "smoke:hosted": "tsx scripts/hosted-smoke.ts",
+    "smoke:access": "tsx scripts/access-smoke.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check": "npm run typecheck && npm run test"

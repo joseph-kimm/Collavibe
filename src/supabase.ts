@@ -21,7 +21,10 @@ export function isSupabaseConfigured() {
 
 function client(key: string): SupabaseClient {
   const { url } = config();
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { fetch: (input, init) => fetch(input, { ...init, signal: init?.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(10000)]) : AbortSignal.timeout(10000) }) },
+  });
 }
 
 function admin() { return client(config().serviceRole); }
@@ -146,21 +149,4 @@ export async function cloudDashboard(user: CloudUser, requestedTeamId?: string) 
     sessions: (sessionsResult.data || []).map((row) => row.payload as CollaborationSession),
     deploymentMode: "cloud" as const,
   };
-}
-
-export async function cloudAgentSync(input: { teamCode: string; project: Project; features: Feature[]; sessions: CollaborationSession[] }) {
-  const code = input.teamCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-  const team = await admin().from("teams").select("id").eq("join_code", code).maybeSingle();
-  fail(team.error);
-  if (!team.data) throw new Error("That team code is not valid.");
-  const project = input.project;
-  const existingLink = await admin().from("team_projects").select("team_id").eq("project_id", project.id).maybeSingle();
-  fail(existingLink.error);
-  if (existingLink.data && existingLink.data.team_id !== team.data.id) throw new Error("This project already belongs to another team.");
-  const projectRow = { id: project.id, name: project.name, root: project.root, remote: project.remote || null, latest_git: project.latestGit, created_at: project.createdAt, updated_at: project.updatedAt };
-  fail((await admin().from("projects").upsert(projectRow)).error);
-  fail((await admin().from("team_projects").upsert({ team_id: team.data.id, project_id: project.id }, { onConflict: "team_id,project_id" })).error);
-  if (input.features.length) fail((await admin().from("features").upsert(input.features.map((feature) => ({ id: feature.id, project_id: project.id, payload: feature, updated_at: feature.updatedAt })))).error);
-  if (input.sessions.length) fail((await admin().from("collaboration_sessions").upsert(input.sessions.map((session) => ({ id: session.id, project_id: project.id, payload: { ...session, teamCode: undefined }, updated_at: session.syncedAt || session.startedAt })))).error);
-  return { projectId: project.id, teamId: team.data.id, features: input.features.length, sessions: input.sessions.length };
 }

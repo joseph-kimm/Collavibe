@@ -44,6 +44,7 @@ export interface Feature {
   checklist: ChecklistItem[];
   status: FeatureStatus;
   owner?: string;
+  ownerUserId?: string;
   branch?: string;
   createdAt: string;
   updatedAt: string;
@@ -76,6 +77,8 @@ export interface CollaborationSession {
   projectId: string;
   repoPath: string;
   participant: string;
+  /** Hosted sessions are bound to the account authorizing the MCP connection. */
+  userId?: string;
   intent?: string;
   featureId?: string;
   status: "choosing" | "active" | "synced";

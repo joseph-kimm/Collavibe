@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { getSupabaseAdmin, throwSupabaseError } from "./supabase.js";
-import { editFeature, makeFeature, makeProject, WorkspaceError, type FeatureFields } from "./workspace-model.js";
+import { editFeature, makeFeature, makeProject, repositoryKey, WorkspaceError, type FeatureFields } from "./workspace-model.js";
 import type { Feature } from "./types.js";
 
 const db = getSupabaseAdmin;
@@ -62,12 +62,21 @@ export async function cloudRemoveMember(userId: string, teamId: string, targetId
   const code = await rotateCode(teamId);
   const result = await db().from("team_members").delete().eq("team_id", teamId).eq("user_id", targetId);
   check(result.error);
+  check((await db().from("agent_connections").update({ revoked_at: new Date().toISOString() }).eq("team_id", teamId).eq("user_id", targetId)).error);
   return code;
 }
 
 export async function cloudAddProject(userId: string, teamId: string, input: { name: string; repositoryUrl: string }) {
   await cloudRequireMember(userId, teamId);
-  const project = makeProject(input);
+  const project = makeProject(input, teamId);
+  const links = await db().from("team_projects").select("project_id").eq("team_id", teamId);
+  check(links.error);
+  const ids = (links.data || []).map((link) => link.project_id);
+  if (ids.length) {
+    const existing = await db().from("projects").select("root").in("id", ids);
+    check(existing.error);
+    if (existing.data?.some((row) => { try { return repositoryKey(row.root) === project.root; } catch { return false; } })) throw new Error("This repository is already in your team.");
+  }
   const existing = await db().from("projects").select("id").eq("id", project.id).maybeSingle();
   check(existing.error);
   if (existing.data) {
