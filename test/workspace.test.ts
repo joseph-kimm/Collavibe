@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { addRemoteProject, createPlannedFeature, createTeam, getDashboard, joinTeam, listTeamMembers, removeTeamMember, rotateTeamCode, signUpUser, updatePlannedFeature, updateTeamName, updateWorkspaceProject, workspaceFeatureAction } from "../src/store.js";
-import { applyFeatureAction, editFeature, featureActionSchema, featureFields, makeFeature, repositoryKey } from "../src/workspace-model.js";
+import { applyFeatureAction, editFeature, featureActionSchema, featureFields, featurePatchSchema, makeFeature, repositoryKey } from "../src/workspace-model.js";
 
 const directory = await mkdtemp(path.join(os.tmpdir(), "collavibe-workspace-test-"));
 process.env.COLLAVIBE_DATA_PATH = path.join(directory, "state.json");
@@ -77,6 +77,17 @@ describe("workspace authorization and planning", () => {
     expect(() => featureFields.parse({ title: "Plan feature", priority: "critical" })).toThrow();
     expect(() => featureActionSchema.parse({ action: "comment", text: "   " })).toThrow();
     expect(() => featureActionSchema.parse({ action: "comment", text: "x".repeat(2001) })).toThrow();
+  });
+
+  it("preserves new metadata from an older browser and accepts explicit clearing", () => {
+    const feature = makeFeature("project", featureFields.parse({ title: "Keep metadata", priority: "urgent", dueDate: "2026-12-15" }));
+    const { priority, dueDate, ...legacy } = feature;
+    const input = featurePatchSchema.parse({ ...legacy, expectedUpdatedAt: feature.updatedAt, title: "Older browser edit" });
+    expect(input.priority).toBeUndefined(); expect(input.dueDate).toBeUndefined();
+    const edited = editFeature(feature, input);
+    expect(edited.priority).toBe(priority); expect(edited.dueDate).toBe(dueDate);
+    const cleared = editFeature(edited, { ...edited, expectedUpdatedAt: edited.updatedAt, priority: "normal", dueDate: "" });
+    expect(cleared.priority).toBe("normal"); expect(cleared.dueDate).toBe("");
   });
 
   it("keeps simultaneous discussions, prevents author spoofing and protects deletion", async () => {

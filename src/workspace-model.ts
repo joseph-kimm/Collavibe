@@ -2,17 +2,20 @@ import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { Feature, Project } from "./types.js";
 
+const priorityField = z.enum(["low", "normal", "high", "urgent"]);
+const dueDateField = z.union([z.iso.date(), z.literal("")]);
+
 export const featureFields = z.object({
   title: z.string().trim().min(3).max(200),
   description: z.string().trim().max(4000).default(""),
   status: z.enum(["planned", "active", "review", "done", "blocked"]).default("planned"),
   owner: z.string().trim().max(120).default(""),
   branch: z.string().trim().max(255).default(""),
-  priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
-  dueDate: z.union([z.iso.date(), z.literal("")]).default(""),
+  priority: priorityField.default("normal"),
+  dueDate: dueDateField.default(""),
   checklist: z.array(z.object({ id: z.string().min(1).max(128).optional(), text: z.string().trim().min(1).max(500), done: z.boolean().default(false) })).max(100).default([]),
 });
-export const featurePatchSchema = featureFields.extend({ expectedUpdatedAt: z.string().min(1).max(100) });
+export const featurePatchSchema = featureFields.extend({ priority: priorityField.optional(), dueDate: dueDateField.optional(), expectedUpdatedAt: z.string().min(1).max(100) });
 export type FeatureFields = z.infer<typeof featureFields>;
 export const projectPatchSchema = z.object({ name: z.string().trim().min(2).max(200), archived: z.boolean(), expectedUpdatedAt: z.iso.datetime({ offset: true }) });
 export const featureActionSchema = z.discriminatedUnion("action", [
@@ -81,7 +84,9 @@ export function makeFeature(projectId: string, input: FeatureFields): Feature {
 export function editFeature(current: Feature, input: z.input<typeof featurePatchSchema>): Feature {
   if (current.archivedAt) throw new WorkspaceError("Restore this feature before changing it.", 409);
   if (input.expectedUpdatedAt !== current.updatedAt) throw new WorkspaceError("This feature changed while you were editing. Reload the latest version before saving.", 409);
-  const fields = featureFields.parse(input);
+  // An already-open older browser may omit newly introduced fields. Preserve
+  // those values; an explicit empty due date still clears the date.
+  const fields = featureFields.parse({ ...input, priority: input.priority ?? current.priority ?? "normal", dueDate: input.dueDate ?? current.dueDate ?? "" });
   const existingIds = new Set(current.checklist.map((item) => item.id));
   const ids = fields.checklist.flatMap((item) => item.id ? [item.id] : []);
   if (new Set(ids).size !== ids.length || ids.some((id) => !existingIds.has(id))) throw new Error("Invalid checklist items. Reload the feature and try again.");

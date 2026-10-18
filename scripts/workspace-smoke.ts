@@ -43,6 +43,9 @@ try {
   assert(feature.priority === "urgent" && feature.dueDate === "2026-12-15", "Planning metadata was lost.");
   assert((await request(owner.cookie, projectRoute + "/features", "POST", { title: "Invalid date", dueDate: "2027-02-29" })).status === 400, "Impossible date accepted.");
   const featureRoute = root + "/features/" + feature.id;
+  const { priority, dueDate, ...legacy } = feature;
+  feature = (await json(await request(owner.cookie, featureRoute, "PATCH", { ...legacy, expectedUpdatedAt: feature.updatedAt }))).feature;
+  assert(feature.priority === priority && feature.dueDate === dueDate, "An older browser erased new feature metadata.");
   const action = (cookie: string, body: unknown) => request(cookie, featureRoute + "/actions", "POST", body);
   assert((await action(outsider.cookie, { action: "comment", text: "Unauthorized" })).status === 403, "Outsider posted a comment.");
   const comments = await Promise.all([action(owner.cookie, { action: "comment", text: "Owner's context", userId: member.id, author: "Forged" }), action(member.cookie, { action: "comment", text: "Member's context" })]);
