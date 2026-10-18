@@ -2,8 +2,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { addRemoteProject, createPlannedFeature, createTeam, getDashboard, joinTeam, listTeamMembers, removeTeamMember, rotateTeamCode, signUpUser, updatePlannedFeature, updateTeamName } from "../src/store.js";
-import { editFeature, featureFields, makeFeature, repositoryKey } from "../src/workspace-model.js";
+import { addRemoteProject, createPlannedFeature, createTeam, getDashboard, joinTeam, listTeamMembers, removeTeamMember, rotateTeamCode, signUpUser, updatePlannedFeature, updateTeamName, updateWorkspaceProject, workspaceFeatureAction } from "../src/store.js";
+import { applyFeatureAction, editFeature, featureActionSchema, featureFields, makeFeature, repositoryKey } from "../src/workspace-model.js";
 
 const directory = await mkdtemp(path.join(os.tmpdir(), "collavibe-workspace-test-"));
 process.env.COLLAVIBE_DATA_PATH = path.join(directory, "state.json");
@@ -68,6 +68,59 @@ describe("workspace authorization and planning", () => {
     const code = await rotateTeamCode(ownerId, teamId);
     expect(code).not.toBe(originalCode);
     await expect(joinTeam({ userId: outsiderId, joinCode: originalCode })).rejects.toThrow("not valid");
+  });
+
+  it("validates priorities, calendar dates and comment input", () => {
+    expect(featureFields.parse({ title: "Plan feature" }).priority).toBe("normal");
+    expect(featureFields.parse({ title: "Plan feature", dueDate: "2028-02-29", priority: "urgent" }).dueDate).toBe("2028-02-29");
+    for (const dueDate of ["2027-02-29", "2026-13-01", "tomorrow", "2026-01-01T00:00:00Z"]) expect(() => featureFields.parse({ title: "Plan feature", dueDate })).toThrow();
+    expect(() => featureFields.parse({ title: "Plan feature", priority: "critical" })).toThrow();
+    expect(() => featureActionSchema.parse({ action: "comment", text: "   " })).toThrow();
+    expect(() => featureActionSchema.parse({ action: "comment", text: "x".repeat(2001) })).toThrow();
+  });
+
+  it("keeps simultaneous discussions, prevents author spoofing and protects deletion", async () => {
+    const feature = await createPlannedFeature(memberId, teamId, projectId, featureFields.parse({ title: "Discuss design", priority: "high", dueDate: "2026-12-10" }));
+    await Promise.all([workspaceFeatureAction({ id: memberId, name: "Member" }, teamId, feature.id, { action: "comment", text: "One" }), workspaceFeatureAction({ id: ownerId, name: "Owner" }, teamId, feature.id, { action: "comment", text: "Two" })]);
+    let current = (await getDashboard(ownerId, teamId)).features.find((item) => item.id === feature.id)!;
+    expect(current.comments).toHaveLength(2);
+    expect(current.priority).toBe("high"); expect(current.dueDate).toBe("2026-12-10");
+    const ownerComment = current.comments!.find((item) => item.userId === ownerId)!;
+    await expect(workspaceFeatureAction({ id: memberId, name: "Member" }, teamId, feature.id, { action: "remove-comment", commentId: ownerComment.id })).rejects.toMatchObject({ status: 403 });
+    await expect(workspaceFeatureAction({ id: outsiderId, name: "Outsider" }, teamId, feature.id, { action: "comment", text: "Outside" })).rejects.toThrow("not a member");
+    current = await updatePlannedFeature(ownerId, teamId, feature.id, { ...current, expectedUpdatedAt: current.updatedAt, title: "Edited design" });
+    expect(current.comments).toHaveLength(2);
+    current = await workspaceFeatureAction({ id: ownerId, name: "Owner" }, teamId, feature.id, { action: "remove-comment", commentId: current.comments![0].id });
+    expect(current.comments).toHaveLength(1);
+    await expect(updatePlannedFeature(ownerId, teamId, feature.id, { ...feature, expectedUpdatedAt: feature.updatedAt })).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("archives and restores without losing feature history", async () => {
+    let feature = await createPlannedFeature(ownerId, teamId, projectId, featureFields.parse({ title: "Keep history", checklist: [{ text: "Keep this" }] }));
+    const actor = { id: ownerId, name: "Owner" };
+    feature = await workspaceFeatureAction(actor, teamId, feature.id, { action: "comment", text: "Preserve discussion" });
+    const before = feature;
+    feature = await workspaceFeatureAction(actor, teamId, feature.id, { action: "archive", archived: true, expectedUpdatedAt: feature.updatedAt });
+    expect(feature.archivedAt).toBeTruthy();
+    await expect(updatePlannedFeature(ownerId, teamId, feature.id, { ...feature, expectedUpdatedAt: feature.updatedAt })).rejects.toMatchObject({ status: 409 });
+    await expect(workspaceFeatureAction(actor, teamId, feature.id, { action: "comment", text: "No" })).rejects.toMatchObject({ status: 409 });
+    await expect(workspaceFeatureAction(actor, teamId, feature.id, { action: "archive", archived: false, expectedUpdatedAt: before.updatedAt })).rejects.toMatchObject({ status: 409 });
+    feature = await workspaceFeatureAction(actor, teamId, feature.id, { action: "archive", archived: false, expectedUpdatedAt: feature.updatedAt });
+    expect(feature.archivedAt).toBeUndefined(); expect(feature.comments).toEqual(before.comments); expect(feature.checklist).toEqual(before.checklist);
+    expect(() => applyFeatureAction(feature, { action: "archive", archived: true, expectedUpdatedAt: feature.updatedAt }, { ...actor, owner: true }, true)).toThrow("Sync that session");
+  });
+
+  it("limits project settings to owners and makes archived projects read-only", async () => {
+    const project = (await getDashboard(ownerId, teamId)).projects.find((item) => item.id === projectId)!;
+    const input = { name: "Renamed project", archived: true, expectedUpdatedAt: project.updatedAt };
+    await expect(updateWorkspaceProject(memberId, teamId, projectId, input)).rejects.toMatchObject({ status: 403 });
+    let changed = await updateWorkspaceProject(ownerId, teamId, projectId, input);
+    expect(changed.archivedAt).toBeTruthy(); expect(changed.name).toBe(input.name);
+    await expect(createPlannedFeature(memberId, teamId, projectId, featureFields.parse({ title: "No writes" }))).rejects.toMatchObject({ status: 409 });
+    await expect(updateWorkspaceProject(ownerId, teamId, projectId, input)).rejects.toMatchObject({ status: 409 });
+    changed = await updateWorkspaceProject(ownerId, teamId, projectId, { ...input, archived: false, expectedUpdatedAt: changed.updatedAt });
+    expect(changed.archivedAt).toBeUndefined();
+    expect((await getDashboard(ownerId, teamId)).features.length).toBeGreaterThan(0);
   });
 
   it("removes member access and invalidates the old MCP/invitation code", async () => {

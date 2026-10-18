@@ -46,8 +46,20 @@ export interface Feature {
   owner?: string;
   ownerUserId?: string;
   branch?: string;
+  priority?: "low" | "normal" | "high" | "urgent";
+  dueDate?: string;
+  archivedAt?: string;
+  comments?: FeatureComment[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FeatureComment {
+  id: string;
+  userId: string;
+  author: string;
+  text: string;
+  createdAt: string;
 }
 
 export interface VerifiedDelta {
@@ -98,6 +110,7 @@ export interface Project {
   latestGit: GitSnapshot;
   createdAt: string;
   updatedAt: string;
+  archivedAt?: string;
 }
 
 export interface User {

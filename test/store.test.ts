@@ -5,7 +5,8 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { inspectRepository } from "../src/git.js";
-import { chooseWorkItem, createTeam, getDashboard, getProjectContext, joinTeam, loginUser, readState, resetStateForTests, signUpUser, startCollaborationSession, syncCollaborationSession } from "../src/store.js";
+import { chooseWorkItem, createTeam, getDashboard, getProjectContext, joinTeam, loginUser, readState, resetStateForTests, signUpUser, startCollaborationSession, syncCollaborationSession, createPlannedFeature, updateWorkspaceProject, workspaceFeatureAction } from "../src/store.js";
+import { featureFields } from "../src/workspace-model.js";
 
 const exec = promisify(execFile);
 const root = await mkdtemp(path.join(os.tmpdir(), "collavibe-test-"));
@@ -37,6 +38,27 @@ afterEach(() => {
 });
 
 describe("agent-to-team session workflow", () => {
+  it("keeps archived local work out of agent context and prevents hiding active sessions", async () => {
+    const account = await signUpUser({ name: "Local Owner", email: "owner@example.com", password: "local-lifecycle-password" });
+    const team = await createTeam({ userId: account.user.id, name: "Lifecycle team", repoPath: repo });
+    let project = (await getDashboard(account.user.id, team.id)).projects[0];
+    let feature = await createPlannedFeature(account.user.id, team.id, project.id, featureFields.parse({ title: "Preserve local history" }));
+    const started = await startCollaborationSession({ repoPath: repo, participant: account.user.name });
+    feature = await workspaceFeatureAction(account.user, team.id, feature.id, { action: "archive", archived: true, expectedUpdatedAt: feature.updatedAt });
+    expect((await getProjectContext(repo)).features).toHaveLength(0);
+    await expect(chooseWorkItem({ sessionId: started.session.id, featureId: feature.id })).rejects.toMatchObject({ status: 409 });
+    feature = await workspaceFeatureAction(account.user, team.id, feature.id, { action: "archive", archived: false, expectedUpdatedAt: feature.updatedAt });
+    await chooseWorkItem({ sessionId: started.session.id, featureId: feature.id });
+    project = (await getDashboard(account.user.id, team.id)).projects[0];
+    const active = (await getDashboard(account.user.id, team.id)).features[0];
+    await expect(workspaceFeatureAction(account.user, team.id, feature.id, { action: "archive", archived: true, expectedUpdatedAt: active.updatedAt })).rejects.toMatchObject({ status: 409 });
+    await expect(updateWorkspaceProject(account.user.id, team.id, project.id, { name: project.name, archived: true, expectedUpdatedAt: project.updatedAt })).rejects.toMatchObject({ status: 409 });
+    await syncCollaborationSession({ sessionId: started.session.id, summary: "Reviewed only", workCompleted: [], decisions: [], blockers: [], nextSteps: [], agentReportedFiles: [] });
+    project = (await getDashboard(account.user.id, team.id)).projects[0];
+    await updateWorkspaceProject(account.user.id, team.id, project.id, { name: project.name, archived: true, expectedUpdatedAt: project.updatedAt });
+    await expect(startCollaborationSession({ repoPath: repo, participant: account.user.name })).rejects.toMatchObject({ status: 409 });
+    expect((await readState()).sessions[0].status).toBe("synced");
+  });
   it("supports account creation, team codes, joining, and team-scoped dashboards", async () => {
     const owner = await signUpUser({ name: "Amina Yusuf", email: "amina@example.com", password: "a-long-test-password" });
     const team = await createTeam({ userId: owner.user.id, name: "Learning Lab", repoPath: repo });

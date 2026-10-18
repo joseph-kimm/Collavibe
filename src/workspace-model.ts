@@ -8,10 +8,42 @@ export const featureFields = z.object({
   status: z.enum(["planned", "active", "review", "done", "blocked"]).default("planned"),
   owner: z.string().trim().max(120).default(""),
   branch: z.string().trim().max(255).default(""),
+  priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
+  dueDate: z.union([z.iso.date(), z.literal("")]).default(""),
   checklist: z.array(z.object({ id: z.string().min(1).max(128).optional(), text: z.string().trim().min(1).max(500), done: z.boolean().default(false) })).max(100).default([]),
 });
 export const featurePatchSchema = featureFields.extend({ expectedUpdatedAt: z.string().min(1).max(100) });
 export type FeatureFields = z.infer<typeof featureFields>;
+export const projectPatchSchema = z.object({ name: z.string().trim().min(2).max(200), archived: z.boolean(), expectedUpdatedAt: z.iso.datetime({ offset: true }) });
+export const featureActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("archive"), archived: z.boolean(), expectedUpdatedAt: z.string().min(1).max(100) }),
+  z.object({ action: z.literal("comment"), text: z.string().trim().min(1).max(2000) }),
+  z.object({ action: z.literal("remove-comment"), commentId: z.string().min(1).max(128) }),
+]);
+export type FeatureAction = z.infer<typeof featureActionSchema>;
+export function nextRevision(previous: string) { return new Date(Math.max(Date.now(), new Date(previous).getTime() + 1)).toISOString(); }
+
+export function applyFeatureAction(current: Feature, input: FeatureAction, actor: { id: string; name: string; owner: boolean }, activeSession: boolean): Feature {
+  const updated = structuredClone(current);
+  if (input.action === "archive") {
+    if (input.expectedUpdatedAt !== current.updatedAt) throw new WorkspaceError("This feature changed. Refresh before archiving or restoring.", 409);
+    if (input.archived && activeSession) throw new WorkspaceError("An agent is working on this feature. Sync that session before archiving it.", 409);
+    updated.archivedAt = input.archived ? new Date().toISOString() : undefined;
+  } else {
+    if (current.archivedAt) throw new WorkspaceError("Restore this feature before changing it.", 409);
+    if (input.action === "comment") {
+      if ((current.comments?.length || 0) >= 200) throw new WorkspaceError("This discussion has reached 200 comments. Remove older comments before adding more.", 409);
+      updated.comments = [...(current.comments || []), { id: `comment_${randomUUID()}`, userId: actor.id, author: actor.name, text: input.text, createdAt: new Date().toISOString() }];
+    } else {
+      const comment = current.comments?.find((item) => item.id === input.commentId);
+      if (!comment) throw new WorkspaceError("Comment not found.", 404);
+      if (comment.userId !== actor.id && !actor.owner) throw new WorkspaceError("Only the author or team owner can remove a comment.", 403);
+      updated.comments = current.comments!.filter((item) => item.id !== input.commentId);
+    }
+  }
+  updated.updatedAt = nextRevision(current.updatedAt);
+  return updated;
+}
 
 export class WorkspaceError extends Error {
   constructor(message: string, public status: number) { super(message); }
@@ -47,12 +79,13 @@ export function makeFeature(projectId: string, input: FeatureFields): Feature {
 }
 
 export function editFeature(current: Feature, input: z.input<typeof featurePatchSchema>): Feature {
+  if (current.archivedAt) throw new WorkspaceError("Restore this feature before changing it.", 409);
   if (input.expectedUpdatedAt !== current.updatedAt) throw new WorkspaceError("This feature changed while you were editing. Reload the latest version before saving.", 409);
   const fields = featureFields.parse(input);
   const existingIds = new Set(current.checklist.map((item) => item.id));
   const ids = fields.checklist.flatMap((item) => item.id ? [item.id] : []);
   if (new Set(ids).size !== ids.length || ids.some((id) => !existingIds.has(id))) throw new Error("Invalid checklist items. Reload the feature and try again.");
   if (fields.status === "done" && fields.checklist.some((item) => !item.done)) throw new Error("Complete the checklist before marking this feature done.");
-  const updatedAt = new Date(Math.max(Date.now(), new Date(current.updatedAt).getTime() + 1)).toISOString();
+  const updatedAt = nextRevision(current.updatedAt);
   return { ...current, ...fields, ownerUserId: fields.owner === current.owner ? current.ownerUserId : undefined, checklist: fields.checklist.map((item) => ({ ...item, id: item.id || `check_${randomUUID()}` })), updatedAt };
 }

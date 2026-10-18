@@ -48,11 +48,11 @@ async function requireTeamProject(teamId: string, projectId: string) {
 }
 
 function buildWorkOptions(project: Project, features: Feature[], participant: string): WorkOption[] {
-  const options: WorkOption[] = features.filter((feature) => feature.status !== "done").map((feature) => ({
+  const options: WorkOption[] = features.filter((feature) => feature.status !== "done" && !feature.archivedAt).map((feature) => ({
     id: `feature:${feature.id}`,
     kind: "feature",
     title: feature.title,
-    detail: `${feature.status}${feature.owner ? ` · owned by ${feature.owner}` : " · unclaimed"} · ${feature.checklist.filter((item) => item.done).length}/${feature.checklist.length} checklist items`,
+    detail: `${feature.status} · ${feature.priority || "normal"} priority${feature.dueDate ? ` · due ${feature.dueDate}` : ""}${feature.owner ? ` · owned by ${feature.owner}` : " · unclaimed"} · ${feature.checklist.filter((item) => item.done).length}/${feature.checklist.length} checklist items`,
     featureId: feature.id,
     branch: feature.branch,
   }));
@@ -69,7 +69,7 @@ function buildWorkOptions(project: Project, features: Feature[], participant: st
 }
 
 function projectFromRow(row: any): Project {
-  return { id: row.id, name: row.name, root: row.root, remote: row.remote || undefined, latestGit: row.latest_git, createdAt: row.created_at, updatedAt: row.updated_at };
+  return { id: row.id, name: row.name, root: row.root, remote: row.remote || undefined, latestGit: row.latest_git, createdAt: row.created_at, updatedAt: row.updated_at, archivedAt: row.archived_at || undefined };
 }
 
 export async function getHostedTeamContext(input: { actor: AgentIdentity; projectKey?: string }) {
@@ -85,16 +85,17 @@ export async function getHostedTeamContext(input: { actor: AgentIdentity; projec
   }
   if (!projectIds.length) return { team, projects: [], features: [], sessions: [] };
   const [projects, features, sessions] = await Promise.all([
-    getSupabaseAdmin().from("projects").select("*").in("id", projectIds),
+    getSupabaseAdmin().from("projects").select("*").in("id", projectIds).is("archived_at", null),
     getSupabaseAdmin().from("features").select("payload").in("project_id", projectIds),
     getSupabaseAdmin().from("collaboration_sessions").select("payload").in("project_id", projectIds),
   ]);
   throwSupabaseError(projects.error); throwSupabaseError(features.error); throwSupabaseError(sessions.error);
+  const activeIds = new Set((projects.data || []).map((row) => row.id));
   return {
     team,
     projects: (projects.data || []).map(projectFromRow),
-    features: (features.data || []).map((row) => row.payload as Feature),
-    sessions: (sessions.data || []).map((row) => row.payload as CollaborationSession).sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
+    features: (features.data || []).map((row) => row.payload as Feature).filter((item) => activeIds.has(item.projectId) && !item.archivedAt),
+    sessions: (sessions.data || []).map((row) => row.payload as CollaborationSession).filter((item) => activeIds.has(item.projectId)).sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
   };
 }
 
@@ -102,6 +103,7 @@ export async function startHostedSession(input: { actor: AgentIdentity; intent?:
   const team = await resolveTeam(input.actor);
   const key = safeRepositoryKey(input.project.key);
   const existing = await teamProject(input.actor, key);
+  if (existing?.archivedAt) throw new WorkspaceError("Restore this project on the website before starting work.", 409);
   const initial = makeProject({ name: input.project.name, repositoryUrl: key }, team.id);
   const id = existing?.id || initial.id;
   const now = new Date().toISOString();
@@ -159,6 +161,7 @@ export async function chooseHostedWorkItem(input: { actor: AgentIdentity; sessio
     throwSupabaseError(found.error);
     if (!found.data) throw new Error("The selected feature does not belong to this project.");
     feature = found.data.payload as Feature;
+    if (feature.archivedAt) throw new WorkspaceError("Restore this feature on the website before claiming it.", 409);
     expectedFeature = feature.updatedAt;
     if (feature.status === "active" && feature.owner && (feature.ownerUserId ? feature.ownerUserId !== input.actor.userId : feature.owner !== session.participant)) throw new Error(`This feature is already in progress with ${feature.owner}. Choose another feature or ask the team to reassign it.`);
   } else {

@@ -1,5 +1,23 @@
 # Workspace
 
+## Next release: lifecycle and discussion (not deployed yet)
+
+The feature branch adds priority and due-date fields, priority filtering and due-date sorting, feature discussions, and recoverable archives. Members can archive/restore features and post comments. Only comment authors and the team owner can remove comments. The team owner can rename, archive, or restore projects. Archived projects and features remain readable/exportable but cannot accept edits or agent claims. Active sessions must be synced before their work is archived.
+
+Discussion drafts survive in-page refreshes and temporary outages; they are not saved across a full browser reload. Posting uses bounded compare-and-swap retries so concurrent comments are preserved. Form edits and archives return 409 on stale revisions, rather than overwriting newer work. Comments are plain text, limited to 2,000 characters each and 200 per feature.
+
+Deployment prerequisite: apply `20261018005000_workspace_lifecycle.sql` before deploying this code. It adds a nullable archive timestamp and a service-only transaction function. Website writes and MCP claims use the same per-project lock. Do not deploy the branch before the migration and the cloud lifecycle smoke test pass.
+
+Cloud verification command (disposable fixtures are removed in `finally`):
+
+```sh
+COLLAVIBE_SMOKE_URL=<preview-or-production-origin> node --env-file=.env.local --import tsx scripts/workspace-smoke.ts
+```
+
+New authenticated routes are `PATCH /api/teams/:teamId/projects/:projectId` (owner-only, revision required) and `POST /api/teams/:teamId/features/:featureId/actions` (`comment`, `remove-comment`, or revision-bound `archive`). Existing feature create/edit routes also accept `priority` and a calendar `dueDate` in `YYYY-MM-DD` form. Authors and timestamps are server-generated; submitted author fields cannot impersonate a teammate.
+
+The public website is still v0.7.0 until the migration, preview checks, and production checks have been completed.
+
 The website and MCP use the same project, feature, checklist, and session records. A feature planned on the website is returned to a coding agent as a work option. A session synced by an agent is visible on the website.
 
 ## People using Collavibe for the first time

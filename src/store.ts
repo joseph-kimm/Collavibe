@@ -4,7 +4,8 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { inspectDelta, inspectRepository } from "./git.js";
 import { cloudSyncUrl, publishCloudState } from "./cloud-sync.js";
-import { editFeature, makeFeature, makeProject, WorkspaceError, type FeatureFields } from "./workspace-model.js";
+import { applyFeatureAction, editFeature, makeFeature, makeProject, nextRevision, WorkspaceError, type FeatureAction, type FeatureFields, projectPatchSchema } from "./workspace-model.js";
+import type { z } from "zod";
 import type { CollaborationSession, CollavibeState, Feature, FeatureStatus, Project, Team, User, WorkOption } from "./types.js";
 
 const emptyState = (): CollavibeState => ({
@@ -328,6 +329,7 @@ function requireTeamProject(state: CollavibeState, userId: string, teamId: strin
 export async function createPlannedFeature(userId: string, teamId: string, projectId: string, input: FeatureFields) {
   return mutate((state) => {
     requireTeamProject(state, userId, teamId, projectId);
+    if (state.projects.find((item) => item.id === projectId)?.archivedAt) throw new WorkspaceError("Restore this project before changing it.", 409);
     const feature = makeFeature(projectId, input);
     state.features.push(feature);
     return feature;
@@ -339,7 +341,33 @@ export async function updatePlannedFeature(userId: string, teamId: string, featu
     const index = state.features.findIndex((feature) => feature.id === featureId);
     if (index === -1) throw new WorkspaceError("Feature not found.", 404);
     requireTeamProject(state, userId, teamId, state.features[index].projectId);
+    if (state.projects.find((item) => item.id === state.features[index].projectId)?.archivedAt) throw new WorkspaceError("Restore this project before changing it.", 409);
     const updated = editFeature(state.features[index], input);
+    state.features[index] = updated;
+    return updated;
+  });
+}
+
+export async function updateWorkspaceProject(userId: string, teamId: string, projectId: string, input: z.infer<typeof projectPatchSchema>) {
+  return mutate((state) => {
+    requireTeamProject(state, userId, teamId, projectId);
+    if (state.teams.find((item) => item.id === teamId)?.ownerUserId !== userId) throw new WorkspaceError("Only the team owner can change project settings.", 403);
+    const project = state.projects.find((item) => item.id === projectId)!;
+    if (project.updatedAt !== input.expectedUpdatedAt) throw new WorkspaceError("Project changed. Refresh before saving.", 409);
+    if (input.archived && state.sessions.some((item) => item.projectId === projectId && item.status === "active")) throw new WorkspaceError("Sync active sessions before archiving this project.", 409);
+    project.name = input.name; project.archivedAt = input.archived ? new Date().toISOString() : undefined; project.updatedAt = nextRevision(project.updatedAt);
+    return project;
+  });
+}
+
+export async function workspaceFeatureAction(user: { id: string; name: string }, teamId: string, featureId: string, input: FeatureAction) {
+  return mutate((state) => {
+    const index = state.features.findIndex((item) => item.id === featureId);
+    if (index === -1) throw new WorkspaceError("Feature not found.", 404);
+    const current = state.features[index];
+    requireTeamProject(state, user.id, teamId, current.projectId);
+    if (state.projects.find((item) => item.id === current.projectId)?.archivedAt) throw new WorkspaceError("Restore this project before changing it.", 409);
+    const updated = applyFeatureAction(current, input, { ...user, owner: state.teams.find((item) => item.id === teamId)?.ownerUserId === user.id }, state.sessions.some((item) => item.featureId === featureId && item.status === "active"));
     state.features[index] = updated;
     return updated;
   });
@@ -369,7 +397,7 @@ function findSession(state: CollavibeState, sessionId: string) {
 }
 
 function buildWorkOptions(project: Project, features: Feature[], participant: string): WorkOption[] {
-  const options: WorkOption[] = features.filter((feature) => feature.status !== "done").map((feature) => ({
+  const options: WorkOption[] = features.filter((feature) => feature.status !== "done" && !feature.archivedAt).map((feature) => ({
     id: `feature:${feature.id}`,
     kind: "feature",
     title: feature.title,
@@ -399,6 +427,7 @@ export async function getProjectContext(repoPath: string, teamCode?: string) {
       project = { id, name: path.basename(git.root), root: git.root, remote: git.remote, latestGit: git, createdAt: timestamp, updatedAt: timestamp };
       state.projects.push(project);
     } else {
+      if (project.archivedAt) throw new WorkspaceError("Restore this project before starting work.", 409);
       project.latestGit = git;
       project.remote = git.remote;
       project.root = git.root;
@@ -415,7 +444,7 @@ export async function getProjectContext(repoPath: string, teamCode?: string) {
       }
     }
     const linkedTeam = team ? state.teams.find((candidate) => candidate.id === team.teamId) : undefined;
-    const features = state.features.filter((item) => item.projectId === id);
+    const features = state.features.filter((item) => item.projectId === id && !item.archivedAt);
     const sessions = state.sessions.filter((item) => item.projectId === id).sort((a, b) => b.startedAt.localeCompare(a.startedAt));
     return { project, features, sessions, team: linkedTeam ? { id: linkedTeam.id, name: linkedTeam.name } : teamCode ? { id: normalizeTeamCode(teamCode), name: "Hosted team" } : undefined };
   });
@@ -426,6 +455,7 @@ export async function getProjectContext(repoPath: string, teamCode?: string) {
 export async function startCollaborationSession(input: { repoPath: string; participant: string; intent?: string; teamCode?: string }) {
   const context = await getProjectContext(input.repoPath, input.teamCode);
   const started = await mutate((state) => {
+    if (state.projects.find((item) => item.id === context.project.id)?.archivedAt) throw new WorkspaceError("Restore this project before starting work.", 409);
     const session: CollaborationSession = {
       id: `session_${randomUUID()}`,
       projectId: context.project.id,
@@ -458,6 +488,7 @@ export async function startCollaborationSession(input: { repoPath: string; parti
 export async function chooseWorkItem(input: { sessionId: string; featureId?: string; newFeature?: { title: string; description: string; checklist: string[] }; intendedBranch?: string }) {
   const selected = await mutate((state) => {
     const session = findSession(state, input.sessionId);
+    if (state.projects.find((item) => item.id === session.projectId)?.archivedAt) throw new WorkspaceError("Restore this project before choosing work.", 409);
     if (session.status === "synced") throw new Error("This session has already been synced.");
     if (session.status === "active") throw new Error("This session already has selected work.");
     if (Boolean(input.featureId) === Boolean(input.newFeature)) {
@@ -467,6 +498,7 @@ export async function chooseWorkItem(input: { sessionId: string; featureId?: str
     if (input.featureId) {
       feature = state.features.find((item) => item.id === input.featureId && item.projectId === session.projectId);
       if (!feature) throw new Error("The selected feature does not belong to this project.");
+      if (feature.archivedAt) throw new WorkspaceError("Restore this feature before choosing work.", 409);
       if (feature.status === "active" && feature.owner && feature.owner !== session.participant) throw new Error(`This feature is already in progress with ${feature.owner}. Choose another feature or ask the team to reassign it.`);
     } else if (input.newFeature) {
       if (!input.newFeature.checklist.length) throw new Error("A feature needs at least one completion checklist item.");
@@ -522,6 +554,7 @@ export async function syncCollaborationSession(input: {
 
   const synced = await mutate((latest) => {
     const session = findSession(latest, input.sessionId);
+    if (latest.projects.find((item) => item.id === session.projectId)?.archivedAt) throw new WorkspaceError("Restore this project before syncing work.", 409);
     if (session.status === "synced") throw new Error("This session has already been synced.");
     session.status = "synced";
     session.syncedAt = new Date().toISOString();
@@ -537,6 +570,7 @@ export async function syncCollaborationSession(input: {
 
     const feature = session.featureId ? latest.features.find((item) => item.id === session.featureId) : undefined;
     if (feature) {
+      if (feature.archivedAt) throw new WorkspaceError("Restore this feature before syncing work.", 409);
       for (const item of feature.checklist) {
         if (input.completedChecklistItemIds?.includes(item.id)) item.done = true;
       }

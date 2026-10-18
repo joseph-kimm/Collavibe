@@ -15,6 +15,12 @@ let teamId = localStorage.getItem("collavibe-team") || "";
 let projectId = localStorage.getItem("collavibe-project") || "";
 let selection = null;
 let editingFeature = null;
+let editingProject = null;
+const commentDrafts = new Map();
+let postingComment = "";
+const priorities = { urgent: "Urgent", high: "High", normal: "Normal", low: "Low" };
+const dueLabel = (value) => value ? new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(new Date(value + "T12:00:00")) : "Not set";
+const isOverdue = (item) => item.dueDate && item.status !== "done" && item.dueDate < new Date().getFullYear() + "-" + String(new Date().getMonth() + 1).padStart(2, "0") + "-" + String(new Date().getDate()).padStart(2, "0");
 let requestSequence = 0;
 let busyLoad = false;
 let fingerprint = "";
@@ -50,6 +56,7 @@ function safeLink(value) {
   } catch { return ""; }
 }
 function showGate(which) {
+  if (which !== "workspace") $("workspace").classList.remove("mobile-nav");
   $("initial-loading").hidden = true;
   $("auth-gate").hidden = which !== "auth";
   $("team-gate").hidden = which !== "team";
@@ -117,7 +124,7 @@ async function load({ quiet = false } = {}) {
     teamId = data.selectedTeam.id;
     localStorage.setItem("collavibe-team", teamId);
     if (!data.projects.some((item) => item.id === projectId)) {
-      projectId = [...data.projects].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]?.id || "";
+      projectId = [...data.projects].sort((a, b) => Number(!!a.archivedAt) - Number(!!b.archivedAt) || b.updatedAt.localeCompare(a.updatedAt))[0]?.id || "";
       selection = null;
     }
     localStorage.setItem("collavibe-project", projectId);
@@ -168,12 +175,21 @@ function updateHash() {
 }
 function render() {
   const project = currentProject();
+  if (view !== "work" && ["priority", "due"].includes($("sort").value)) $("sort").value = "updated";
   $("team-name").textContent = data.selectedTeam?.name || "Team";
   $("team-select").innerHTML = data.teams.map((item) => `<option value="${e(item.id)}" ${item.id === teamId ? "selected" : ""}>${e(item.name)}</option>`).join("");
   $("account-name").textContent = data.user?.name || "";
   $("account-email").textContent = data.user?.email || "";
   $("account-avatar").textContent = initial(data.user?.name);
-  $("project-list").innerHTML = data.projects.length ? data.projects.map((item) => `<button class="project-link ${item.id === projectId && view !== "team" ? "selected" : ""}" data-project="${e(item.id)}" type="button"><span class="project-symbol" aria-hidden="true">${e(initial(item.name).slice(0,1))}</span><span>${e(item.name)}</span><small>${data.features.filter((f) => f.projectId === item.id && f.status !== "done").length}</small></button>`).join("") : '<p class="subtle">No projects yet.</p>';
+  const projectLink = (item) => `<button class="project-link ${item.id === projectId && view !== "team" ? "selected" : ""}" data-project="${e(item.id)}" type="button"><span class="project-symbol" aria-hidden="true">${e(initial(item.name).slice(0,1))}</span><span>${e(item.name)}</span><small>${data.features.filter((f) => f.projectId === item.id && f.status !== "done" && !f.archivedAt).length}</small></button>`;
+  $("project-list").innerHTML = data.projects.filter((item) => !item.archivedAt).map(projectLink).join("") || '<p class="subtle">No active projects.</p>';
+  const archived = data.projects.filter((item) => item.archivedAt);
+  $("archived-projects").hidden = !archived.length;
+  $("archived-project-list").innerHTML = archived.map(projectLink).join("");
+  if (project?.archivedAt) $("archived-projects").open = true;
+  $("archive-banner").hidden = !project?.archivedAt;
+  $("project-settings").hidden = !project || data.selectedTeam?.ownerUserId !== data.user?.id;
+  $("project-settings").disabled = demo;
   $("project-name").textContent = view === "team" ? "Team" : project?.name || "Projects";
   const repo = safeLink(project?.remote);
   $("repo-link").hidden = !repo || view === "team";
@@ -184,11 +200,12 @@ function render() {
   document.querySelectorAll("[data-view]").forEach((button) => { if (button.dataset.view === view) button.setAttribute("aria-current", "page"); else button.removeAttribute("aria-current"); });
   $("view-title").textContent = ({ work: "Work", sessions: "Sessions", repository: "Branches & files" })[view] || "Work";
   $("project-description").textContent = view === "sessions" ? "What changed, what was decided, and where to continue." : view === "repository" ? "The latest repository snapshot shared by your coding agent." : project ? "Features and tasks for " + project.name + "." : "Add a repository to start planning with your team.";
-  $("work-count").textContent = currentFeatures().length;
+  $("work-count").textContent = currentFeatures().filter((item) => !item.archivedAt).length;
   $("session-count").textContent = currentSessions().length;
   $("new-feature").hidden = view !== "work" || !project;
   $("export-project").disabled = !project;
-  $("new-feature").disabled = demo;
+  $("new-feature").disabled = demo || !!project?.archivedAt;
+  $("work-options").hidden = view !== "work" || !project;
   $("sidebar-add-project").disabled = demo;
   $("add-team").disabled = demo;
   $("project-tools").hidden = !project;
@@ -206,6 +223,8 @@ function empty(title, message, actions = "") {
 }
 function selected(kind, id) { return selection?.kind === kind && selection.id === id; }
 function compare(a, b) {
+  if ($("sort").value === "priority") return ["urgent", "high", "normal", "low"].indexOf(a.priority || "normal") - ["urgent", "high", "normal", "low"].indexOf(b.priority || "normal") || a.title.localeCompare(b.title);
+  if ($("sort").value === "due") return (a.dueDate || "9999").localeCompare(b.dueDate || "9999") || (a.title || "").localeCompare(b.title || "");
   if ($("sort").value === "title") {
     const name = (item) => item.title || data.features.find((feature) => feature.id === item.featureId)?.title || item.intent || item.participant || "";
     return name(a).localeCompare(name(b));
@@ -230,12 +249,13 @@ function renderContent() {
       return `<button type="button" class="work-row session-row ${selected("session", item.id) ? "selected" : ""}" data-session="${e(item.id)}"><span class="avatar" aria-hidden="true">${e(initial(item.participant))}</span><span class="work-main"><strong>${e(feature?.title || item.intent || "Session")}<span class="session-person">${e(item.participant)}</span></strong><p>${e(item.sync?.summary || "Session started. The agent has not synced a handoff yet.")}</p>${item.sync?.blockers?.length ? '<small class="mini-flag">' + item.sync.blockers.length + " blocker" + (item.sync.blockers.length === 1 ? "" : "s") + "</small>" : ""}</span><span class="work-meta"><span>${e(date(item.syncedAt || item.startedAt))}</span><span>${e(sessionStatuses[item.status])}</span><code>${e(item.startSnapshot.branch || "No branch")}</code></span></button>`;
     }).join("") + `<p class="count-summary">${sessions.length} of ${currentSessions().length} sessions</p>` : empty(currentSessions().length ? "No matching sessions" : "No sessions yet", currentSessions().length ? "Try a different search or owner." : "Connect your coding agent and start a session. The handoff will appear here after you ask it to sync.", '<button type="button" class="button" data-action="connect-agent">Connect agent</button>');
   } else {
-    const filtered = currentFeatures().filter((item) => ($("status-filter").value === "all" || item.status === $("status-filter").value) && (owner === "all" || (owner === "unassigned" ? !item.owner : item.owner === owner)) && (!query || JSON.stringify([item.title, item.description, item.owner, item.branch, item.checklist]).toLowerCase().includes(query))).sort(compare);
+    const scope = currentFeatures().filter((item) => Boolean(item.archivedAt) === $("show-archived").checked);
+    const filtered = scope.filter((item) => ($("priority-filter").value === "all" || (item.priority || "normal") === $("priority-filter").value) && ($("status-filter").value === "all" || item.status === $("status-filter").value) && (owner === "all" || (owner === "unassigned" ? !item.owner : item.owner === owner)) && (!query || JSON.stringify([item.title, item.description, item.owner, item.branch, item.checklist, item.comments]).toLowerCase().includes(query))).sort(compare);
     content.innerHTML = filtered.length ? Object.entries(statuses).map(([status, label]) => {
       const features = filtered.filter((item) => item.status === status);
       if (!features.length) return "";
-      return `<div class="work-group-heading">${dot(status)}${label}<small>${features.length}</small></div>` + features.map((item) => `<button type="button" class="work-row ${selected("feature", item.id) ? "selected" : ""}" data-feature="${e(item.id)}"><span class="work-main"><strong>${e(item.title)}</strong><small>${e(item.description || "No description")}</small></span><span class="work-meta"><code>${e(item.branch)}</code><span title="Checklist">${item.checklist.filter((check) => check.done).length}/${item.checklist.length}</span><span class="avatar" title="${e(item.owner || "Unassigned")}">${e(item.owner ? initial(item.owner) : "–")}</span></span></button>`).join("");
-    }).join("") + `<p class="count-summary">${filtered.length} of ${currentFeatures().length} features · ${currentFeatures().filter((item) => item.status === "done").length} done</p>` : empty(currentFeatures().length ? "No matching features" : "What needs to be built?", currentFeatures().length ? "Try a different search, status, or owner." : "Add a feature with a checklist. Your teammates and coding agents will see it when they start working.", '<button type="button" class="button primary" data-action="new-feature"' + (demo ? " disabled" : "") + '>+ New feature</button>');
+      return `<div class="work-group-heading">${dot(status)}${label}<small>${features.length}</small></div>` + features.map((item) => `<button type="button" class="work-row ${selected("feature", item.id) ? "selected" : ""}" data-feature="${e(item.id)}"><span class="work-main"><strong>${e(item.title)}</strong><small>${e(item.description || "No description")}</small><span class="feature-labels"><span class="priority ${e(item.priority || "normal")}">${e(priorities[item.priority || "normal"])}</span>${item.dueDate ? '<span class="' + (isOverdue(item) ? 'overdue' : '') + '">Due ' + e(dueLabel(item.dueDate)) + '</span>' : ''}${item.comments?.length ? '<span>' + item.comments.length + ' comments</span>' : ''}${item.archivedAt ? '<span>Archived</span>' : ''}</span></span><span class="work-meta"><code>${e(item.branch)}</code><span title="Checklist">${item.checklist.filter((check) => check.done).length}/${item.checklist.length}</span><span class="avatar" title="${e(item.owner || "Unassigned")}">${e(item.owner ? initial(item.owner) : "–")}</span></span></button>`).join("");
+    }).join("") + `<p class="count-summary">${filtered.length} of ${scope.length} ${$("show-archived").checked ? "archived " : ""}features · ${scope.filter((item) => item.status === "done").length} done</p>` : empty(scope.length ? "No matching features" : $("show-archived").checked ? "Nothing archived" : "What needs to be built?", scope.length ? "Try a different search, priority, status, or owner." : $("show-archived").checked ? "Archived features will appear here. Their checklists, discussions, and session history are kept." : "Add a feature with a checklist. Your teammates and coding agents will see it when they start working.", $("show-archived").checked ? '<button type="button" class="button" data-action="show-active">Back to active features</button>' : '<button type="button" class="button primary" data-action="new-feature"' + (demo || project.archivedAt ? " disabled" : "") + '>+ New feature</button>');
   }
   renderDetail();
 }
@@ -259,6 +279,8 @@ function evidence(sync) {
   return `<section class="detail-section"><h3>Repository changes</h3><p>${local ? "Read from local Git." : "Reported by the coding agent; not independently checked by Collavibe."}</p><p><code>${e(verified.startHead.slice(0,7))} → ${e(verified.endHead.slice(0,7))}</code></p>${verified.commits.length ? '<ul class="commit-list">' + verified.commits.map((commit) => `<li><code>${e(commit.shortHash)}</code><span>${e(commit.subject)}</span><small>${e(commit.author)}</small></li>`).join("") + "</ul>" : ""}</section>${verified.changedFiles.length ? '<section class="detail-section"><h3>Changed files</h3><ul class="file-list">' + verified.changedFiles.map((file) => "<li>" + e(file) + "</li>").join("") + "</ul></section>" : ""}`;
 }
 function renderDetail() {
+  if (postingComment && selection?.id === postingComment) return;
+  const commentFocus = document.activeElement?.id === "comment-text" ? { start: document.activeElement.selectionStart, end: document.activeElement.selectionEnd } : null;
   const item = selection && (selection.kind === "feature" ? currentFeatures() : currentSessions()).find((candidate) => candidate.id === selection.id);
   $("detail-pane").hidden = !item;
   if (!item) return;
@@ -280,6 +302,14 @@ function renderDetail() {
     linkButton.textContent = "Copy link";
     $("detail").querySelector(".detail-actions").append(linkButton);
   }
+  if (isFeature) {
+    const readOnly = !!item.archivedAt || !!currentProject()?.archivedAt;
+    $("detail").querySelectorAll('[data-check], [data-action="edit-feature"], [data-action="copy-feature"]').forEach((element) => { element.disabled = demo || readOnly; });
+    $("detail").querySelector(".properties").insertAdjacentHTML("beforeend", `<dt>Priority</dt><dd>${e(priorities[item.priority || "normal"])}</dd><dt>Due date</dt><dd class="${isOverdue(item) ? "overdue" : ""}">${e(dueLabel(item.dueDate))}</dd>${item.archivedAt ? '<dt>Archived</dt><dd>' + e(date(item.archivedAt)) + '</dd>' : ''}`);
+    $("detail").querySelector(".detail-actions").insertAdjacentHTML("beforeend", `<button type="button" class="text-button" data-action="archive-feature" ${demo || currentProject()?.archivedAt ? "disabled" : ""}>${item.archivedAt ? "Restore feature" : "Archive feature"}</button>`);
+    $("detail").insertAdjacentHTML("beforeend", `<section class="detail-section discussion"><h3>Discussion <span class="subtle">${item.comments?.length || 0}</span></h3>${(item.comments || []).map((comment) => `<article class="comment"><div class="comment-heading"><strong>${e(comment.author)}</strong><time datetime="${e(comment.createdAt)}">${e(date(comment.createdAt))}</time></div><p>${e(comment.text)}</p>${!demo && !readOnly && (comment.userId === data.user.id || data.selectedTeam.ownerUserId === data.user.id) ? '<button type="button" class="text-button" data-remove-comment="' + e(comment.id) + '">Remove comment</button>' : ''}</article>`).join("") || '<p class="subtle">Questions, decisions, and context for your teammates. Agents can read these when starting work.</p>'}${!readOnly ? `<form id="comment-form" class="form"><label for="comment-text">Add a comment</label><textarea id="comment-text" name="text" rows="3" maxlength="2000" required ${demo ? "disabled" : ""}>${e(commentDrafts.get(item.id) || "")}</textarea><p class="form-error" role="alert"></p><button class="button" type="submit" ${demo ? "disabled" : ""}>Post comment</button></form>` : '<p class="subtle">Restore this feature and project to continue the discussion.</p>'}</section>`);
+    if (commentFocus && $("comment-text")) { $("comment-text").focus({ preventScroll: true }); $("comment-text").setSelectionRange(commentFocus.start, commentFocus.end); }
+  }
 }
 function renderTeam() {
   const team = data.selectedTeam;
@@ -291,6 +321,7 @@ function renderTeam() {
 }
 function switchView(next) {
   view = next; selection = null; $("workspace").classList.remove("mobile-nav");
+  if (next !== "work" && ["priority", "due"].includes($("sort").value)) $("sort").value = "updated";
   $("owner-filter").value = "all"; $("status-filter").value = "all";
   render();
   if (view === "team") loadMembers();
@@ -318,11 +349,11 @@ function openProject() {
   $("project-dialog").showModal();
 }
 function openFeature(item = null) {
-  if (!canWrite() || !currentProject()) return;
+  if (!canWrite() || !currentProject() || currentProject().archivedAt || item?.archivedAt) return;
   editingFeature = item ? structuredClone(item) : null;
   const form = $("feature-form"); form.reset(); form.querySelector(".form-error").textContent = "";
   $("feature-dialog-title").textContent = item ? "Edit feature" : "New feature";
-  for (const name of ["title", "description", "status", "owner", "branch"]) form.elements[name].value = item?.[name] || (name === "status" ? "planned" : "");
+  for (const name of ["title", "description", "status", "owner", "branch", "priority", "dueDate"]) form.elements[name].value = item?.[name] || (name === "status" ? "planned" : name === "priority" ? "normal" : "");
   form.elements.checklist.value = item?.checklist.map((check) => check.text).join("\n") || "";
   $("feature-dialog").showModal();
 }
@@ -457,10 +488,14 @@ document.addEventListener("click", async (event) => {
     if (button.dataset.authMode) { setAuthMode(button.dataset.authMode); return; }
     if (button.dataset.teamMode) { setTeamMode(button.dataset.teamMode); return; }
     if (button.dataset.view) { switchView(button.dataset.view); return; }
-    if (button.dataset.project) { projectId = button.dataset.project; localStorage.setItem("collavibe-project", projectId); selection = null; view = "work"; $("search").value = ""; $("owner-filter").value = "all"; $("status-filter").value = "all"; $("workspace").classList.remove("mobile-nav"); render(); return; }
+    if (button.dataset.project) { projectId = button.dataset.project; localStorage.setItem("collavibe-project", projectId); selection = null; view = "work"; $("show-archived").checked = false; $("priority-filter").value = "all"; $("search").value = ""; $("owner-filter").value = "all"; $("status-filter").value = "all"; $("workspace").classList.remove("mobile-nav"); render(); return; }
     if (button.dataset.feature) { selection = { kind: "feature", id: button.dataset.feature }; renderContent(); updateHash(); return; }
     if (button.dataset.session) { selection = { kind: "session", id: button.dataset.session }; view = "sessions"; render(); return; }
     if (button.dataset.copySetup) { await copy(setupValues()[button.dataset.copySetup]); return; }
+    if (button.dataset.removeComment && canWrite()) {
+      const item = data.features.find((feature) => feature.id === selection?.id);
+      await confirmAction("Remove this comment?", "This removes the selected comment from the team discussion.", async () => { await featureAction(item.id, { action: "remove-comment", commentId: button.dataset.removeComment }); await load(); toast("Comment removed."); }); return;
+    }
     if (button.dataset.revokeConnection && canWrite()) {
       await confirmAction("Revoke this connection?", "The agent will lose access immediately. You can reconnect later.", async () => {
         await api("/api/teams/" + teamId + "/agent-connections/" + button.dataset.revokeConnection, { method: "DELETE" });
@@ -476,8 +511,16 @@ document.addEventListener("click", async (event) => {
     const action = button.dataset.action;
     if (action === "add-project") openProject();
     if (action === "new-feature") openFeature();
+    if (action === "show-active") { $("show-archived").checked = false; renderContent(); }
     if (action === "connect-agent") openAgent();
     if (action === "edit-feature") openFeature(data.features.find((item) => item.id === selection?.id));
+    if (action === "archive-feature" && canWrite()) {
+      const item = data.features.find((feature) => feature.id === selection?.id);
+      await confirmAction(item.archivedAt ? "Restore this feature?" : "Archive this feature?", item.archivedAt ? "It will appear in available work again." : "Its checklist, discussion, and sessions will be kept. Agents will no longer be offered this work.", async () => {
+        await featureAction(item.id, { action: "archive", archived: !item.archivedAt, expectedUpdatedAt: item.updatedAt });
+        $("show-archived").checked = !item.archivedAt; await load(); toast(item.archivedAt ? "Feature restored." : "Feature archived.");
+      });
+    }
     if (action === "copy-feature") {
       const item = data.features.find((feature) => feature.id === selection?.id);
       await copy(setupValues().start + ' I want to work on feature "' + item.title + '" (feature ID: ' + item.id + "). Load its current checklist and ask me to confirm before claiming it.");
@@ -530,19 +573,50 @@ $("feature-form").addEventListener("submit", (event) => {
     const url = editingFeature ? "/api/teams/" + teamId + "/features/" + editingFeature.id : "/api/teams/" + teamId + "/projects/" + projectId + "/features";
     if (editingFeature) body.expectedUpdatedAt = editingFeature.updatedAt;
     const result = await api(url, { method: editingFeature ? "PATCH" : "POST", body: JSON.stringify(body) });
+    if (!editingFeature) { $("show-archived").checked = false; $("priority-filter").value = "all"; $("status-filter").value = "all"; $("owner-filter").value = "all"; $("search").value = ""; }
     selection = { kind: "feature", id: result.feature.id }; $("feature-dialog").close();
     await load(); toast("Feature saved.");
   });
 });
 document.addEventListener("submit", (event) => {
+  if (event.target.id === "comment-form") {
+    event.preventDefault(); if (!canWrite() || postingComment) return;
+    const form = event.target, id = selection.id, text = form.elements.text.value.trim();
+    formAction(form, async () => {
+      postingComment = id;
+      try { await featureAction(id, { action: "comment", text }); commentDrafts.delete(id); toast("Comment posted."); }
+      finally { postingComment = ""; }
+      await load();
+    }); return;
+  }
   if (event.target.id !== "team-name-form") return;
   event.preventDefault(); if (!canWrite()) return;
   const form = event.target;
   formAction(form, async () => { await api("/api/teams/" + teamId, { method: "PATCH", body: JSON.stringify(Object.fromEntries(new FormData(form))) }); await load(); toast("Team name saved."); });
 });
+function featureAction(id, body) { return api("/api/teams/" + teamId + "/features/" + id + "/actions", { method: "POST", body: JSON.stringify(body) }); }
+$("detail").addEventListener("input", (event) => { if (event.target.id === "comment-text") commentDrafts.set(selection.id, event.target.value); });
+$("project-settings").addEventListener("click", () => {
+  if (!canWrite()) return;
+  editingProject = structuredClone(currentProject());
+  const form = $("project-settings-form"); form.reset(); form.querySelector(".form-error").textContent = "";
+  form.elements.name.value = editingProject.name; form.elements.archived.checked = !!editingProject.archivedAt;
+  $("project-settings-dialog").showModal();
+});
+$("project-settings-form").addEventListener("submit", (event) => {
+  event.preventDefault(); if (!canWrite()) return;
+  formAction(event.currentTarget, async () => {
+    const form = $("project-settings-form");
+    await api("/api/teams/" + teamId + "/projects/" + editingProject.id, { method: "PATCH", body: JSON.stringify({ name: form.elements.name.value, archived: form.elements.archived.checked, expectedUpdatedAt: editingProject.updatedAt }) });
+    $("project-settings-dialog").close(); await load(); toast("Project settings saved.");
+  });
+});
+// Keep these fields adjacent to status/owner in the existing edit form.
+$("feature-form").elements.branch.closest("label").insertAdjacentHTML("beforebegin", '<div class="form-grid"><label>Priority<select name="priority"><option value="low">Low</option><option value="normal" selected>Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label>Due date<input name="dueDate" type="date"/></label></div>');
+$("sort").insertAdjacentHTML("beforeend", '<option value="priority">Priority first</option><option value="due">Due date</option>');
 $("detail").addEventListener("change", (event) => { if (event.target.matches("[data-check]")) saveChecklist(event.target); });
 $("search").addEventListener("input", renderContent);
-for (const id of ["owner-filter", "status-filter", "sort"]) $(id).addEventListener("change", renderContent);
+for (const id of ["owner-filter", "status-filter", "sort", "priority-filter", "show-archived"]) $(id).addEventListener("change", renderContent);
 $("close-detail").addEventListener("click", () => { selection = null; renderContent(); updateHash(); });
 $("sidebar-add-project").addEventListener("click", openProject);
 $("new-feature").addEventListener("click", () => openFeature());
@@ -583,11 +657,11 @@ document.querySelector(".main").addEventListener("click", (event) => { if (!even
 async function logout() {
   try { if (!demo) await api("/api/auth/logout", { method: "POST" }); }
   catch (error) { toast(error.message, true); return; }
-  issuedKey = ""; connections = []; $("agent-key-value").value = ""; document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
+  commentDrafts.clear(); issuedKey = ""; connections = []; $("agent-key-value").value = ""; document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
   requestSequence++; busyLoad = false; demo = false; members = []; fingerprint = ""; selection = null; view = "work";
   data = { user: null, teams: [], projects: [], features: [], sessions: [] };
   teamId = ""; projectId = ""; localStorage.removeItem("collavibe-team"); localStorage.removeItem("collavibe-project");
-  history.replaceState(null, "", location.pathname + (authorizationId ? "?authorize=" + encodeURIComponent(authorizationId) : "")); $("search").value = ""; showGate("auth");
+  history.replaceState(null, "", location.pathname + (authorizationId ? "?authorize=" + encodeURIComponent(authorizationId) : "")); $("search").value = ""; setAuthMode("login"); showGate("auth");
 }
 $("logout").addEventListener("click", logout);
 $("team-logout").addEventListener("click", logout);

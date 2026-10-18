@@ -1,7 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { getSupabaseAdmin, throwSupabaseError } from "./supabase.js";
-import { editFeature, makeFeature, makeProject, repositoryKey, WorkspaceError, type FeatureFields } from "./workspace-model.js";
-import type { Feature } from "./types.js";
+import { applyFeatureAction, editFeature, makeFeature, makeProject, nextRevision, repositoryKey, WorkspaceError, type FeatureAction, type FeatureFields, projectPatchSchema } from "./workspace-model.js";
+import type { Feature, Project } from "./types.js";
+import type { z } from "zod";
 
 const db = getSupabaseAdmin;
 const check = throwSupabaseError;
@@ -93,7 +94,7 @@ export async function cloudAddProject(userId: string, teamId: string, input: { n
 export async function cloudCreateFeature(userId: string, teamId: string, projectId: string, input: FeatureFields) {
   await requireProject(userId, teamId, projectId);
   const feature = makeFeature(projectId, input);
-  check((await db().from("features").insert({ id: feature.id, project_id: projectId, payload: feature, updated_at: feature.updatedAt })).error);
+  await saveWorkspace(userId, teamId, projectId, "feature", feature, null);
   return feature;
 }
 
@@ -104,10 +105,42 @@ export async function cloudEditFeature(userId: string, teamId: string, featureId
   await requireProject(userId, teamId, row.data.project_id);
   const current = row.data.payload as Feature;
   const feature = editFeature(current, input);
-  const result = await db().from("features").update({ payload: feature, updated_at: feature.updatedAt }).eq("id", featureId).eq("payload->>updatedAt", current.updatedAt).select("id");
-  check(result.error);
-  if (!result.data?.length) throw new WorkspaceError("This feature changed while you were editing. Reload the latest version before saving.", 409);
+  await saveWorkspace(userId, teamId, current.projectId, "feature", feature, current.updatedAt);
   return feature;
+}
+
+async function saveWorkspace(userId: string, teamId: string, projectId: string, kind: string, document: Feature | Project, expected: string | null) {
+  const result = await db().rpc("mutate_workspace", { target_team: teamId, actor: userId, pid: projectId, kind, document, expected });
+  if (result.error) {
+    const status = { PT409: 409, PT404: 404, "42501": 403 }[result.error.code];
+    if (status) throw new WorkspaceError(result.error.message, status);
+    check(result.error);
+  }
+}
+
+export async function cloudUpdateProject(userId: string, teamId: string, projectId: string, input: z.infer<typeof projectPatchSchema>) {
+  await requireProject(userId, teamId, projectId);
+  const row = await db().from("projects").select("*").eq("id", projectId).single(); check(row.error);
+  const current = row.data!;
+  const project: Project = { id: current.id, name: input.name, root: current.root, remote: current.remote, latestGit: current.latest_git, createdAt: current.created_at, updatedAt: nextRevision(current.updated_at), archivedAt: input.archived ? new Date().toISOString() : undefined };
+  await saveWorkspace(userId, teamId, projectId, "project", project, input.expectedUpdatedAt);
+  return project;
+}
+
+export async function cloudFeatureAction(user: { id: string; name: string }, teamId: string, featureId: string, input: FeatureAction) {
+  // Append/delete comments with a bounded compare-and-swap retry so two writers
+  // keep both messages; never automatically retry stale form/archive edits.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const row = await db().from("features").select("project_id,payload").eq("id", featureId).maybeSingle(); check(row.error);
+    if (!row.data) throw new WorkspaceError("Feature not found.", 404);
+    await requireProject(user.id, teamId, row.data.project_id);
+    const team = await cloudRequireMember(user.id, teamId);
+    const current = row.data.payload as Feature;
+    const feature = applyFeatureAction(current, input, { ...user, owner: team.owner_user_id === user.id }, false);
+    try { await saveWorkspace(user.id, teamId, current.projectId, "feature", feature, current.updatedAt); return feature; }
+    catch (error) { if (!(error instanceof WorkspaceError) || error.status !== 409 || input.action === "archive" || attempt === 3) throw error; }
+  }
+  throw new WorkspaceError("This feature is busy. Try posting again.", 409);
 }
 
 export async function cloudReadiness() {

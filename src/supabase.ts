@@ -144,7 +144,7 @@ export async function cloudDashboard(user: CloudUser, requestedTeamId?: string) 
   fail(projectsResult.error); fail(featuresResult.error); fail(sessionsResult.error);
   return {
     user, teams, selectedTeam,
-    projects: (projectsResult.data || []).map((row) => ({ id: row.id, name: row.name, root: row.root, remote: row.remote, latestGit: row.latest_git, createdAt: row.created_at, updatedAt: row.updated_at })),
+    projects: (projectsResult.data || []).map((row) => ({ id: row.id, name: row.name, root: row.root, remote: row.remote, latestGit: row.latest_git, createdAt: row.created_at, updatedAt: row.updated_at, archivedAt: row.archived_at || undefined })),
     features: (featuresResult.data || []).map((row) => row.payload as Feature),
     sessions: (sessionsResult.data || []).map((row) => row.payload as CollaborationSession),
     deploymentMode: "cloud" as const,

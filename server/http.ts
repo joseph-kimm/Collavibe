@@ -14,9 +14,9 @@ import { addProjectToTeam, createTeam, getDashboard, getUserForToken, joinTeam, 
 import { withoutInternalGitEvidence } from "../src/public.js";
 import { cloudCreateTeam, cloudDashboard, cloudJoinTeam, cloudLogin, cloudLogout, cloudSignUp, cloudUserForSession, isSupabaseConfigured, type CloudSession } from "../src/supabase.js";
 import type { NextFunction, Request, Response } from "express";
-import { addRemoteProject, createPlannedFeature, listTeamMembers, removeTeamMember, rotateTeamCode, updatePlannedFeature, updateTeamName } from "../src/store.js";
-import { cloudAddProject, cloudCreateFeature, cloudEditFeature, cloudMembers, cloudReadiness, cloudRemoveMember, cloudRotateCode, cloudUpdateTeam } from "../src/cloud-workspace.js";
-import { featureFields, featurePatchSchema, WorkspaceError } from "../src/workspace-model.js";
+import { addRemoteProject, createPlannedFeature, listTeamMembers, removeTeamMember, rotateTeamCode, updatePlannedFeature, updateTeamName, updateWorkspaceProject, workspaceFeatureAction } from "../src/store.js";
+import { cloudAddProject, cloudCreateFeature, cloudEditFeature, cloudMembers, cloudReadiness, cloudRemoveMember, cloudRotateCode, cloudUpdateTeam, cloudUpdateProject, cloudFeatureAction } from "../src/cloud-workspace.js";
+import { featureActionSchema, featureFields, featurePatchSchema, projectPatchSchema, WorkspaceError } from "../src/workspace-model.js";
 
 export const app = express();
 app.disable("x-powered-by");
@@ -205,6 +205,18 @@ app.post("/api/teams/:teamId/projects", requireUser, api(async (req, res) => {
 app.get("/api/teams/:teamId/members", requireUser, api(async (req, res) => {
   const members = isSupabaseConfigured() ? await cloudMembers(req.collavibeUser!.id, String(req.params.teamId)) : await listTeamMembers(req.collavibeUser!.id, String(req.params.teamId));
   res.json({ members });
+}));
+
+app.patch("/api/teams/:teamId/projects/:projectId", requireUser, api(async (req, res) => {
+  const input = projectPatchSchema.parse(req.body);
+  const project = isSupabaseConfigured() ? await cloudUpdateProject(req.collavibeUser!.id, String(req.params.teamId), String(req.params.projectId), input) : await updateWorkspaceProject(req.collavibeUser!.id, String(req.params.teamId), String(req.params.projectId), input);
+  res.json({ project: withoutInternalGitEvidence(project) });
+}));
+
+app.post("/api/teams/:teamId/features/:featureId/actions", requireUser, api(async (req, res) => {
+  const input = featureActionSchema.parse(req.body);
+  const feature = isSupabaseConfigured() ? await cloudFeatureAction(req.collavibeUser!, String(req.params.teamId), String(req.params.featureId), input) : await workspaceFeatureAction(req.collavibeUser!, String(req.params.teamId), String(req.params.featureId), input);
+  res.json({ feature });
 }));
 
 app.patch("/api/teams/:teamId", requireUser, api(async (req, res) => {

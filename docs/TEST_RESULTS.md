@@ -1,4 +1,20 @@
-# QA results — 2026-10-17 — v0.7.0
+# QA results — 2026-10-17
+
+## Pending lifecycle/discussion release (not deployed)
+
+- TypeScript and 48 automated tests pass across six files. Dependency audit: zero vulnerabilities. Git whitespace checks pass.
+- New tests cover valid/invalid calendar dates and priority values, concurrent comments, identity binding, comment-author/owner permissions, preserving discussions during feature edits, stale revisions, recoverable feature/project archives, archived write/claim rejection, and active-session archive rejection. The HTTP tests exercise the new routes, not only pure helpers.
+- Local Chrome browser QA passed actual signup, team/project/feature creation, priority/due-date entry, posting and reopening a comment after reload, HTML escaping, feature archive/restore, owner project rename/archive/restore, discussion-draft preservation on Refresh, and preservation/recovery during an injected 503 outage.
+- Local WebKit iPhone 15 emulation verified posting a comment and editing priority/due date, with both persisted after reload. A test initially attempted to click the covered list behind an open mobile drawer; it was corrected to close the drawer first. No force-click or UI bypass was used. WebKit reported no browser console errors/warnings.
+- Chrome at 390 × 844: document width 390, full-height 844 detail drawer, 16 px comment input. WebKit emulation: document width matches its 393 px viewport. These are emulated checks, not physical-device certification.
+- Two-account mobile QA exposed the sidebar remaining open after logout and a new login. The account/team gate now resets mobile navigation; this is included in the regression checks.
+- The corrected two-account mobile run passed shared discussion, hidden owner-only project controls, own-comment removal controls, and logout/login navigation reset. Logout also returns the form to Log in instead of leaving Create account selected.
+- Existing production v0.7.0 passed fresh `hosted-smoke.ts` and `access-smoke.ts` runs. The runs verify signup/join/planning/MCP handoffs, OAuth public/confidential clients, PKCE, resource binding, RLS, concurrent claims/syncs, refresh rotation, revocation, and distributed rate limits. Disposable records were removed.
+- Cloud lifecycle migration has **not** been applied. Desktop access was blocked by the Mac lock during the Supabase SQL-editor step; the CLI has no Supabase management access token. The new `workspace-smoke.ts` test is prepared but has **not** run against the cloud. No new preview or production deployment has been published.
+
+Release gate: unlock Mac → apply migration → run local cloud-backed lifecycle and existing smoke tests → deploy preview → run all three cloud scripts and browser checks → deploy production → repeat production smoke tests and fixture audit. Do not mark the release complete before those steps pass.
+
+## Released v0.7.0
 
 Branch: `codex/collavibe-workspace`. Runtime commit: `e5ff9ee`.
 Production: https://collavibe.vercel.app

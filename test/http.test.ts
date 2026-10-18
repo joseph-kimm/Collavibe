@@ -162,6 +162,33 @@ describe("Streamable HTTP transport", () => {
     await expect(response.json()).resolves.toEqual({ error: "Sign in to continue." });
   });
 
+  it("persists dates, discussions and recoverable archive controls through the HTTP API", async () => {
+    const call = (pathname: string, method = "GET", body?: unknown) => fetch(baseUrl + pathname, { method, headers: { "content-type": "application/json", cookie: authCookie }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    const dashboard = await (await call("/api/dashboard")).json(), team = dashboard.selectedTeam.id;
+    const project = (await (await call(`/api/teams/${team}/projects`, "POST", { name: "Lifecycle project", repositoryUrl: "https://github.com/test-team/lifecycle-project" })).json()).project;
+    const feature = (await (await call(`/api/teams/${team}/projects/${project.id}/features`, "POST", { title: "Lifecycle feature", priority: "urgent", dueDate: "2026-12-15" })).json()).feature;
+    expect(feature.priority).toBe("urgent"); expect(feature.dueDate).toBe("2026-12-15");
+    expect((await call(`/api/teams/${team}/projects/${project.id}/features`, "POST", { title: "Bad date", dueDate: "2026-02-30" })).status).toBe(400);
+    const route = `/api/teams/${team}/features/${feature.id}/actions`;
+    const commented = (await (await call(route, "POST", { action: "comment", text: "Discuss together", userId: "spoof", author: "Spoof" })).json()).feature;
+    expect(commented.comments[0].author).not.toBe("Spoof"); expect(commented.comments[0].userId).toBe(dashboard.user.id);
+    expect((await call(route, "POST", { action: "comment", text: " " })).status).toBe(400);
+    const archived = (await (await call(route, "POST", { action: "archive", archived: true, expectedUpdatedAt: commented.updatedAt })).json()).feature;
+    expect(archived.archivedAt).toBeTruthy();
+    expect((await call(route, "POST", { action: "comment", text: "Archived write" })).status).toBe(409);
+    const restored = (await (await call(route, "POST", { action: "archive", archived: false, expectedUpdatedAt: archived.updatedAt })).json()).feature;
+    expect(restored.comments).toHaveLength(1);
+    expect((await call(route, "POST", { action: "remove-comment", commentId: restored.comments[0].id })).status).toBe(200);
+    const patch = { name: "Renamed lifecycle project", archived: true, expectedUpdatedAt: project.updatedAt };
+    const changed = (await (await call(`/api/teams/${team}/projects/${project.id}`, "PATCH", patch)).json()).project;
+    expect(changed.archivedAt).toBeTruthy();
+    expect((await call(`/api/teams/${team}/projects/${project.id}`, "PATCH", patch)).status).toBe(409);
+    expect((await call(`/api/teams/${team}/projects/${project.id}/features`, "POST", { title: "Archived write" })).status).toBe(409);
+    const saved = await (await call("/api/dashboard")).json();
+    expect(saved.projects.find((item: { id: string }) => item.id === project.id).name).toBe(patch.name);
+    expect((await call(`/api/teams/${team}/projects/${project.id}`, "PATCH", { ...patch, archived: false, expectedUpdatedAt: changed.updatedAt })).status).toBe(200);
+  });
+
   it("handles malformed input without leaking server details", async () => {
     const malformedCookie = await fetch(`${baseUrl}/api/auth/status`, { headers: { cookie: "collavibe_session=%E0%A4%A" } });
     expect(malformedCookie.status).toBe(200);
