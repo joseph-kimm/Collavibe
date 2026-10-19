@@ -1,4 +1,5 @@
 import { sampleWorkspace } from "./demo.js";
+import { repositoryPresentation } from "./repository-ui.js";
 
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[c]);
@@ -44,19 +45,15 @@ const initial = (name) => String(name || "?").split(/\s+/).filter(Boolean).slice
 const date = (value) => value ? new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value)) : "Not yet";
 const dot = (status) => `<span class="status-dot ${e(status)}" aria-hidden="true"></span>`;
 const tag = (status) => `<span class="tag">${dot(status)}${e(statuses[status] || sessionStatuses[status] || status)}</span>`;
-function safeLink(value) {
-  try {
-    let clean = value || "";
-    const ssh = /^git@([^:]+):(.+)$/.exec(clean);
-    if (ssh) clean = "https://" + ssh[1] + "/" + ssh[2];
-    const url = new URL(clean);
-    if (url.protocol !== "https:" || url.username || url.password) return "";
-    url.pathname = url.pathname.replace(/\.git$/, "");
-    return url.href;
-  } catch { return ""; }
+function setMobileNav(open) {
+  $("workspace").classList.toggle("mobile-nav", open);
+  document.body.classList.toggle("navigation-open", open);
+  document.querySelector(".main").inert = open && matchMedia("(max-width: 700px)").matches;
+  $("mobile-projects").setAttribute("aria-expanded", String(open));
+  if (open) $("close-navigation").focus();
 }
 function showGate(which) {
-  if (which !== "workspace") $("workspace").classList.remove("mobile-nav");
+  if (which !== "workspace") setMobileNav(false);
   $("initial-loading").hidden = true;
   $("auth-gate").hidden = which !== "auth";
   $("team-gate").hidden = which !== "team";
@@ -132,7 +129,7 @@ async function load({ quiet = false } = {}) {
     showGate("workspace");
     $("load-error").hidden = true;
     $("connection-label").classList.remove("offline");
-    $("connection-label").textContent = "Updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    $("connection-label").textContent = "Workspace updated " + new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
     const nextFingerprint = JSON.stringify(data);
     if (nextFingerprint !== fingerprint || !quiet) { fingerprint = nextFingerprint; render(); }
     if (view === "team" || !members.length) await loadMembers();
@@ -179,9 +176,12 @@ function render() {
   $("team-name").textContent = data.selectedTeam?.name || "Team";
   $("team-select").innerHTML = data.teams.map((item) => `<option value="${e(item.id)}" ${item.id === teamId ? "selected" : ""}>${e(item.name)}</option>`).join("");
   $("account-name").textContent = data.user?.name || "";
-  $("account-email").textContent = data.user?.email || "";
+  $("account-email").textContent = demo ? "Sample account · read-only" : data.user?.email || "";
+  $("account-name").title = data.user?.name || "";
+  $("account-email").title = demo ? "You are viewing fictional sample data, not your account." : data.user?.email || "";
   $("account-avatar").textContent = initial(data.user?.name);
-  const projectLink = (item) => `<button class="project-link ${item.id === projectId && view !== "team" ? "selected" : ""}" data-project="${e(item.id)}" type="button"><span class="project-symbol" aria-hidden="true">${e(initial(item.name).slice(0,1))}</span><span>${e(item.name)}</span><small>${data.features.filter((f) => f.projectId === item.id && f.status !== "done" && !f.archivedAt).length}</small></button>`;
+  $("logout-label").textContent = demo ? "Leave sample" : "Log out";
+  const projectLink = (item) => `<button class="project-link ${item.id === projectId && view !== "team" ? "selected" : ""}" data-project="${e(item.id)}" title="${e(item.name)}" type="button"><span class="project-symbol" aria-hidden="true">${e(initial(item.name).slice(0,1))}</span><span>${e(item.name)}</span><small title="Open features">${data.features.filter((f) => f.projectId === item.id && f.status !== "done" && !f.archivedAt).length} open</small></button>`;
   $("project-list").innerHTML = data.projects.filter((item) => !item.archivedAt).map(projectLink).join("") || '<p class="subtle">No active projects.</p>';
   const archived = data.projects.filter((item) => item.archivedAt);
   $("archived-projects").hidden = !archived.length;
@@ -191,26 +191,39 @@ function render() {
   $("project-settings").hidden = !project || data.selectedTeam?.ownerUserId !== data.user?.id;
   $("project-settings").disabled = demo;
   $("project-name").textContent = view === "team" ? "Team" : project?.name || "Projects";
-  const repo = safeLink(project?.remote);
-  $("repo-link").hidden = !repo || view === "team";
-  $("repo-link").href = repo || "#";
+  const repo = repositoryPresentation(project, demo);
+  $("repository-summary").hidden = !repo || view === "team";
+  $("repo-link").href = repo?.url || "#";
+  $("repo-link").setAttribute("aria-label", repo ? "Open " + repo.name + " on " + repo.provider + " (new tab)" : "Repository");
+  $("repository-name").textContent = repo?.name || "";
+  $("repository-label").textContent = repo ? repo.label + " · " + repo.provider : "";
+  $("repository-description").textContent = repo?.description || "";
+  $("repository-status").textContent = repo?.status || "";
+  $("repository-snapshot").textContent = repo?.hasSnapshot ? [repo.branch, repo.capturedAt ? "Captured " + date(repo.capturedAt) : ""].filter(Boolean).join(" · ") : "";
+  $("repository-snapshot").hidden = !repo?.hasSnapshot;
+  $("copy-repository").disabled = !repo;
   $("demo-banner").hidden = !demo;
   $("project-workspace").hidden = view === "team";
   $("team-content").hidden = view !== "team";
   document.querySelectorAll("[data-view]").forEach((button) => { if (button.dataset.view === view) button.setAttribute("aria-current", "page"); else button.removeAttribute("aria-current"); });
-  $("view-title").textContent = ({ work: "Work", sessions: "Sessions", repository: "Branches & files" })[view] || "Work";
+  $("view-title").textContent = project ? ({ work: "Work", sessions: "Sessions", repository: "Branches & files" })[view] || "Work" : "Projects";
   $("project-description").textContent = view === "sessions" ? "What changed, what was decided, and where to continue." : view === "repository" ? "The latest repository snapshot shared by your coding agent." : project ? "Features and tasks for " + project.name + "." : "Add a repository to start planning with your team.";
   $("work-count").textContent = currentFeatures().filter((item) => !item.archivedAt).length;
   $("session-count").textContent = currentSessions().length;
   $("new-feature").hidden = view !== "work" || !project;
   $("export-project").disabled = !project;
+  $("export-project").hidden = !project;
   $("new-feature").disabled = demo || !!project?.archivedAt;
   $("work-options").hidden = view !== "work" || !project;
   $("sidebar-add-project").disabled = demo;
   $("add-team").disabled = demo;
   $("project-tools").hidden = !project;
+  document.querySelector(".view-tabs").hidden = !project;
   $("status-filter").hidden = view !== "work";
   $("owner-filter").hidden = view === "repository";
+  $("sort").hidden = view === "repository";
+  for (const option of $("sort").options) if (["priority", "due"].includes(option.value)) option.hidden = view !== "work";
+  $("search").placeholder = view === "repository" ? "Search branches and files…" : "Search features, people, decisions…";
   const owner = $("owner-filter").value;
   const names = [...new Set(view === "sessions" ? currentSessions().map((item) => item.participant) : currentFeatures().map((item) => item.owner).filter(Boolean))].sort();
   $("owner-filter").innerHTML = '<option value="all">Everyone</option><option value="unassigned">Unassigned</option>' + names.map((name) => `<option value="${e(name)}">${e(name)}</option>`).join("");
@@ -260,11 +273,11 @@ function renderContent() {
   renderDetail();
 }
 function renderRepository(project, query) {
-  const git = project.latestGit;
+  const git = project.latestGit || {};
   const files = (git.trackedFiles || []).filter((file) => !query || file.toLowerCase().includes(query));
   const branches = (git.branches || []).filter((branch) => !query || branch.name.toLowerCase().includes(query));
   if (!git.head) {
-    $("work-content").innerHTML = empty("Waiting for the first session", "Your repository is saved. Connect an agent and start a session to add the current branches and files.", '<button class="button" data-action="connect-agent" type="button">Connect agent</button>'); return;
+    $("work-content").innerHTML = empty("Repository linked. No snapshot yet.", "The link above opens your repository. To see branches and files here, connect your coding agent, open that repository, and send the Start session prompt.", '<button class="button" data-action="connect-agent" type="button">Connect agent</button>'); return;
   }
   $("work-content").innerHTML = `<div class="repo-content"><p class="subtle">Last snapshot: ${e(date(git.capturedAt))}. Supplied by the coding agent.</p><section class="team-section"><h2>Branches <span class="subtle">${branches.length}</span></h2>${branches.map((branch) => `<div class="branch-row"><code>${e(branch.name)} ${branch.current ? '<small>current</small>' : ""}</code><code>${e(branch.head.slice(0,7))}</code></div>`).join("") || '<p class="subtle">No matching branches.</p>'}</section><section class="team-section"><h2>Tracked files <span class="subtle">${files.length}</span></h2><ul class="repo-files">${files.map((file) => "<li>" + e(file) + "</li>").join("") || '<li>No matching files.</li>'}</ul></section></div>`;
 }
@@ -320,7 +333,7 @@ function renderTeam() {
   $("team-content").innerHTML = `<h1>Team & invitations</h1><p>Manage who works in ${e(team.name)}.</p><section class="team-section"><h2>Team name</h2><form id="team-name-form" class="form"><div class="team-name-form"><label class="sr-only" for="team-name-input">Team name</label><input id="team-name-input" name="name" value="${e(team.name)}" minlength="2" maxlength="120" required ${!owner || demo ? "disabled" : ""}/><button class="button" type="submit" ${!owner || demo ? "disabled" : ""}>Save</button></div><p class="form-error" role="alert"></p></form></section><section class="team-section"><h2>Invite a teammate</h2><p>Share a code or link. They’ll log in or create an account, then join this team.</p><div class="copy-field"><div><span>Invite code</span><code class="team-code">${e(team.joinCode)}</code></div><button class="button compact" type="button" data-action="copy-team">Copy code</button></div><div class="team-invite-actions"><button class="button" data-action="copy-invite" type="button">Copy invite link</button>${owner ? '<button class="button" data-action="reset-code" type="button"' + (demo ? " disabled" : "") + '>Reset code</button>' : ""}</div><p class="subtle" style="margin-top:16px">This code is for invitations only. Agent connections use browser sign-in or a personal key. Reset the code if an invitation was shared too widely.</p></section><section class="team-section"><h2>Members <span class="subtle">${members.length}</span></h2>${memberError ? '<p class="form-error">' + e(memberError) + '</p><button class="button" type="button" data-action="retry-members">Retry</button>' : ""}${members.map((member) => `<div class="team-member"><span class="avatar" aria-hidden="true">${e(initial(member.name))}</span><div><strong>${e(member.name)}${member.userId === data.user.id ? ' <span class="subtle">(you)</span>' : ""}</strong><small>${e(member.email)}</small></div><span>${member.role === "owner" ? "Owner" : "Member"}</span>${owner && member.userId !== data.user.id ? '<button class="text-button" type="button" data-remove-member="' + e(member.userId) + '"' + (demo ? " disabled" : "") + '>Remove</button>' : ""}</div>`).join("") || (!memberError ? '<p class="subtle">Loading members…</p>' : "")}${!owner ? '<div class="team-invite-actions"><button class="button" type="button" data-action="leave-team"' + (demo ? " disabled" : "") + '>Leave team</button></div>' : ""}</section>`;
 }
 function switchView(next) {
-  view = next; selection = null; $("workspace").classList.remove("mobile-nav");
+  view = next; selection = null; setMobileNav(false);
   if (next !== "work" && ["priority", "due"].includes($("sort").value)) $("sort").value = "updated";
   $("owner-filter").value = "all"; $("status-filter").value = "all";
   render();
@@ -488,7 +501,7 @@ document.addEventListener("click", async (event) => {
     if (button.dataset.authMode) { setAuthMode(button.dataset.authMode); return; }
     if (button.dataset.teamMode) { setTeamMode(button.dataset.teamMode); return; }
     if (button.dataset.view) { switchView(button.dataset.view); return; }
-    if (button.dataset.project) { projectId = button.dataset.project; localStorage.setItem("collavibe-project", projectId); selection = null; view = "work"; $("show-archived").checked = false; $("priority-filter").value = "all"; $("search").value = ""; $("owner-filter").value = "all"; $("status-filter").value = "all"; $("workspace").classList.remove("mobile-nav"); render(); return; }
+    if (button.dataset.project) { projectId = button.dataset.project; localStorage.setItem("collavibe-project", projectId); selection = null; view = "work"; $("show-archived").checked = false; $("priority-filter").value = "all"; $("search").value = ""; $("owner-filter").value = "all"; $("status-filter").value = "all"; setMobileNav(false); render(); return; }
     if (button.dataset.feature) { selection = { kind: "feature", id: button.dataset.feature }; renderContent(); updateHash(); return; }
     if (button.dataset.session) { selection = { kind: "session", id: button.dataset.session }; view = "sessions"; render(); return; }
     if (button.dataset.copySetup) { await copy(setupValues()[button.dataset.copySetup]); return; }
@@ -622,6 +635,10 @@ $("sidebar-add-project").addEventListener("click", openProject);
 $("new-feature").addEventListener("click", () => openFeature());
 $("export-project").addEventListener("click", exportProject);
 $("open-agent-setup").addEventListener("click", openAgent);
+$("copy-repository").addEventListener("click", () => {
+  const repo = repositoryPresentation(currentProject(), demo);
+  if (repo) copy(repo.url).catch((error) => toast(error.message, true));
+});
 $("agent-client").addEventListener("change", renderAgentSetup);
 $("agent-key-form").addEventListener("submit", (event) => {
   event.preventDefault(); if (!canWrite()) return;
@@ -652,9 +669,11 @@ $("team-select").addEventListener("change", async () => {
 });
 $("add-team").addEventListener("click", () => { if (!canWrite()) return; $("back-workspace").hidden = false; setTeamMode("create"); showGate("team"); });
 $("back-workspace").addEventListener("click", () => { invitation = ""; showGate("workspace"); });
-$("mobile-projects").addEventListener("click", () => $("workspace").classList.toggle("mobile-nav"));
-document.querySelector(".main").addEventListener("click", (event) => { if (!event.target.closest("#mobile-projects")) $("workspace").classList.remove("mobile-nav"); });
+$("mobile-projects").addEventListener("click", () => setMobileNav(!$("workspace").classList.contains("mobile-nav")));
+for (const id of ["close-navigation", "nav-backdrop"]) $(id).addEventListener("click", () => { setMobileNav(false); $("mobile-projects").focus(); });
+document.querySelector(".main").addEventListener("click", (event) => { if (!event.target.closest("#mobile-projects")) setMobileNav(false); });
 async function logout() {
+  if (demo) { await leaveSample(); return; }
   try { if (!demo) await api("/api/auth/logout", { method: "POST" }); }
   catch (error) { toast(error.message, true); return; }
   commentDrafts.clear(); issuedKey = ""; connections = []; $("agent-key-value").value = ""; document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
@@ -665,10 +684,19 @@ async function logout() {
 }
 $("logout").addEventListener("click", logout);
 $("team-logout").addEventListener("click", logout);
-$("exit-demo").addEventListener("click", logout);
+async function leaveSample() {
+  requestSequence++; busyLoad = false; demo = false; members = []; fingerprint = ""; selection = null; view = "work";
+  data = { user: null, teams: [], projects: [], features: [], sessions: [] };
+  teamId = localStorage.getItem("collavibe-team") || ""; projectId = localStorage.getItem("collavibe-project") || "";
+  const url = new URL(location.href); url.searchParams.delete("demo"); url.hash = "";
+  history.replaceState(null, "", url.pathname + url.search);
+  setMobileNav(false); showGate("auth"); setAuthMode("login");
+  await load();
+}
+$("exit-demo").addEventListener("click", leaveSample);
 function enterDemo() {
   requestSequence++; busyLoad = false; demo = true; data = sampleWorkspace();
-  members = data.members; memberError = ""; teamId = data.selectedTeam.id; projectId = data.projects[0].id; view = "work"; selection = { kind: "feature", id: "f1" };
+  members = data.members; memberError = ""; teamId = data.selectedTeam.id; projectId = data.projects[0].id; view = "work"; selection = null;
   $("connection-label").textContent = "Sample data"; $("connection-label").classList.remove("offline"); $("load-error").hidden = true;
   $("search").value = ""; $("owner-filter").value = "all"; $("status-filter").value = "all";
   showGate("workspace"); render();
@@ -679,10 +707,11 @@ document.querySelectorAll("dialog").forEach((dialog) => {
 });
 document.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k" && !$("workspace").hidden && !document.querySelector("dialog[open]")) { event.preventDefault(); if (view === "team") switchView("work"); $("search").focus(); }
-  if (event.key === "Escape" && !document.querySelector("dialog[open]")) { selection = null; $("detail-pane").hidden = true; $("workspace").classList.remove("mobile-nav"); updateHash(); }
+  if (event.key === "Escape" && !document.querySelector("dialog[open]")) { selection = null; $("detail-pane").hidden = true; const navWasOpen = $("workspace").classList.contains("mobile-nav"); setMobileNav(false); if (navWasOpen) $("mobile-projects").focus(); updateHash(); }
 });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !demo && !$("workspace").hidden) load({ quiet: true }); });
 window.addEventListener("online", () => { if (!demo) load(); });
+window.addEventListener("resize", () => { if (!matchMedia("(max-width: 700px)").matches) setMobileNav(false); });
 setInterval(() => { if (!demo && !document.hidden && !$("workspace").hidden) load({ quiet: true }); }, 20000);
 setAuthMode("login"); setTeamMode("create");
 if (new URLSearchParams(location.search).get("demo") === "1") enterDemo(); else load();

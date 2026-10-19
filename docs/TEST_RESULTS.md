@@ -1,4 +1,11 @@
-# QA results — 2026-10-17
+# QA results
+
+## Repository and account clarity - October 19, 2026
+
+- TypeScript, JavaScript syntax, whitespace checks, and all 56 automated tests pass. Seven new repository-presentation tests distinguish saved links, real agent snapshots, and fictional sample data; they also cover SSH URLs, other Git providers, missing snapshot fields, and unsafe or credential-bearing links.
+- Chrome local browser QA passed signup, team creation, project creation, persistence after reload, the linked repository section, no-snapshot guidance, and opening Connect agent from the repository section. All writes used an isolated local state file, not Team1's cloud records.
+- Chrome at 390 x 844 showed a 390 px document width. Mobile navigation, the labeled logout action, and logout resetting the menu's expanded state were checked. The sample-to-workspace action restored the signed-in local account; leaving a sample without a session returned to login. No warning/error browser logs were recorded in this run.
+- These changes affect presentation and navigation, not the hosted MCP protocol, database schema, or GitHub access permissions. Deployment verification is recorded separately below when completed.
 
 ## Released v0.8.0: lifecycle and discussion
 

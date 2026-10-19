@@ -1,5 +1,11 @@
 # Workspace
 
+## Repository and account orientation
+
+Each project shows its linked repository name, provider, external link, and a copyable URL above the work tabs. A saved URL is explicitly distinguished from an agent-supplied Git snapshot; branch and capture time appear only when a snapshot exists. This does not claim a live GitHub connection or automatic push import.
+
+The sidebar includes a text-labeled Log out action and an Add project button. Mobile navigation has a labeled Menu button, close control, backdrop, and expanded state; background content is inert while it is open. Sample mode is explicitly fictional/read-only, and Go to my workspace restores an existing browser session without logging it out. Empty project workspaces hide irrelevant export and tab controls.
+
 ## Lifecycle and discussion (v0.8)
 
 The workspace includes priority and due-date fields, priority filtering and due-date sorting, feature discussions, and recoverable archives. Members can archive/restore features and post comments. Only comment authors and the team owner can remove comments. The team owner can rename, archive, or restore projects. Archived projects and features remain readable/exportable but cannot accept edits or agent claims. Active sessions must be synced before their work is archived.
