@@ -19,7 +19,13 @@ export function sampleWorkspace() {
   Object.assign(features[1], { priority: "high", dueDate: dueDay(1) });
   Object.assign(features[2], { priority: "normal" });
   Object.assign(features[3], { priority: "low" });
-  const session = (id, participant, featureId, summary, completed, decisions, blockers, nextSteps, files, days, hours) => ({ id, participant, featureId, projectId: "p1", repoPath: git.root, startedAt: date(days, hours + 1), syncedAt: date(days, hours), status: "synced", startSnapshot: git, sync: { summary, workCompleted: completed, decisions, blockers, nextSteps, agentReportedFiles: files, verified: { source: "agent_attested", startHead: "7d9b1e3".padEnd(40,"0"), endHead: git.head, startBranch: git.branch, endBranch: git.branch, commits: [{ hash: git.head, shortHash: "a14c72f", author: participant, subject: summary.split(".")[0], authoredAt: date(days,hours) }], changedFiles: files, workingFiles: [], reportedButUnverified: [] } } });
+  const session = (id, participant, featureId, summary, completed, decisions, blockers, nextSteps, files, days, hours) => {
+    const branch = features.find((feature) => feature.id === featureId)?.branch || "draft/reminders";
+    const shortHash = ({ s1: "a14c72f", s2: "3eb7841", s3: "8ca322f", s4: "0bc887a" })[id];
+    const head = shortHash.padEnd(40, "0");
+    const startHead = "7d9b1e3".padEnd(40, "0");
+    return { id, participant, featureId, projectId: "p1", repoPath: git.root, startedAt: date(days, hours + 1), syncedAt: date(days, hours), status: "synced", startSnapshot: { ...git, branch: "main", head: startHead }, sync: { summary, workCompleted: completed, decisions, blockers, nextSteps, agentReportedFiles: files, verified: { source: "agent_attested", startHead, endHead: head, startBranch: "main", endBranch: branch, commits: [{ hash: head, shortHash, author: participant, subject: summary.split(".")[0], authoredAt: date(days,hours) }], changedFiles: files, workingFiles: [], reportedButUnverified: [] } } };
+  };
   return {
     user: { id: "u1", name: "Maya Chen", email: "maya@example.com" },
     teams: [{ id: "t1", name: "Course project", joinCode: "DEMOONLY", ownerUserId: "u1", memberCount: 3, projectCount: 2 }],

@@ -1,5 +1,14 @@
 # QA results
 
+## Interactive map and readability - October 19, 2026
+
+- All 69 automated tests across eight files, TypeScript, browser-JavaScript syntax, and whitespace checks pass. New pure-model cases cover project scoping, multiple contributors, assignment versus session evidence, contributor/status/priority/archive/search filters, unlinked sessions, deduplicated commit counts, empty data, corrected final-branch display, coherent demo branches, and a small-font regression guard.
+- Local Chrome sample QA passed feature/contributor grouping, Expand all (10 disclosures), Collapse all (0 open disclosures), person filtering (Sam only, two relevant features), no-match search, clearing filters, opening a handoff while retaining the map, and final branch versus starting branch labels. Native disclosures respond to Enter/Space. At 390 px, the handoff drawer fills the viewport; opening focuses its close control, and Escape returns focus to the originating session.
+- Narrow-screen checks at 390 and 320 CSS px produced matching document widths. Measured normal text/sidebar 16 px, feature titles 18 px, metadata 14 px. No application console errors/warnings were observed in the local map interaction run. These are browser-emulated checks, not certification on every physical device or assistive technology.
+- Isolated local-account QA passed signup, team creation, empty project/map onboarding, feature creation, the feature inspector/checklist update, map+feature URL restoration after reload, and labeled mobile logout. At 320 px the feature dialog fit within the viewport and its inputs measured 16 px. No production team records were created or edited during these local checks.
+- Live MCP readback before implementation confirmed the real Team1 project still has one recorded contributor, one synced session, two commits, and the Study Table feature in review. Multi-person UI testing uses explicitly fictional browser-only sample data; no Joseph activity is invented.
+- Deployment verification follows after preview and approved production publication.
+
 ## Repository and account clarity - October 19, 2026
 
 - TypeScript, JavaScript syntax, whitespace checks, and all 56 automated tests pass. Seven new repository-presentation tests distinguish saved links, real agent snapshots, and fictional sample data; they also cover SSH URLs, other Git providers, missing snapshot fields, and unsafe or credential-bearing links.

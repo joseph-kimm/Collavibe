@@ -1,5 +1,13 @@
 # Workspace
 
+## Interactive project map and readability
+
+Project map is the default view. Native expandable disclosures connect projects to features and recorded sessions, or group those same relationships by contributor. Feature nodes open the existing checklist/discussion inspector; session nodes open handoffs, decisions, next steps, commits, and changed files without leaving the map. Expand/collapse, search, person/status/priority filters, archive views, empty states, and URL-linked inspectors work with the existing saved data. The map is a work-relationship tree, not an invented Git merge graph. People are recorded participants or assigned owners; assignment alone does not prove a contribution. Team members with no recorded work are not fabricated as contributors.
+
+The normal text and controls use 16 px-equivalent type, feature titles 18 px, and secondary metadata 14 px-equivalent type. Sizes use relative units where adjusted; control targets are at least 44 px for primary actions. Secondary repository explanations and map filters use native disclosures to reduce clutter. The map uses regular buttons, lists, and disclosures rather than claiming an ARIA tree without implementing its keyboard model. Session lists and inspectors now show the final recorded branch, with the starting branch separately labeled when it changed.
+
+Design references: [GOV.UK type scale](https://design-system.service.gov.uk/styles/type-scale/), [W3C disclosure pattern](https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/), [W3C target sizing](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html), and [W3C reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html). The chosen scale is an application design choice, not a claim that WCAG mandates a minimum font size or that this is a full accessibility certification.
+
 ## Repository and account orientation
 
 Each project shows its linked repository name, provider, external link, and a copyable URL above the work tabs. A saved URL is explicitly distinguished from an agent-supplied Git snapshot; branch and capture time appear only when a snapshot exists. This does not claim a live GitHub connection or automatic push import.

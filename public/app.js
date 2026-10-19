@@ -1,5 +1,6 @@
 import { sampleWorkspace } from "./demo.js";
 import { repositoryPresentation } from "./repository-ui.js";
+import { buildProjectMap, sessionBranch } from "./project-map.js";
 
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[c]);
@@ -11,7 +12,9 @@ let data = { user: null, teams: [], projects: [], features: [], sessions: [] };
 let members = [];
 let demo = false;
 let authMode = "login";
-let view = "work";
+let view = "map";
+let mapGrouping = "features";
+const collapsedMapNodes = new Set();
 let teamId = localStorage.getItem("collavibe-team") || "";
 let projectId = localStorage.getItem("collavibe-project") || "";
 let selection = null;
@@ -34,9 +37,9 @@ let invitation = new URLSearchParams(location.search).get("join") || "";
 const hash = new URLSearchParams(location.hash.slice(1));
 if (hash.get("team")) teamId = hash.get("team");
 if (hash.get("project")) projectId = hash.get("project");
-if (["work", "sessions", "repository", "team"].includes(hash.get("view"))) view = hash.get("view");
+if (["map", "work", "sessions", "repository", "team"].includes(hash.get("view"))) view = hash.get("view");
 if (hash.get("feature")) selection = { kind: "feature", id: hash.get("feature") };
-if (hash.get("session")) { selection = { kind: "session", id: hash.get("session") }; view = "sessions"; }
+if (hash.get("session")) { selection = { kind: "session", id: hash.get("session") }; if (view !== "map") view = "sessions"; }
 
 const currentProject = () => data.projects.find((item) => item.id === projectId);
 const currentFeatures = () => data.features.filter((item) => item.projectId === projectId);
@@ -166,13 +169,13 @@ function updateHash() {
   const params = new URLSearchParams();
   if (teamId) params.set("team", teamId);
   if (projectId) params.set("project", projectId);
-  if (view !== "work") params.set("view", view);
+  params.set("view", view);
   if (selection) params.set(selection.kind, selection.id);
   history.replaceState(null, "", location.pathname + location.search + (params.size ? "#" + params : ""));
 }
 function render() {
   const project = currentProject();
-  if (view !== "work" && ["priority", "due"].includes($("sort").value)) $("sort").value = "updated";
+  if (!["work", "map"].includes(view) && ["priority", "due"].includes($("sort").value)) $("sort").value = "updated";
   $("team-name").textContent = data.selectedTeam?.name || "Team";
   $("team-select").innerHTML = data.teams.map((item) => `<option value="${e(item.id)}" ${item.id === teamId ? "selected" : ""}>${e(item.name)}</option>`).join("");
   $("account-name").textContent = data.user?.name || "";
@@ -204,29 +207,35 @@ function render() {
   $("copy-repository").disabled = !repo;
   $("demo-banner").hidden = !demo;
   $("project-workspace").hidden = view === "team";
+  $("project-workspace").classList.toggle("map-view", view === "map");
+  $("project-filters").hidden = !project;
+  const mapFilters = view === "map";
+  if ($("project-filters").classList.contains("collapsible") !== mapFilters) $("project-filters").open = !mapFilters;
+  $("project-filters").classList.toggle("collapsible", mapFilters);
   $("team-content").hidden = view !== "team";
   document.querySelectorAll("[data-view]").forEach((button) => { if (button.dataset.view === view) button.setAttribute("aria-current", "page"); else button.removeAttribute("aria-current"); });
-  $("view-title").textContent = project ? ({ work: "Work", sessions: "Sessions", repository: "Branches & files" })[view] || "Work" : "Projects";
-  $("project-description").textContent = view === "sessions" ? "What changed, what was decided, and where to continue." : view === "repository" ? "The latest repository snapshot shared by your coding agent." : project ? "Features and tasks for " + project.name + "." : "Add a repository to start planning with your team.";
+  $("view-title").textContent = project ? ({ map: "Project map", work: "Work", sessions: "Sessions", repository: "Branches & files" })[view] || "Work" : "Projects";
+  $("project-description").textContent = view === "map" && project ? "See who is building what, and where the next person can pick up." : view === "sessions" ? "What changed, what was decided, and where to continue." : view === "repository" ? "The latest repository snapshot shared by your coding agent." : project ? "Features and tasks for " + project.name + "." : "Add a repository to start planning with your team.";
   $("work-count").textContent = currentFeatures().filter((item) => !item.archivedAt).length;
   $("session-count").textContent = currentSessions().length;
-  $("new-feature").hidden = view !== "work" || !project;
+  $("new-feature").hidden = !["work", "map"].includes(view) || !project;
   $("export-project").disabled = !project;
   $("export-project").hidden = !project;
   $("new-feature").disabled = demo || !!project?.archivedAt;
-  $("work-options").hidden = view !== "work" || !project;
+  $("work-options").hidden = !["work", "map"].includes(view) || !project;
   $("sidebar-add-project").disabled = demo;
   $("add-team").disabled = demo;
   $("project-tools").hidden = !project;
   document.querySelector(".view-tabs").hidden = !project;
-  $("status-filter").hidden = view !== "work";
+  $("status-filter").hidden = !["work", "map"].includes(view);
   $("owner-filter").hidden = view === "repository";
   $("sort").hidden = view === "repository";
-  for (const option of $("sort").options) if (["priority", "due"].includes(option.value)) option.hidden = view !== "work";
+  for (const option of $("sort").options) if (["priority", "due"].includes(option.value)) option.hidden = !["work", "map"].includes(view);
   $("search").placeholder = view === "repository" ? "Search branches and files…" : "Search features, people, decisions…";
   const owner = $("owner-filter").value;
-  const names = [...new Set(view === "sessions" ? currentSessions().map((item) => item.participant) : currentFeatures().map((item) => item.owner).filter(Boolean))].sort();
-  $("owner-filter").innerHTML = '<option value="all">Everyone</option><option value="unassigned">Unassigned</option>' + names.map((name) => `<option value="${e(name)}">${e(name)}</option>`).join("");
+  const names = view === "map" ? buildProjectMap({ projectId, features: data.features, sessions: data.sessions }).people : [...new Set(view === "sessions" ? currentSessions().map((item) => item.participant) : currentFeatures().map((item) => item.owner).filter(Boolean))].sort();
+  $("owner-filter").setAttribute("aria-label", view === "map" ? "Person" : "Owner");
+  $("owner-filter").innerHTML = '<option value="all">' + (view === "map" ? "All people" : "Everyone") + '</option>' + (view === "sessions" ? "" : '<option value="unassigned">Unassigned</option>') + names.map((name) => `<option value="${e(name)}">${e(name)}</option>`).join("");
   $("owner-filter").value = names.includes(owner) || owner === "unassigned" ? owner : "all";
   if (view === "team") renderTeam(); else renderContent();
   updateHash();
@@ -255,11 +264,12 @@ function renderContent() {
     $("detail-pane").hidden = true; return;
   }
   if (view === "repository") { renderRepository(project, query); $("detail-pane").hidden = true; return; }
+  if (view === "map") { renderMap(project, query); renderDetail(); return; }
   if (view === "sessions") {
     const sessions = currentSessions().filter((item) => (owner === "all" || item.participant === owner) && (!query || JSON.stringify([item.participant, item.intent, item.sync, data.features.find((f) => f.id === item.featureId)?.title]).toLowerCase().includes(query))).sort(compare);
     content.innerHTML = sessions.length ? sessions.map((item) => {
       const feature = data.features.find((f) => f.id === item.featureId);
-      return `<button type="button" class="work-row session-row ${selected("session", item.id) ? "selected" : ""}" data-session="${e(item.id)}"><span class="avatar" aria-hidden="true">${e(initial(item.participant))}</span><span class="work-main"><strong>${e(feature?.title || item.intent || "Session")}<span class="session-person">${e(item.participant)}</span></strong><p>${e(item.sync?.summary || "Session started. The agent has not synced a handoff yet.")}</p>${item.sync?.blockers?.length ? '<small class="mini-flag">' + item.sync.blockers.length + " blocker" + (item.sync.blockers.length === 1 ? "" : "s") + "</small>" : ""}</span><span class="work-meta"><span>${e(date(item.syncedAt || item.startedAt))}</span><span>${e(sessionStatuses[item.status])}</span><code>${e(item.startSnapshot.branch || "No branch")}</code></span></button>`;
+      return `<button type="button" class="work-row session-row ${selected("session", item.id) ? "selected" : ""}" data-session="${e(item.id)}"><span class="avatar" aria-hidden="true">${e(initial(item.participant))}</span><span class="work-main"><strong>${e(feature?.title || item.intent || "Session")}<span class="session-person">${e(item.participant)}</span></strong><p>${e(item.sync?.summary || "Session started. The agent has not synced a handoff yet.")}</p>${item.sync?.blockers?.length ? '<small class="mini-flag">' + item.sync.blockers.length + " blocker" + (item.sync.blockers.length === 1 ? "" : "s") + "</small>" : ""}</span><span class="work-meta"><span>${e(date(item.syncedAt || item.startedAt))}</span><span>${e(sessionStatuses[item.status])}</span><code>${e(sessionBranch(item) || "No branch")}</code></span></button>`;
     }).join("") + `<p class="count-summary">${sessions.length} of ${currentSessions().length} sessions</p>` : empty(currentSessions().length ? "No matching sessions" : "No sessions yet", currentSessions().length ? "Try a different search or owner." : "Connect your coding agent and start a session. The handoff will appear here after you ask it to sync.", '<button type="button" class="button" data-action="connect-agent">Connect agent</button>');
   } else {
     const scope = currentFeatures().filter((item) => Boolean(item.archivedAt) === $("show-archived").checked);
@@ -271,6 +281,38 @@ function renderContent() {
     }).join("") + `<p class="count-summary">${filtered.length} of ${scope.length} ${$("show-archived").checked ? "archived " : ""}features · ${scope.filter((item) => item.status === "done").length} done</p>` : empty(scope.length ? "No matching features" : $("show-archived").checked ? "Nothing archived" : "What needs to be built?", scope.length ? "Try a different search, priority, status, or owner." : $("show-archived").checked ? "Archived features will appear here. Their checklists, discussions, and session history are kept." : "Add a feature with a checklist. Your teammates and coding agents will see it when they start working.", $("show-archived").checked ? '<button type="button" class="button" data-action="show-active">Back to active features</button>' : '<button type="button" class="button primary" data-action="new-feature"' + (demo || project.archivedAt ? " disabled" : "") + '>+ New feature</button>');
   }
   renderDetail();
+}
+function mapSessionNode(session) {
+  const commits = session.sync?.verified?.commits?.length || 0;
+  const files = session.sync?.verified?.changedFiles?.length || 0;
+  return `<li class="map-session-item"><button type="button" class="map-session ${selected("session", session.id) ? "selected" : ""}" data-session="${e(session.id)}"><span class="avatar" aria-hidden="true">${e(initial(session.participant))}</span><span class="map-session-copy"><span class="map-node-heading"><strong>${e(session.participant)}</strong><span class="tag">${e(sessionStatuses[session.status])}</span></span><span class="map-session-summary">${e(session.sync?.summary || session.intent || "Session started. No handoff saved yet.")}</span><span class="map-node-meta"><code>${e(sessionBranch(session) || "Branch not recorded")}</code><span>${commits} ${commits === 1 ? "commit" : "commits"} · ${files} ${files === 1 ? "file" : "files"}</span><span>${e(date(session.syncedAt || session.startedAt))}</span></span></span><span class="map-open-label">Open handoff ↗</span></button></li>`;
+}
+function mapFeatureNode(entry, group = "features", person = "") {
+  const feature = entry.feature;
+  const nodeKey = group + ":" + feature.id;
+  const linked = person ? entry.sessions.filter((session) => session.participant.trim() === person) : entry.sessions;
+  const done = feature.checklist?.filter((item) => item.done).length || 0;
+  return `<li class="map-feature-item"><details class="map-feature ${selected("feature", feature.id) ? "selected" : ""}" data-map-node="${e(nodeKey)}" ${collapsedMapNodes.has(nodeKey) ? "" : "open"}><summary><span class="map-chevron" aria-hidden="true">›</span><span class="map-feature-heading"><span class="map-node-heading"><span class="tag">${dot(feature.status)}${e(statuses[feature.status] || feature.status)}</span>${feature.archivedAt ? '<span class="tag">Archived</span>' : ""}</span><strong>${e(feature.title)}</strong><span class="map-node-meta"><span>Owner: ${e(feature.owner || "Unassigned")}</span><span>${done}/${feature.checklist?.length || 0} checklist complete</span></span></span><span class="map-session-count">${linked.length} ${linked.length === 1 ? "session" : "sessions"}</span></summary><div class="map-feature-body"><div class="map-feature-context"><code>${e(feature.branch || "No branch assigned")}</code><button class="button compact" type="button" data-feature="${e(feature.id)}">Open feature & checklist</button></div>${linked.length ? '<ul class="map-session-list">' + linked.map(mapSessionNode).join("") + '</ul>' : '<p class="map-no-session">' + (person ? "No session recorded by this person yet." : "No sessions yet. Connect your agent to start work on this feature.") + '</p>'}</div></details></li>`;
+}
+function renderMap(project, query) {
+  const filterCount = [query, $("owner-filter").value !== "all", $("status-filter").value !== "all", $("priority-filter").value !== "all", $("show-archived").checked].filter(Boolean).length;
+  $("filter-summary").textContent = filterCount ? "· " + filterCount + " active" : "";
+  const model = buildProjectMap({ projectId, features: data.features, sessions: data.sessions, query, person: $("owner-filter").value, status: $("status-filter").value, priority: $("priority-filter").value, archived: $("show-archived").checked });
+  model.entries.sort((a, b) => compare(a.feature, b.feature));
+  for (const group of model.groups) group.entries.sort((a, b) => compare(a.feature, b.feature));
+  const summary = model.summary;
+  const root = `<div class="map-root"><span class="map-root-icon" aria-hidden="true">⌘</span><div><p class="map-eyebrow">${demo ? "Sample project" : "Project"}</p><h2>${e(project.name)}</h2></div><dl class="map-stats"><div><dt>Features</dt><dd>${summary.features}</dd></div><div><dt>People</dt><dd>${summary.people}</dd></div><div><dt>Saved handoffs</dt><dd>${summary.handoffs}</dd></div><div><dt>Recorded commits</dt><dd>${summary.commits}</dd></div></dl></div>`;
+  const controls = `<div class="map-controls"><div class="map-grouping" role="group" aria-label="Group project map"><button class="button compact" type="button" data-map-group="features" aria-pressed="${mapGrouping === "features"}">By feature</button><button class="button compact" type="button" data-map-group="people" aria-pressed="${mapGrouping === "people"}">By contributor</button></div><div class="map-expansion"><button class="text-button" type="button" data-map-expand="all">Expand all</button><button class="text-button" type="button" data-map-expand="none">Collapse all</button></div></div>`;
+  let branches = "";
+  if (mapGrouping === "features") branches = model.entries.map((entry) => mapFeatureNode(entry)).join("");
+  else branches = model.groups.map((group) => {
+    const key = "person:" + group.name;
+    const assigned = group.unassigned ? group.entries.length : group.entries.filter((entry) => entry.feature.owner?.trim() === group.name).length;
+    return `<li class="map-person-item"><details class="map-person" data-map-node="${e(key)}" ${collapsedMapNodes.has(key) ? "" : "open"}><summary><span class="map-chevron" aria-hidden="true">›</span><span class="avatar" aria-hidden="true">${e(initial(group.name))}</span><span><strong>${e(group.name)}</strong><span class="map-node-meta">${group.sessions.length} recorded ${group.sessions.length === 1 ? "session" : "sessions"} · ${assigned} ${group.unassigned ? "unassigned" : "assigned"} ${assigned === 1 ? "feature" : "features"}</span></span></summary><ul class="map-branches">${group.entries.map((entry) => mapFeatureNode(entry, "person-" + group.name, group.unassigned ? "" : group.name)).join("")}${model.unlinkedSessions.filter((session) => session.participant.trim() === group.name).map(mapSessionNode).join("")}</ul></details></li>`;
+  }).join("");
+  if (mapGrouping === "features" && model.unlinkedSessions.length) branches += `<li class="map-unlinked"><h3>Sessions without a feature</h3><p class="subtle">Started sessions that have not been linked to a feature.</p><ul class="map-session-list">${model.unlinkedSessions.map(mapSessionNode).join("")}</ul></li>`;
+  const blank = !summary.features && !summary.sessions;
+  $("work-content").innerHTML = `<div class="project-map">${root}${controls}<p class="map-help">${mapGrouping === "features" ? "Project → features → people’s sessions. Open a feature for its checklist, or a session for the handoff." : "Project → people → their assigned features and recorded sessions. Assignment alone does not mean work has been completed."}</p>${branches ? '<ul class="map-branches map-trunk" aria-label="Project relationships">' + branches + '</ul>' : empty(blank ? "Your project map starts here" : "No matching work", blank ? "Add a feature, then connect an agent. Each session will appear under the feature and person who worked on it." : "Try changing the search, person, status, or archive filters.", blank ? '<button class="button primary" type="button" data-action="new-feature"' + (demo || project.archivedAt ? ' disabled' : '') + '>+ New feature</button><button class="button" type="button" data-action="connect-agent">Connect agent</button>' : '<button class="button" type="button" data-action="reset-map-filters">Clear filters</button>')}<p class="map-footnote">${model.entries.length} shown · People are assigned owners or recorded participants, not every team member. Connections show recorded work relationships, not Git merges.</p></div>`;
 }
 function renderRepository(project, query) {
   const git = project.latestGit || {};
@@ -291,6 +333,11 @@ function evidence(sync) {
   const local = verified.source === "local_git";
   return `<section class="detail-section"><h3>Repository changes</h3><p>${local ? "Read from local Git." : "Reported by the coding agent; not independently checked by Collavibe."}</p><p><code>${e(verified.startHead.slice(0,7))} → ${e(verified.endHead.slice(0,7))}</code></p>${verified.commits.length ? '<ul class="commit-list">' + verified.commits.map((commit) => `<li><code>${e(commit.shortHash)}</code><span>${e(commit.subject)}</span><small>${e(commit.author)}</small></li>`).join("") + "</ul>" : ""}</section>${verified.changedFiles.length ? '<section class="detail-section"><h3>Changed files</h3><ul class="file-list">' + verified.changedFiles.map((file) => "<li>" + e(file) + "</li>").join("") + "</ul></section>" : ""}`;
 }
+function sessionBranchProperties(item) {
+  const finalBranch = sessionBranch(item);
+  const changed = item.sync && item.startSnapshot?.branch && item.startSnapshot.branch !== finalBranch;
+  return `<dt>${item.sync ? "Final branch" : "Starting branch"}</dt><dd><code>${e(finalBranch || "Not set")}</code></dd>${changed ? '<dt>Started on</dt><dd><code>' + e(item.startSnapshot.branch) + '</code></dd>' : ''}`;
+}
 function renderDetail() {
   if (postingComment && selection?.id === postingComment) return;
   const commentFocus = document.activeElement?.id === "comment-text" ? { start: document.activeElement.selectionStart, end: document.activeElement.selectionEnd } : null;
@@ -305,7 +352,7 @@ function renderDetail() {
     $("detail").innerHTML = `<h2 class="detail-title">${e(item.title)}</h2><p class="detail-description">${e(item.description || "No description yet.")}</p><div class="detail-actions"><button type="button" class="button compact" data-action="edit-feature" ${demo ? "disabled" : ""}>Edit feature</button><button type="button" class="button compact" data-action="copy-feature">Copy agent prompt</button></div><dl class="properties"><dt>Status</dt><dd>${tag(item.status)}</dd><dt>Owner</dt><dd>${e(item.owner || "Unassigned")}</dd><dt>Branch</dt><dd><code>${e(item.branch || "Not set")}</code></dd><dt>Updated</dt><dd>${e(date(item.updatedAt))}</dd></dl><section class="detail-section"><h3>Checklist <span class="subtle">${completed}/${item.checklist.length}</span></h3><div class="progress" role="progressbar" aria-label="Checklist progress" aria-valuemin="0" aria-valuemax="${item.checklist.length || 1}" aria-valuenow="${completed}"><span style="width:${item.checklist.length ? 100 * completed / item.checklist.length : 0}%"></span></div><div class="checklist">${item.checklist.map((check) => `<label class="${check.done ? "done" : ""}"><input type="checkbox" data-check="${e(check.id)}" ${check.done ? "checked" : ""} ${demo ? "disabled" : ""}/><span>${e(check.text)}</span></label>`).join("") || '<p class="subtle">Add checklist items from Edit feature.</p>'}</div></section>${sessions.length ? '<section class="detail-section"><h3>Sessions for this feature</h3>' + sessions.map((session) => `<p><button class="text-button" type="button" data-session="${e(session.id)}">${e(session.participant)} · ${e(date(session.startedAt))}</button></p>`).join("") + "</section>" : ""}`;
   } else {
     const feature = data.features.find((f) => f.id === item.featureId);
-    $("detail").innerHTML = `<h2 class="detail-title">${e(feature?.title || item.intent || "Session")}</h2><p class="detail-description">${e(item.sync?.summary || "The session has not been synced yet.")}</p><div class="detail-actions"><button type="button" class="button compact" data-action="copy-handoff">Copy handoff</button><button type="button" class="button compact" data-action="export-session">Download</button></div><dl class="properties"><dt>Participant</dt><dd>${e(item.participant)}</dd><dt>Status</dt><dd>${e(sessionStatuses[item.status])}</dd><dt>Started</dt><dd>${e(date(item.startedAt))}</dd><dt>Synced</dt><dd>${e(date(item.syncedAt))}</dd><dt>Branch</dt><dd><code>${e(item.startSnapshot.branch || "Not set")}</code></dd></dl>${detailSection("Completed work", item.sync?.workCompleted)}${detailSection("Decisions", item.sync?.decisions)}${detailSection("Blockers", item.sync?.blockers)}${detailSection("Next steps", item.sync?.nextSteps)}${evidence(item.sync)}`;
+    $("detail").innerHTML = `<h2 class="detail-title">${e(feature?.title || item.intent || "Session")}</h2><p class="detail-description">${e(item.sync?.summary || "The session has not been synced yet.")}</p><div class="detail-actions"><button type="button" class="button compact" data-action="copy-handoff">Copy handoff</button><button type="button" class="button compact" data-action="export-session">Download</button></div><dl class="properties"><dt>Participant</dt><dd>${e(item.participant)}</dd><dt>Status</dt><dd>${e(sessionStatuses[item.status])}</dd><dt>Started</dt><dd>${e(date(item.startedAt))}</dd><dt>Synced</dt><dd>${e(date(item.syncedAt))}</dd>${sessionBranchProperties(item)}</dl>${detailSection("Completed work", item.sync?.workCompleted)}${detailSection("Decisions", item.sync?.decisions)}${detailSection("Blockers", item.sync?.blockers)}${detailSection("Next steps", item.sync?.nextSteps)}${evidence(item.sync)}`;
   }
   if (!demo) {
     const linkButton = document.createElement("button");
@@ -334,7 +381,7 @@ function renderTeam() {
 }
 function switchView(next) {
   view = next; selection = null; setMobileNav(false);
-  if (next !== "work" && ["priority", "due"].includes($("sort").value)) $("sort").value = "updated";
+  if (!["work", "map"].includes(next) && ["priority", "due"].includes($("sort").value)) $("sort").value = "updated";
   $("owner-filter").value = "all"; $("status-filter").value = "all";
   render();
   if (view === "team") loadMembers();
@@ -501,9 +548,11 @@ document.addEventListener("click", async (event) => {
     if (button.dataset.authMode) { setAuthMode(button.dataset.authMode); return; }
     if (button.dataset.teamMode) { setTeamMode(button.dataset.teamMode); return; }
     if (button.dataset.view) { switchView(button.dataset.view); return; }
-    if (button.dataset.project) { projectId = button.dataset.project; localStorage.setItem("collavibe-project", projectId); selection = null; view = "work"; $("show-archived").checked = false; $("priority-filter").value = "all"; $("search").value = ""; $("owner-filter").value = "all"; $("status-filter").value = "all"; setMobileNav(false); render(); return; }
-    if (button.dataset.feature) { selection = { kind: "feature", id: button.dataset.feature }; renderContent(); updateHash(); return; }
-    if (button.dataset.session) { selection = { kind: "session", id: button.dataset.session }; view = "sessions"; render(); return; }
+    if (button.dataset.project) { projectId = button.dataset.project; localStorage.setItem("collavibe-project", projectId); selection = null; view = "map"; $("show-archived").checked = false; $("priority-filter").value = "all"; $("search").value = ""; $("owner-filter").value = "all"; $("status-filter").value = "all"; setMobileNav(false); render(); return; }
+    if (button.dataset.feature) { selection = { kind: "feature", id: button.dataset.feature }; renderContent(); updateHash(); if (matchMedia("(max-width: 1250px)").matches) $("close-detail").focus(); return; }
+    if (button.dataset.session) { selection = { kind: "session", id: button.dataset.session }; if (view !== "map") view = "sessions"; render(); if (matchMedia("(max-width: 1250px)").matches) $("close-detail").focus(); return; }
+    if (["features", "people"].includes(button.dataset.mapGroup)) { mapGrouping = button.dataset.mapGroup; renderContent(); document.querySelector('[data-map-group="' + mapGrouping + '"]').focus({ preventScroll: true }); return; }
+    if (button.dataset.mapExpand) { $("work-content").querySelectorAll("details[data-map-node]").forEach((node) => { node.open = button.dataset.mapExpand === "all"; if (node.open) collapsedMapNodes.delete(node.dataset.mapNode); else collapsedMapNodes.add(node.dataset.mapNode); }); return; }
     if (button.dataset.copySetup) { await copy(setupValues()[button.dataset.copySetup]); return; }
     if (button.dataset.removeComment && canWrite()) {
       const item = data.features.find((feature) => feature.id === selection?.id);
@@ -522,6 +571,7 @@ document.addEventListener("click", async (event) => {
       }); return;
     }
     const action = button.dataset.action;
+    if (action === "reset-map-filters") { $("search").value = ""; for (const id of ["owner-filter", "status-filter", "priority-filter"]) $(id).value = "all"; $("show-archived").checked = false; renderContent(); }
     if (action === "add-project") openProject();
     if (action === "new-feature") openFeature();
     if (action === "show-active") { $("show-archived").checked = false; renderContent(); }
@@ -562,7 +612,7 @@ for (const [id, path] of [["create-team-form", "/api/teams"], ["join-team-form",
     formAction(form, async () => {
       const result = await api(path, { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(form))) });
       teamId = result.team.id; invitation = ""; members = [];
-      history.replaceState(null, "", location.pathname + (authorizationId ? "?authorize=" + encodeURIComponent(authorizationId) : "")); form.reset(); view = "work";
+      history.replaceState(null, "", location.pathname + (authorizationId ? "?authorize=" + encodeURIComponent(authorizationId) : "")); form.reset(); view = "map";
       await load(); toast(id === "create-team-form" ? "Team created." : "You joined the team.");
     });
   });
@@ -571,7 +621,7 @@ $("project-form").addEventListener("submit", (event) => {
   event.preventDefault(); if (!canWrite()) return;
   formAction(event.currentTarget, async () => {
     const result = await api("/api/teams/" + teamId + "/projects", { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData($("project-form")))) });
-    projectId = result.project.id; selection = null; view = "work"; $("project-dialog").close(); await load(); toast("Project added. You can now plan features.");
+    projectId = result.project.id; selection = null; view = "map"; $("project-dialog").close(); await load(); toast("Project added. You can now plan features.");
   });
 });
 $("feature-form").addEventListener("submit", (event) => {
@@ -629,8 +679,18 @@ $("feature-form").elements.branch.closest("label").insertAdjacentHTML("beforebeg
 $("sort").insertAdjacentHTML("beforeend", '<option value="priority">Priority first</option><option value="due">Due date</option>');
 $("detail").addEventListener("change", (event) => { if (event.target.matches("[data-check]")) saveChecklist(event.target); });
 $("search").addEventListener("input", renderContent);
+$("work-content").addEventListener("toggle", (event) => {
+  const node = event.target;
+  if (!node.matches("details[data-map-node]") || !node.isConnected) return;
+  if (node.open) collapsedMapNodes.delete(node.dataset.mapNode); else collapsedMapNodes.add(node.dataset.mapNode);
+}, true);
 for (const id of ["owner-filter", "status-filter", "sort", "priority-filter", "show-archived"]) $(id).addEventListener("change", renderContent);
-$("close-detail").addEventListener("click", () => { selection = null; renderContent(); updateHash(); });
+function closeDetail() {
+  const previous = selection;
+  selection = null; renderContent(); updateHash();
+  if (previous) document.querySelector('[data-' + previous.kind + '="' + CSS.escape(previous.id) + '"]')?.focus({ preventScroll: true });
+}
+$("close-detail").addEventListener("click", closeDetail);
 $("sidebar-add-project").addEventListener("click", openProject);
 $("new-feature").addEventListener("click", () => openFeature());
 $("export-project").addEventListener("click", exportProject);
@@ -677,7 +737,7 @@ async function logout() {
   try { if (!demo) await api("/api/auth/logout", { method: "POST" }); }
   catch (error) { toast(error.message, true); return; }
   commentDrafts.clear(); issuedKey = ""; connections = []; $("agent-key-value").value = ""; document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
-  requestSequence++; busyLoad = false; demo = false; members = []; fingerprint = ""; selection = null; view = "work";
+  requestSequence++; busyLoad = false; demo = false; members = []; fingerprint = ""; selection = null; view = "map";
   data = { user: null, teams: [], projects: [], features: [], sessions: [] };
   teamId = ""; projectId = ""; localStorage.removeItem("collavibe-team"); localStorage.removeItem("collavibe-project");
   history.replaceState(null, "", location.pathname + (authorizationId ? "?authorize=" + encodeURIComponent(authorizationId) : "")); $("search").value = ""; setAuthMode("login"); showGate("auth");
@@ -685,7 +745,7 @@ async function logout() {
 $("logout").addEventListener("click", logout);
 $("team-logout").addEventListener("click", logout);
 async function leaveSample() {
-  requestSequence++; busyLoad = false; demo = false; members = []; fingerprint = ""; selection = null; view = "work";
+  requestSequence++; busyLoad = false; demo = false; members = []; fingerprint = ""; selection = null; view = "map";
   data = { user: null, teams: [], projects: [], features: [], sessions: [] };
   teamId = localStorage.getItem("collavibe-team") || ""; projectId = localStorage.getItem("collavibe-project") || "";
   const url = new URL(location.href); url.searchParams.delete("demo"); url.hash = "";
@@ -696,7 +756,7 @@ async function leaveSample() {
 $("exit-demo").addEventListener("click", leaveSample);
 function enterDemo() {
   requestSequence++; busyLoad = false; demo = true; data = sampleWorkspace();
-  members = data.members; memberError = ""; teamId = data.selectedTeam.id; projectId = data.projects[0].id; view = "work"; selection = null;
+  members = data.members; memberError = ""; teamId = data.selectedTeam.id; projectId = data.projects[0].id; view = "map"; selection = null;
   $("connection-label").textContent = "Sample data"; $("connection-label").classList.remove("offline"); $("load-error").hidden = true;
   $("search").value = ""; $("owner-filter").value = "all"; $("status-filter").value = "all";
   showGate("workspace"); render();
@@ -706,8 +766,8 @@ document.querySelectorAll("dialog").forEach((dialog) => {
   dialog.addEventListener("click", (event) => { if (event.target !== dialog) return; const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) { if (dialog.id === "confirm-dialog") $("confirm-cancel").click(); else dialog.close(); } });
 });
 document.addEventListener("keydown", (event) => {
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k" && !$("workspace").hidden && !document.querySelector("dialog[open]")) { event.preventDefault(); if (view === "team") switchView("work"); $("search").focus(); }
-  if (event.key === "Escape" && !document.querySelector("dialog[open]")) { selection = null; $("detail-pane").hidden = true; const navWasOpen = $("workspace").classList.contains("mobile-nav"); setMobileNav(false); if (navWasOpen) $("mobile-projects").focus(); updateHash(); }
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k" && !$("workspace").hidden && !document.querySelector("dialog[open]")) { event.preventDefault(); if (view === "team") switchView("map"); $("project-filters").open = true; $("search").focus(); }
+  if (event.key === "Escape" && !document.querySelector("dialog[open]")) { const navWasOpen = $("workspace").classList.contains("mobile-nav"); setMobileNav(false); if (selection) closeDetail(); if (navWasOpen) $("mobile-projects").focus(); updateHash(); }
 });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !demo && !$("workspace").hidden) load({ quiet: true }); });
 window.addEventListener("online", () => { if (!demo) load(); });
