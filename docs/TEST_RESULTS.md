@@ -5,7 +5,8 @@
 - TypeScript, JavaScript syntax, whitespace checks, and all 56 automated tests pass. Seven new repository-presentation tests distinguish saved links, real agent snapshots, and fictional sample data; they also cover SSH URLs, other Git providers, missing snapshot fields, and unsafe or credential-bearing links.
 - Chrome local browser QA passed signup, team creation, project creation, persistence after reload, the linked repository section, no-snapshot guidance, and opening Connect agent from the repository section. All writes used an isolated local state file, not Team1's cloud records.
 - Chrome at 390 x 844 showed a 390 px document width. Mobile navigation, the labeled logout action, and logout resetting the menu's expanded state were checked. The sample-to-workspace action restored the signed-in local account; leaving a sample without a session returned to login. No warning/error browser logs were recorded in this run.
-- These changes affect presentation and navigation, not the hosted MCP protocol, database schema, or GitHub access permissions. Deployment verification is recorded separately below when completed.
+- Preview runtime commit: `42764f9`. Vercel deployment `dpl_2wXnWdh3uxV2zuCCU7CZwoA1FHXr` is Ready at https://collavibe-771w81r48-shayan-ahmads-projects.vercel.app. Preview browser checks passed repository presentation and mobile navigation, including the inert background and expanded state. The document width matched the 390 px viewport. One Chrome-extension message-listener error was recorded; no application-origin error was observed in that check.
+- These changes affect presentation and navigation, not the hosted MCP protocol, database schema, or GitHub access permissions. Only the feature branch was pushed. The stable production alias has not been changed by this UI deployment; production publication awaits approval.
 
 ## Released v0.8.0: lifecycle and discussion
 
