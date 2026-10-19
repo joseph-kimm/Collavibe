@@ -7,6 +7,8 @@
 - Landing workflow switches between start/build/sync, updates the explanation, and responds to Enter. Copy example prompt displayed success, and the actual saved prompt was pasted into a local test name field to verify clipboard contents, then cleared without submitting it.
 - At 320 and 390 CSS px, the document width matched the viewport. Primary landing actions measured 50 px tall. The mobile workspace menu and logout worked; account actions focused the correct field. No local browser warning/error logs were observed. Invitation and agent-authorization links scrolled directly to the real account form and displayed the correct context without printing invitation/auth tokens.
 - These checks are browser-emulated and do not claim universal physical-device or assistive-technology coverage. The legacy explicit `?demo=1` route remains available for internal regression testing; it is no longer linked from the homepage.
+- Runtime `f1b25f0` passed Vercel preview QA at https://collavibe-p2lgxwgsu-shayan-ahmads-projects.vercel.app (`dpl_99rBHhxRvCBp6foUJ8mACM2jKa9e`): workflow switching/copy feedback, real signup-mode field focus, 27 hydrated local icons, no sample entry, and 320 px reflow. A Chrome-extension listener error was observed; no application-origin error was observed.
+- Its production deployment `dpl_5j9CYWmcJNXpCeF6V4G9uk9F4gU8` reached Ready at https://collavibe.vercel.app. Signed-out production controls responded correctly; the existing signed-in member session still opened Team1's real project map with one feature, one synced session, two commits, the final recorded branch, and four completed checklist items. No production writes or sign-outs were used for this verification.
 
 ## Interactive map and readability - October 19, 2026
 
