@@ -1,5 +1,13 @@
 # Workspace
 
+## Public homepage and shared controls
+
+The signed-out homepage now introduces the real start/build/handoff workflow rather than linking into a fictional shared workspace. Three selectable stages show example agent prompts, explain the resulting shared context, and copy the selected prompt. These are explanations, not simulated API calls or fabricated team activity. Create a workspace and Log in scroll to the real account form, switch its mode, and focus the correct field. Existing sign-ins still open the actual workspace; invitation and OAuth links take signed-out visitors directly to the account section with appropriate context.
+
+The visual system uses warm neutral surfaces, forest-green actions, consistent button states, larger readable type, and selected locally served Lucide line icons. No remote asset hosts, font services, or new frontend dependencies are required. SVG attribution and licenses are in `THIRD_PARTY_NOTICES.md`. Motion is limited to the hero entrance, button feedback, and changing workflow explanations, with reduced-motion support. Homepage examples explicitly distinguish agent-supplied handoffs from automatic source-code access or GitHub monitoring.
+
+Design references: [Radix neutral and accent scales](https://www.radix-ui.com/colors/docs/palette-composition/scales), [GOV.UK button hierarchy](https://design-system.service.gov.uk/components/button/), and [Lucide icon assets and license](https://lucide.dev/license). The layout and CSS are implemented locally; the app does not claim to use the Radix component framework.
+
 ## Interactive project map and readability
 
 Project map is the default view. Native expandable disclosures connect projects to features and recorded sessions, or group those same relationships by contributor. Feature nodes open the existing checklist/discussion inspector; session nodes open handoffs, decisions, next steps, commits, and changed files without leaving the map. Expand/collapse, search, person/status/priority filters, archive views, empty states, and URL-linked inspectors work with the existing saved data. The map is a work-relationship tree, not an invented Git merge graph. People are recorded participants or assigned owners; assignment alone does not prove a contribution. Team members with no recorded work are not fabricated as contributors.
@@ -53,7 +61,7 @@ The server checks membership on each operation. Ownership is checked on team adm
 
 ## Sample workspace
 
-`/?demo=1` or **View a sample workspace** opens fictional data in the browser. Writes are disabled and sample data is never sent to the API. It is separate from signed-in team data. The sample exists to preview the interface without an account.
+The legacy explicit `/?demo=1` route opens fictional browser-only data for internal regression checks. It is not linked from the public homepage. Writes are disabled and sample data is never sent to the API. It is separate from signed-in team data.
 
 ## Availability
 

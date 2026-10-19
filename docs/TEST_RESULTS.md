@@ -1,5 +1,13 @@
 # QA results
 
+## Public landing page and design system - October 19, 2026
+
+- All 77 automated tests across nine files and TypeScript checks pass. Eight new homepage cases cover the absence of a sample-workspace entry, unique HTML identifiers, all three workflow stages, account-mode/focus behavior, invitation and authorization context, reduced motion, clipboard failure fallback, and the SVG allowlist. Browser-JavaScript syntax and whitespace checks also pass.
+- Local Chrome QA on isolated data passed account creation, team creation, repository-link/project creation, feature/checklist creation, reload persistence, logout, and a second login. No production records were created or edited. The existing app now uses the same button and icon treatments as the landing page.
+- Landing workflow switches between start/build/sync, updates the explanation, and responds to Enter. Copy example prompt displayed success, and the actual saved prompt was pasted into a local test name field to verify clipboard contents, then cleared without submitting it.
+- At 320 and 390 CSS px, the document width matched the viewport. Primary landing actions measured 50 px tall. The mobile workspace menu and logout worked; account actions focused the correct field. No local browser warning/error logs were observed. Invitation and agent-authorization links scrolled directly to the real account form and displayed the correct context without printing invitation/auth tokens.
+- These checks are browser-emulated and do not claim universal physical-device or assistive-technology coverage. The legacy explicit `?demo=1` route remains available for internal regression testing; it is no longer linked from the homepage.
+
 ## Interactive map and readability - October 19, 2026
 
 - All 69 automated tests across eight files, TypeScript, browser-JavaScript syntax, and whitespace checks pass. New pure-model cases cover project scoping, multiple contributors, assignment versus session evidence, contributor/status/priority/archive/search filters, unlinked sessions, deduplicated commit counts, empty data, corrected final-branch display, coherent demo branches, and a small-font regression guard.

@@ -1,6 +1,8 @@
 import { sampleWorkspace } from "./demo.js";
 import { repositoryPresentation } from "./repository-ui.js";
 import { buildProjectMap, sessionBranch } from "./project-map.js";
+import { hydrateIcons, icon } from "./icons.js";
+import { initializeLanding } from "./landing.js";
 
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[c]);
@@ -62,6 +64,9 @@ function showGate(which) {
   $("team-gate").hidden = which !== "team";
   $("workspace").hidden = which !== "workspace";
   $("consent-gate").hidden = which !== "consent";
+  if (which === "auth" && (authorizationId || invitation)) {
+    $("account").scrollIntoView({ block: "start" });
+  }
 }
 function toast(message, error = false) {
   clearTimeout(toastTimer);
@@ -241,7 +246,7 @@ function render() {
   updateHash();
 }
 function empty(title, message, actions = "") {
-  return `<div class="empty-state"><span class="empty-index" aria-hidden="true">[ ]</span><h2>${e(title)}</h2><p>${e(message)}</p>${actions ? '<div class="empty-actions">' + actions + "</div>" : ""}</div>`;
+  return `<div class="empty-state"><span class="empty-index" aria-hidden="true">${icon("network")}</span><h2>${e(title)}</h2><p>${e(message)}</p>${actions ? '<div class="empty-actions">' + actions + "</div>" : ""}</div>`;
 }
 function selected(kind, id) { return selection?.kind === kind && selection.id === id; }
 function compare(a, b) {
@@ -301,7 +306,7 @@ function renderMap(project, query) {
   model.entries.sort((a, b) => compare(a.feature, b.feature));
   for (const group of model.groups) group.entries.sort((a, b) => compare(a.feature, b.feature));
   const summary = model.summary;
-  const root = `<div class="map-root"><span class="map-root-icon" aria-hidden="true">⌘</span><div><p class="map-eyebrow">${demo ? "Sample project" : "Project"}</p><h2>${e(project.name)}</h2></div><dl class="map-stats"><div><dt>Features</dt><dd>${summary.features}</dd></div><div><dt>People</dt><dd>${summary.people}</dd></div><div><dt>Saved handoffs</dt><dd>${summary.handoffs}</dd></div><div><dt>Recorded commits</dt><dd>${summary.commits}</dd></div></dl></div>`;
+  const root = `<div class="map-root"><span class="map-root-icon" aria-hidden="true">${icon("git-branch")}</span><div><p class="map-eyebrow">${demo ? "Sample project" : "Project"}</p><h2>${e(project.name)}</h2></div><dl class="map-stats"><div><dt>Features</dt><dd>${summary.features}</dd></div><div><dt>People</dt><dd>${summary.people}</dd></div><div><dt>Saved handoffs</dt><dd>${summary.handoffs}</dd></div><div><dt>Recorded commits</dt><dd>${summary.commits}</dd></div></dl></div>`;
   const controls = `<div class="map-controls"><div class="map-grouping" role="group" aria-label="Group project map"><button class="button compact" type="button" data-map-group="features" aria-pressed="${mapGrouping === "features"}">By feature</button><button class="button compact" type="button" data-map-group="people" aria-pressed="${mapGrouping === "people"}">By contributor</button></div><div class="map-expansion"><button class="text-button" type="button" data-map-expand="all">Expand all</button><button class="text-button" type="button" data-map-expand="none">Collapse all</button></div></div>`;
   let branches = "";
   if (mapGrouping === "features") branches = model.entries.map((entry) => mapFeatureNode(entry)).join("");
@@ -761,7 +766,8 @@ function enterDemo() {
   $("search").value = ""; $("owner-filter").value = "all"; $("status-filter").value = "all";
   showGate("workspace"); render();
 }
-$("view-demo").addEventListener("click", enterDemo);
+hydrateIcons();
+initializeLanding({ setAuthMode, copy, invitation, authorizationId });
 document.querySelectorAll("dialog").forEach((dialog) => {
   dialog.addEventListener("click", (event) => { if (event.target !== dialog) return; const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) { if (dialog.id === "confirm-dialog") $("confirm-cancel").click(); else dialog.close(); } });
 });
