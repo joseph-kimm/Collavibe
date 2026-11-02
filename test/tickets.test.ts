@@ -55,7 +55,7 @@ describe("planning tickets and human approval", () => {
     await server.connect(serverTransport); await client.connect(clientTransport);
     try {
       const tools = (await client.listTools()).tools.map(tool => tool.name);
-      expect(tools).toEqual(["get_collaboration_plan", "propose_project_tickets"]);
+      expect(tools).toEqual(["get_collaboration_plan", "propose_project_tickets", "get_brainstorm_context", "save_brainstorm_summary"]);
       const proposed = await client.callTool({ name: "propose_project_tickets", arguments: { projectId: f.projectId, requestId: "mcp_proposal_001", proposals: [{ title: "Test the empty state", assigneeId: f.member.id }] } });
       expect(proposed.isError).not.toBe(true);
       const records = (proposed.structuredContent as { proposals: { payload: { status: string; assigneeId: unknown } }[] }).proposals;

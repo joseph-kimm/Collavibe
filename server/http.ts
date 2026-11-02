@@ -30,8 +30,10 @@ if (process.env.COLLAVIBE_QA_TRACE === "1") app.use((req, res, next) => {
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "same-origin");
-  res.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
-  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
+  // Recording still requires an explicit button, participant-consent checkbox,
+  // and the browser's permission. No third-party frame gets microphone access.
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(self), geolocation=()");
   if (req.path === "/mcp" && req.headers.origin) {
     // Browser MCP clients use bearer auth, never browser session cookies here.
     // Keep the unauthenticated local-development transport same-origin only.

@@ -26,4 +26,21 @@
 .ticket-editor > summary { cursor: pointer; padding: 12px 0; color: var(--accent); font-weight: 550; }
 .ticket-form { margin-top: 18px; max-width: 650px; }
 .collaboration-status { margin-top: 18px; }
+.meeting-choices { display: flex; gap: 10px; flex-wrap: wrap; margin: 24px 0; }
+.meeting-choices [aria-current] { border-color: var(--accent); background: var(--accent-soft); }
+.meeting-form { max-width: 800px; }
+.meeting-form .checkbox-label { align-items: flex-start; font-weight: 400; line-height: 1.6; }
+.meeting-form .checkbox-label input { margin-top: 4px; flex-shrink: 0; min-height: 18px; }
+.audio-recorder { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 20px 0; }
+.audio-recorder p { margin: 12px 0; color: var(--muted); }
+.audio-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+.audio-upload { max-width: 100%; font-size: 15px !important; }
+.audio-upload input { max-width: 100%; }
+.audio-recorder audio { display: block; width: min(100%,420px); margin-top: 18px; }
+.speaker-names { border: 1px solid var(--line); border-radius: 8px; padding: 20px; display: grid; gap: 14px; min-width: 0; }
+.speaker-names legend { font-weight: 550; padding-inline: 6px; }
+.speaker-segments summary { cursor: pointer; padding: 12px 0; }
+.speaker-segments p { padding: 12px 0; border-bottom: 1px solid var(--line); white-space: pre-wrap; }
+.meeting-next { padding-top: 26px; margin-top: 26px; border-top: 1px solid var(--line); max-width: 800px; }
+.meeting-next p { margin: 12px 0 18px; }
 @media (max-width:700px) { .collaboration-page { padding: 24px 20px 44px; } .ticket-toolbar { gap: 14px; } .ticket-proposal-review { padding: 14px; } }

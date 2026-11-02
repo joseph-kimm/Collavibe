@@ -3,12 +3,26 @@ import type { Express, NextFunction, Request, RequestHandler, Response } from "e
 import { sessionLearning, writeReflection, writeSessionReply, removeLearningEntry } from "../src/session-learning.js";
 import type { Actor } from "../src/collaboration-records.js";
 import { listTickets, createTicket, changeTicket } from "../src/tickets.js";
+import express from "express";
+import { collaborationScope } from "../src/collaboration-records.js";
+import { createMeeting, editMeeting, listMeetings } from "../src/meetings.js";
+import { audioAvailability, transcribeMeetingAudio } from "./meeting-audio.js";
+import { requestLimit } from "./request-limits.js";
 
 type AuthRequest = Request & { collavibeUser?: Actor };
 const route = (handler: (req: AuthRequest, res: Response) => Promise<unknown>): RequestHandler => (req, res, next: NextFunction) => { Promise.resolve(handler(req as AuthRequest, res)).catch(next); };
 const params = (req: Request) => [String(req.params.teamId), String(req.params.projectId), String(req.params.sessionId)] as const;
 
 export function registerCollaborationRoutes(app: Express, requireUser: RequestHandler) {
+  const meetingsPath = "/api/teams/:teamId/projects/:projectId/meetings";
+  app.get(meetingsPath, requireUser, route(async (req, res) => { res.json({ meetings: await listMeetings(req.collavibeUser!, String(req.params.teamId), String(req.params.projectId)), audio: audioAvailability() }); }));
+  app.post(meetingsPath, requireUser, route(async (req, res) => { res.status(201).json({ meeting: await createMeeting(req.collavibeUser!, String(req.params.teamId), String(req.params.projectId), req.body) }); }));
+  app.patch(meetingsPath + "/:meetingId", requireUser, route(async (req, res) => { res.json({ meeting: await editMeeting(req.collavibeUser!, String(req.params.teamId), String(req.params.projectId), String(req.params.meetingId), req.body) }); }));
+  app.post(meetingsPath + "/transcribe/audio", requireUser, requestLimit("meeting-audio", 8, 600), express.raw({ type: () => true, limit: "3mb" }), route(async (req, res) => {
+    await collaborationScope(req.collavibeUser!, String(req.params.teamId), String(req.params.projectId));
+    const bytes = Buffer.isBuffer(req.body) ? req.body : new Uint8Array();
+    res.json(await transcribeMeetingAudio(bytes, String(req.headers["content-type"] || ""), req.headers["x-recording-consent"] === "confirmed"));
+  }));
   const ticketsPath = "/api/teams/:teamId/projects/:projectId/tickets";
   app.get(ticketsPath, requireUser, route(async (req, res) => { res.json({ tickets: await listTickets(req.collavibeUser!, String(req.params.teamId), String(req.params.projectId)) }); }));
   app.post(ticketsPath, requireUser, route(async (req, res) => { res.status(201).json({ ticket: await createTicket(req.collavibeUser!, String(req.params.teamId), String(req.params.projectId), req.body) }); }));
