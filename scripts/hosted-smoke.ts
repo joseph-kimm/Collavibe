@@ -113,7 +113,7 @@ try {
   await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`), { requestInit: { headers: { authorization: "Bearer " + token } } }));
 
   const tools = await client.listTools();
-  assert(tools.tools.length === 5, `Expected five hosted tools, received ${tools.tools.length}.`);
+  assert(tools.tools.length === 9, `Expected nine hosted tools, received ${tools.tools.length}.`);
   assert(tools.tools.some((tool) => tool.name === "sync_collaboration_session"), "Hosted sync tool is missing.");
 
   const startedResponse = await client.callTool({

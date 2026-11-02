@@ -66,7 +66,7 @@ COLLAVIBE_SMOKE_URL=https://collavibe.vercel.app \
   node --env-file=.env.local --import tsx scripts/hosted-smoke.ts
 ```
 
-The script creates a disposable user and team, connects to the remote `/mcp` endpoint, discovers five tools, completes start, choose, template, and sync across stateless requests, and confirms that the project, completed checklist, and `agent_attested` evidence appear in the dashboard. Its `finally` block removes the disposable session, feature, project, team, and account.
+The script creates a disposable user and team, connects to the remote `/mcp` endpoint, discovers nine tools, completes start, choose, template, and sync across stateless requests, and confirms that the project, completed checklist, and `agent_attested` evidence appear in the dashboard. Its `finally` block removes the disposable session, feature, project, team, and account.
 
 ## Real-agent smoke test
 

@@ -16,7 +16,7 @@ export async function mountMeetings(host, context) {
     meetings = next.meetings; audio = next.audio; render();
   }
   function remember(form) {
-    draft = { ...draft, title: form.elements.title.value, transcript: form.elements.transcript.value, summary: form.elements.summary.value, consentConfirmed: form.elements.consentConfirmed.checked };
+    draft = { ...draft, title: form.elements.title.value, transcript: form.elements.transcript.value, summary: form.elements.summary.value, consentConfirmed: form.elements.consentConfirmed.checked, speakersReviewed: form.elements.speakersReviewed.checked, speakers: Object.fromEntries([...form.querySelectorAll("[data-speaker-id]")].map(input => [input.dataset.speakerId, input.value])) };
     drafts.set(key, draft);
   }
   function render() {

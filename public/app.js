@@ -117,6 +117,9 @@ async function formAction(form, action) {
 function canWrite() { if (demo) { toast("This is a sample workspace. Log in to make changes."); return false; } return true; }
 async function load({ quiet = false } = {}) {
   if (demo || (quiet && busyLoad)) return;
+  // A teammate's background update must not replace a form or stop a meeting
+  // recording mid-session. These views reload after their own saves or Refresh.
+  if (quiet && (["tickets", "meetings", "portfolio"].includes(view) || selection?.kind === "session")) return;
   const sequence = ++requestSequence;
   busyLoad = true;
   if (!quiet) $("refresh").disabled = true;

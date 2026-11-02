@@ -4,7 +4,7 @@ Collavibe is an agent-agnostic MCP server for collaborative coding. It gives an 
 
 Hosted workspace: **https://collavibe.vercel.app**
 
-The v0.8 workspace supports priorities, due dates, feature discussions, and recoverable project/feature archives. See [workspace usage](docs/WORKSPACE.md) and [executed QA results](docs/TEST_RESULTS.md) for behavior, permissions, and current limits.
+The v0.9 branch adds session learning journals and replies, assignable tickets with human-reviewed agent suggestions, consent-based speaker-labeled meeting transcription, reviewed public portfolios and feedback, and a separate ten-hour course site with private intake and author-controlled stories. Apply the new database migration before enabling these features. See [collaboration and course usage](docs/COLLABORATION_AND_COURSE.md), [workspace usage](docs/WORKSPACE.md), and [executed QA results](docs/TEST_RESULTS.md) for behavior, permissions, and deployment status.
 
 The agent does the language work. Collavibe provides the durable coordination layer:
 
@@ -37,6 +37,10 @@ Supabase Auth stores account credentials, browser sessions use `HttpOnly`, `Same
 | `choose_work_item` | Tool | Claim an existing feature or define a new one with a checklist. |
 | `get_sync_template` | Tool | Tell the agent exactly what to summarize from the chat. |
 | `sync_collaboration_session` | Tool | Save the summary and agent-attested final Git changes. |
+| `get_collaboration_plan` | Tool | Read intended work and pending suggestions. |
+| `propose_project_tickets` | Tool | Propose unassigned tasks for human review. |
+| `get_brainstorm_context` | Tool | Read a saved team meeting and reviewed speaker attribution. |
+| `save_brainstorm_summary` | Tool | Save an agent-authored summary draft for review. |
 | `start` | Prompt | Client-visible start workflow; appears as a slash command in clients that support MCP prompts. |
 | `sync` | Prompt | Client-visible end-of-session workflow. |
 

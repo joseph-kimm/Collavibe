@@ -97,6 +97,6 @@ All workspace routes require the browser session cookie except readiness. Team m
 
 ## Verification
 
-`npm run check` runs the TypeScript checks and local automated contracts. `scripts/hosted-smoke.ts` exercises the cloud workspace API and five hosted MCP tools. `scripts/access-smoke.ts` checks OAuth, team/session isolation, revocation, and concurrency. `scripts/workspace-smoke.ts` checks lifecycle/discussion persistence, legacy-edit compatibility, service-only RPC permissions, and archive/claim races. All three scripts use disposable records and remove only their own fixtures.
+`npm run check` runs the TypeScript checks and local automated contracts. `scripts/hosted-smoke.ts` exercises the cloud workspace API and nine hosted MCP tools. `scripts/access-smoke.ts` checks OAuth, team/session isolation, revocation, and concurrency. `scripts/workspace-smoke.ts` checks lifecycle/discussion persistence, legacy-edit compatibility, service-only RPC permissions, and archive/claim races. All three scripts use disposable records and remove only their own fixtures.
 
 The client setup guidance follows [OpenAI's MCP setup](https://developers.openai.com/learn/docs-mcp), [Claude's remote connector guidance](https://support.anthropic.com/en/articles/11175166-about-custom-integrations-using-remote-mcp), and [Cursor's MCP documentation](https://docs.cursor.com/context/model-context-protocol).
