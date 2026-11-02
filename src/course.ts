@@ -10,7 +10,7 @@ export async function courseAccount(actor:Actor) {
   // orientation metadata, not invite codes, repository details, or teammate data.
   const {getDashboard}=await import("./store.js");const {cloudDashboard,isSupabaseConfigured}=await import("./supabase.js");
   const dashboard=isSupabaseConfigured()?await cloudDashboard({...actor,email:actor.email||"",createdAt:actor.createdAt||new Date().toISOString()}):await getDashboard(actor.id);
-  return {name:actor.name,teams:dashboard.teams.map(team=>({id:team.id,name:team.name,organizer:team.ownerUserId===actor.id}))};
+  return {id:actor.id,name:actor.name,teams:dashboard.teams.map(team=>({id:team.id,name:team.name,organizer:team.ownerUserId===actor.id}))};
 }
 
 export async function ownIntake(actor:Actor,teamId:string) {

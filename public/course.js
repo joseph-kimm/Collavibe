@@ -26,4 +26,5 @@ async function load() {
     document.dispatchEvent(new CustomEvent("course-ready"));
   }catch(error){$("course-status").textContent=error.message;}
 }
-load();
+// Load the story module before emitting readiness events, without a circular import.
+import("./course-stories.js").then(load);
