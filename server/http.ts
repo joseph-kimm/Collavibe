@@ -17,6 +17,7 @@ import type { NextFunction, Request, Response } from "express";
 import { addRemoteProject, createPlannedFeature, listTeamMembers, removeTeamMember, rotateTeamCode, updatePlannedFeature, updateTeamName, updateWorkspaceProject, workspaceFeatureAction } from "../src/store.js";
 import { cloudAddProject, cloudCreateFeature, cloudEditFeature, cloudMembers, cloudReadiness, cloudRemoveMember, cloudRotateCode, cloudUpdateTeam, cloudUpdateProject, cloudFeatureAction } from "../src/cloud-workspace.js";
 import { featureActionSchema, featureFields, featurePatchSchema, projectPatchSchema, WorkspaceError } from "../src/workspace-model.js";
+import { registerCollaborationRoutes } from "./collaboration-routes.js";
 
 export const app = express();
 app.disable("x-powered-by");
@@ -318,6 +319,7 @@ for (const method of ["get", "delete"] as const) {
 app.get("/health", (_req, res) => res.json({ ok: true, service: "collavibe", version: "0.8.0", mode: isSupabaseConfigured() ? "hosted-mcp" : "local" }));
 
 const publicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
+registerCollaborationRoutes(app, requireUser);
 app.use(express.static(publicDirectory));
 
 app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {

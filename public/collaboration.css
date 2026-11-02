@@ -1,0 +1,11 @@
+.learning-journal { margin-top: 28px; border-top: 1px solid var(--line); padding-top: 24px; }
+.learning-journal > .subtle { margin: 12px 0 20px; }
+.learning-journal small { color: var(--muted); line-height: 1.6; }
+.learning-journal .checkbox-label { font-weight: 400; align-items: flex-start; line-height: 1.5; }
+.learning-journal .checkbox-label input { min-height: 18px; margin-top: 3px; flex-shrink: 0; }
+.learning-threads { margin-top: 28px; }
+.learning-thread { padding: 22px 0; border-top: 1px solid var(--line); }
+.learning-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 10px 0; }
+.learning-reply { border-left: 2px solid var(--line); padding: 8px 0 8px 16px; margin: 18px 0; }
+.learning-reply .text-button { margin-right: 14px; }
+.learning-reply-form { margin-top: 18px; }

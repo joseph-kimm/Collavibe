@@ -373,7 +373,7 @@ export async function workspaceFeatureAction(user: { id: string; name: string },
   });
 }
 
-async function mutate<T>(operation: (state: CollavibeState) => Promise<T> | T): Promise<T> {
+export async function mutate<T>(operation: (state: CollavibeState) => Promise<T> | T): Promise<T> {
   let result!: T;
   writeQueue = writeQueue.catch(() => undefined).then(async () => {
     await withStateLock(async () => {

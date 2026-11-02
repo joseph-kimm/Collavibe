@@ -3,6 +3,7 @@ import { repositoryPresentation } from "./repository-ui.js";
 import { buildProjectMap, sessionBranch } from "./project-map.js";
 import { hydrateIcons, icon } from "./icons.js";
 import { initializeLanding } from "./landing.js";
+import { mountSessionLearning } from "./session-learning.js";
 
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[c]);
@@ -374,6 +375,12 @@ function renderDetail() {
     $("detail").querySelector(".detail-actions").insertAdjacentHTML("beforeend", `<button type="button" class="text-button" data-action="archive-feature" ${demo || currentProject()?.archivedAt ? "disabled" : ""}>${item.archivedAt ? "Restore feature" : "Archive feature"}</button>`);
     $("detail").insertAdjacentHTML("beforeend", `<section class="detail-section discussion"><h3>Discussion <span class="subtle">${item.comments?.length || 0}</span></h3>${(item.comments || []).map((comment) => `<article class="comment"><div class="comment-heading"><strong>${e(comment.author)}</strong><time datetime="${e(comment.createdAt)}">${e(date(comment.createdAt))}</time></div><p>${e(comment.text)}</p>${!demo && !readOnly && (comment.userId === data.user.id || data.selectedTeam.ownerUserId === data.user.id) ? '<button type="button" class="text-button" data-remove-comment="' + e(comment.id) + '">Remove comment</button>' : ''}</article>`).join("") || '<p class="subtle">Questions, decisions, and context for your teammates. Agents can read these when starting work.</p>'}${!readOnly ? `<form id="comment-form" class="form"><label for="comment-text">Add a comment</label><textarea id="comment-text" name="text" rows="3" maxlength="2000" required ${demo ? "disabled" : ""}>${e(commentDrafts.get(item.id) || "")}</textarea><p class="form-error" role="alert"></p><button class="button" type="submit" ${demo ? "disabled" : ""}>Post comment</button></form>` : '<p class="subtle">Restore this feature and project to continue the discussion.</p>'}</section>`);
     if (commentFocus && $("comment-text")) { $("comment-text").focus({ preventScroll: true }); $("comment-text").setSelectionRange(commentFocus.start, commentFocus.end); }
+  }
+  if (!isFeature && !demo) {
+    const journal = document.createElement("section");
+    journal.className = "learning-journal";
+    $("detail").append(journal);
+    mountSessionLearning(journal, { teamId, projectId, sessionId: item.id, userId: data.user.id, owner: data.selectedTeam.ownerUserId === data.user.id, api, readOnly: !!currentProject()?.archivedAt });
   }
 }
 function renderTeam() {

@@ -153,6 +153,7 @@ export interface TeamProject {
 }
 
 export interface CollavibeState {
+  collaborationRecords?: import("./collaboration-records.js").CollaborationRecord[];
   projects: Project[];
   features: Feature[];
   sessions: CollaborationSession[];
