@@ -63,6 +63,8 @@ describe("MCP contract", () => {
       "choose_work_item",
       "get_sync_template",
       "sync_collaboration_session",
+      "get_collaboration_plan",
+      "propose_project_tickets",
     ]);
     const start = tools.tools.find((tool) => tool.name === "start_collaboration_session")!;
     expect(start.inputSchema.required).toEqual(["project"]);

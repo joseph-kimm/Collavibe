@@ -9,3 +9,21 @@
 .learning-reply { border-left: 2px solid var(--line); padding: 8px 0 8px 16px; margin: 18px 0; }
 .learning-reply .text-button { margin-right: 14px; }
 .learning-reply-form { margin-top: 18px; }
+.collaboration-page { padding: 28px 32px 60px; max-width: 1100px; }
+.collaboration-intro h2 { font-size: 23px; margin-bottom: 12px; }
+.collaboration-intro p { color: var(--muted); max-width: 720px; }
+.ticket-toolbar { display: flex; gap: 20px; flex-wrap: wrap; padding: 24px 0; border-bottom: 1px solid var(--line); }
+.ticket-toolbar label { display: grid; gap: 8px; flex: 1; min-width: 170px; }
+.ticket-toolbar input, .ticket-toolbar select, .ticket-proposal-review select { min-height: 44px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 7px; background: white; }
+.ticket-row { border-bottom: 1px solid var(--line); padding: 22px 0; }
+.ticket-row-heading { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.ticket-row-heading h3 { font-size: 19px; }
+.ticket-row > .button { margin-top: 14px; }
+.ticket-proposal-review { background: var(--surface); padding: 18px; margin-top: 18px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ticket-proposal-review p { flex-basis: 100%; }
+.ticket-proposal-review label { display: grid; gap: 6px; }
+.ticket-editor { margin-top: 28px; }
+.ticket-editor > summary { cursor: pointer; padding: 12px 0; color: var(--accent); font-weight: 550; }
+.ticket-form { margin-top: 18px; max-width: 650px; }
+.collaboration-status { margin-top: 18px; }
+@media (max-width:700px) { .collaboration-page { padding: 24px 20px 44px; } .ticket-toolbar { gap: 14px; } .ticket-proposal-review { padding: 14px; } }

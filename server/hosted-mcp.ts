@@ -4,6 +4,7 @@ import { chooseHostedWorkItem, getHostedSyncTemplate, getHostedTeamContext, star
 import { withoutInternalGitEvidence } from "../src/public.js";
 import type { GitSnapshot } from "../src/types.js";
 import type { AgentIdentity } from "../src/agent-access.js";
+import { registerPlanningTools } from "./planning-tools.js";
 
 function result(message: string, structuredContent: Record<string, unknown>) {
   const publicContent = withoutInternalGitEvidence(structuredContent);
@@ -151,5 +152,6 @@ export function createHostedCollavibeMcpServer(actor: AgentIdentity) {
     messages: [{ role: "user", content: { type: "text", text: `Prepare the end-of-session handoff for Collavibe session ${JSON.stringify(session_id)}. Call get_sync_template, inspect final Git state using your native coding tools, and then call sync_collaboration_session. Clearly state that remote evidence is agent-attested.` } }],
   }));
 
+  registerPlanningTools(server, actor);
   return server;
 }

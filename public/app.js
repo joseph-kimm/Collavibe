@@ -4,6 +4,7 @@ import { buildProjectMap, sessionBranch } from "./project-map.js";
 import { hydrateIcons, icon } from "./icons.js";
 import { initializeLanding } from "./landing.js";
 import { mountSessionLearning } from "./session-learning.js";
+import { mountTickets } from "./tickets.js";
 
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[c]);
@@ -40,7 +41,7 @@ let invitation = new URLSearchParams(location.search).get("join") || "";
 const hash = new URLSearchParams(location.hash.slice(1));
 if (hash.get("team")) teamId = hash.get("team");
 if (hash.get("project")) projectId = hash.get("project");
-if (["map", "work", "sessions", "repository", "team"].includes(hash.get("view"))) view = hash.get("view");
+if (["map", "work", "sessions", "repository", "team", "tickets"].includes(hash.get("view"))) view = hash.get("view");
 if (hash.get("feature")) selection = { kind: "feature", id: hash.get("feature") };
 if (hash.get("session")) { selection = { kind: "session", id: hash.get("session") }; if (view !== "map") view = "sessions"; }
 
@@ -214,13 +215,13 @@ function render() {
   $("demo-banner").hidden = !demo;
   $("project-workspace").hidden = view === "team";
   $("project-workspace").classList.toggle("map-view", view === "map");
-  $("project-filters").hidden = !project;
+  $("project-filters").hidden = !project || view === "tickets";
   const mapFilters = view === "map";
   if ($("project-filters").classList.contains("collapsible") !== mapFilters) $("project-filters").open = !mapFilters;
   $("project-filters").classList.toggle("collapsible", mapFilters);
   $("team-content").hidden = view !== "team";
   document.querySelectorAll("[data-view]").forEach((button) => { if (button.dataset.view === view) button.setAttribute("aria-current", "page"); else button.removeAttribute("aria-current"); });
-  $("view-title").textContent = project ? ({ map: "Project map", work: "Work", sessions: "Sessions", repository: "Branches & files" })[view] || "Work" : "Projects";
+  $("view-title").textContent = project ? ({ map: "Project map", work: "Work", sessions: "Sessions", repository: "Branches & files", tickets: "Tickets" })[view] || "Work" : "Projects";
   $("project-description").textContent = view === "map" && project ? "See who is building what, and where the next person can pick up." : view === "sessions" ? "What changed, what was decided, and where to continue." : view === "repository" ? "The latest repository snapshot shared by your coding agent." : project ? "Features and tasks for " + project.name + "." : "Add a repository to start planning with your team.";
   $("work-count").textContent = currentFeatures().filter((item) => !item.archivedAt).length;
   $("session-count").textContent = currentSessions().length;
@@ -270,6 +271,13 @@ function renderContent() {
     $("detail-pane").hidden = true; return;
   }
   if (view === "repository") { renderRepository(project, query); $("detail-pane").hidden = true; return; }
+  if (view === "tickets") {
+    $("detail-pane").hidden = true;
+    if (demo) { content.innerHTML = empty("Tickets belong to your team", "Sign in to plan work and review agent suggestions."); return; }
+    const ticketTeamId = teamId;
+    mountTickets(content, { api, teamId, projectId, userId: data.user.id, features: currentFeatures(), sessions: currentSessions(), readOnly: !!project.archivedAt, isCurrent: () => view === "tickets" && projectId === project.id && teamId === ticketTeamId });
+    return;
+  }
   if (view === "map") { renderMap(project, query); renderDetail(); return; }
   if (view === "sessions") {
     const sessions = currentSessions().filter((item) => (owner === "all" || item.participant === owner) && (!query || JSON.stringify([item.participant, item.intent, item.sync, data.features.find((f) => f.id === item.featureId)?.title]).toLowerCase().includes(query))).sort(compare);
