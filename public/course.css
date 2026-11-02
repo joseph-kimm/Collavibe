@@ -1,0 +1,30 @@
+.course-main { max-width:1000px; font-size:17px; line-height:1.65; }
+.course-main > section { margin-top:56px; padding-top:32px; border-top:1px solid var(--line); scroll-margin-top:24px; }
+.course-main h2 { font-size:27px; margin-bottom:14px; }
+.course-main h3 { font-size:21px; }
+.course-main p { margin:12px 0; }
+.course-lede { font-size:25px; max-width:630px; }
+.public-header nav { display:flex; gap:24px; flex-wrap:wrap; }
+.public-header nav a { min-height:44px; display:inline-flex; align-items:center; }
+.course-session { border-top:1px solid var(--line); margin-top:22px; }
+.course-session summary { cursor:pointer; padding:22px 0; font-size:21px; font-weight:550; }
+.course-session summary span { font-size:16px; color:var(--muted); font-weight:400; display:block; margin-top:6px; }
+.course-session[open] summary { color:var(--accent); }
+.course-session-content { padding:0 0 24px 28px; animation:course-reveal .18s ease-out; }
+.course-agenda { padding-left:22px; }
+.course-agenda li { padding:8px 0; }
+.course-resources > article { padding:18px 0; }
+.course-main .form { margin:24px 0; max-width:700px; }
+.course-main .form input,.course-main .form select,.course-main .form textarea { font-size:17px; }
+.course-main .checkbox-label { align-items:flex-start; font-weight:400; line-height:1.6; }
+.course-main .checkbox-label input { min-height:18px; margin-top:5px; flex-shrink:0; }
+.course-main .form-actions { justify-content:flex-start; flex-wrap:wrap; }
+.course-main pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }
+.course-intake-response,.course-story { padding:24px 0; border-bottom:1px solid var(--line); }
+.course-story h3 { margin-bottom:12px; }
+.course-story-body { white-space:pre-wrap; overflow-wrap:anywhere; }
+.course-account-picker { margin-top:20px; display:grid; gap:8px; max-width:420px; }
+.course-account-picker select { min-height:46px; font-size:17px; padding:8px 12px; }
+@keyframes course-reveal { from { opacity:.5; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+@media(prefers-reduced-motion:reduce) { .course-session-content { animation:none; } }
+@media(max-width:700px) { .public-header nav { gap:16px; } .course-session-content { padding-left:0; } .course-main > section { margin-top:36px; } }

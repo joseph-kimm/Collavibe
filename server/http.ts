@@ -18,6 +18,7 @@ import { addRemoteProject, createPlannedFeature, listTeamMembers, removeTeamMemb
 import { cloudAddProject, cloudCreateFeature, cloudEditFeature, cloudMembers, cloudReadiness, cloudRemoveMember, cloudRotateCode, cloudUpdateTeam, cloudUpdateProject, cloudFeatureAction } from "../src/cloud-workspace.js";
 import { featureActionSchema, featureFields, featurePatchSchema, projectPatchSchema, WorkspaceError } from "../src/workspace-model.js";
 import { registerCollaborationRoutes } from "./collaboration-routes.js";
+import { registerCourseRoutes } from "./course-routes.js";
 
 export const app = express();
 app.disable("x-powered-by");
@@ -322,6 +323,8 @@ app.get("/health", (_req, res) => res.json({ ok: true, service: "collavibe", ver
 
 const publicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
 registerCollaborationRoutes(app, requireUser);
+registerCourseRoutes(app, requireUser);
+app.get("/course", (_req, res) => res.sendFile(path.join(publicDirectory, "course.html")));
 app.get("/p/:portfolioId", (_req, res) => res.sendFile(path.join(publicDirectory, "portfolio.html")));
 app.use(express.static(publicDirectory));
 
