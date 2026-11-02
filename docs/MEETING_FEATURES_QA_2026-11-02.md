@@ -22,3 +22,9 @@ Screenshots are local, ignored QA artifacts under `output/playwright/nov02/`. Cl
 The approved OpenAI key was installed as a sensitive server-side Vercel environment variable for **Preview and Production**, without printing or committing it. Environment changes apply to subsequent deployments. Deepgram's separate diarization adapter has mocked contract coverage; no Deepgram key was available for a live call. Speaker diarization is not noise removal, voice recognition, or isolated audio-track extraction. The default OpenAI diarization model retires February 26, 2027; provider migration is documented.
 
 This is browser/contract/cloud integration QA, not a completed classroom study, independent security audit, long-term reliability test, or load test. Public snapshots remain explicitly reviewed and agent Git evidence remains agent-attested. Production publication of the full new branch is tracked separately from database/configuration setup.
+
+## Hosted preview
+
+Runtime commit `77c9f71` deployed successfully as [the November 2 preview](https://collavibe-fav0ldxh2-shayan-ahmads-projects.vercel.app), deployment `dpl_5m1Btd9LfbnM3QNDyYtkQziufk96`. Chrome verified public course loading, HTTPS login and return-to-course, authenticated meeting records, and a complete synthetic audio upload → Vercel function → OpenAI diarization → two editable speaker labels. No browser-side key was used.
+
+The branch was pushed to `origin/codex/meeting-features-nov-02`. `main` was not merged or pushed. The full new runtime was **not promoted to collavibe.vercel.app**. Existing production account/team data was not used as test fixtures. The database migration and approved server environment setup are shared infrastructure changes, already applied.
