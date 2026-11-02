@@ -43,4 +43,38 @@
 .speaker-segments p { padding: 12px 0; border-bottom: 1px solid var(--line); white-space: pre-wrap; }
 .meeting-next { padding-top: 26px; margin-top: 26px; border-top: 1px solid var(--line); max-width: 800px; }
 .meeting-next p { margin: 12px 0 18px; }
+.portfolio-links { padding: 26px 0; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+.portfolio-links .form-actions { justify-content: flex-start; flex-wrap: wrap; margin-top: 12px; }
+.portfolio-form { max-width: 760px; }
+.portfolio-form fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.portfolio-form legend { font-weight: 550; padding: 0 6px; }
+.portfolio-form .checkbox-label, .portfolio-preview .checkbox-label, #public-feedback-form .checkbox-label { font-weight: 400; line-height: 1.6; align-items: flex-start; }
+.portfolio-form .checkbox-label input, .portfolio-preview .checkbox-label input, #public-feedback-form .checkbox-label input { flex-shrink: 0; min-height: 18px; margin-top: 4px; }
+.portfolio-preview { border-top: 2px solid var(--accent); padding: 26px 0; margin-top: 32px; }
+.portfolio-preview > h3 { margin-bottom: 24px; }
+.portfolio-preview-title { margin-bottom: 14px; }
+.portfolio-preview > .checkbox-label { display: flex; gap: 10px; margin: 24px 0 18px; }
+.portfolio-description { margin: 16px 0 24px; font-size: 18px; white-space: pre-wrap; }
+.portfolio-evidence { color: var(--muted); font-size: 15px; margin: 26px 0; border-left: 2px solid var(--line); padding-left: 16px; }
+.portfolio-features, .portfolio-process { margin: 32px 0; }
+.portfolio-features h3, .portfolio-process h3 { font-size: 23px; margin-bottom: 20px; }
+.portfolio-features article, .portfolio-session { border-top: 1px solid var(--line); padding: 24px 0; }
+.portfolio-features h4, .portfolio-session h4 { font-size: 18px; font-weight: 550; }
+.portfolio-features p { margin-top: 10px; }
+.portfolio-section { margin-top: 20px; }
+.portfolio-section li { line-height: 1.65; margin: 8px 0; overflow-wrap: anywhere; }
+.portfolio-session details { margin-top: 20px; }
+.portfolio-session summary { cursor: pointer; min-height: 44px; }
+.portfolio-reflection { margin: 24px 0; border-left: 2px solid var(--accent); padding-left: 20px; }
+.portfolio-reflection footer { color: var(--muted); font-size: 14px; }
+.public-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px max(5vw,24px); border-bottom: 1px solid var(--line); }
+.public-header > span { color: var(--muted); font-size: 15px; }
+.public-main { max-width: 980px; padding: 40px 32px 80px; margin: auto; }
+.public-main h1 { font-size: clamp(30px,4vw,44px); margin-top: 20px; }
+#portfolio-feedback { border-top: 1px solid var(--line); padding-top: 30px; margin-top: 36px; }
+#portfolio-feedback h2 { margin-bottom: 14px; }
+#public-feedback-account { margin: 24px 0; }
+#public-feedback-form { margin-top: 26px; max-width: 650px; }
+#public-feedback-list .text-button { margin-right: 18px; }
+@media(max-width:700px) { .public-main { padding: 28px 20px 60px; } .public-header { padding: 20px; flex-wrap: wrap; } .view-tabs { overflow-x: auto; } }
 @media (max-width:700px) { .collaboration-page { padding: 24px 20px 44px; } .ticket-toolbar { gap: 14px; } .ticket-proposal-review { padding: 14px; } }

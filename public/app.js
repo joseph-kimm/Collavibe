@@ -7,6 +7,8 @@ import { mountSessionLearning } from "./session-learning.js";
 import { mountTickets } from "./tickets.js";
 import { mountMeetings } from "./meetings.js";
 import { stopMeetingRecording } from "./meeting-recorder.js";
+import { mountPortfolioManager } from "./portfolio-manager.js";
+import { safeReturnTo } from "./auth-return.js";
 
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[c]);
@@ -39,11 +41,12 @@ let memberError = "";
 let issuedKey = "";
 let connections = [];
 let authorizationId = new URLSearchParams(location.search).get("authorize") || "";
+const requestedReturnPath = safeReturnTo(new URLSearchParams(location.search).get("returnTo"));
 let invitation = new URLSearchParams(location.search).get("join") || "";
 const hash = new URLSearchParams(location.hash.slice(1));
 if (hash.get("team")) teamId = hash.get("team");
 if (hash.get("project")) projectId = hash.get("project");
-if (["map", "work", "sessions", "repository", "team", "tickets", "meetings"].includes(hash.get("view"))) view = hash.get("view");
+if (["map", "work", "sessions", "repository", "team", "tickets", "meetings", "portfolio"].includes(hash.get("view"))) view = hash.get("view");
 if (hash.get("feature")) selection = { kind: "feature", id: hash.get("feature") };
 if (hash.get("session")) { selection = { kind: "session", id: hash.get("session") }; if (view !== "map") view = "sessions"; }
 
@@ -122,6 +125,7 @@ async function load({ quiet = false } = {}) {
       const auth = await api("/api/auth/status");
       if (sequence !== requestSequence || demo) return;
       if (!auth.authenticated) { showGate("auth"); return; }
+      if (requestedReturnPath && !authorizationId && !invitation) { location.assign(requestedReturnPath); return; }
     }
     const next = await api("/api/dashboard" + (teamId ? "?teamId=" + encodeURIComponent(teamId) : ""));
     if (sequence !== requestSequence || demo) return;
@@ -218,13 +222,13 @@ function render() {
   $("demo-banner").hidden = !demo;
   $("project-workspace").hidden = view === "team";
   $("project-workspace").classList.toggle("map-view", view === "map");
-  $("project-filters").hidden = !project || ["tickets", "meetings"].includes(view);
+  $("project-filters").hidden = !project || ["tickets", "meetings", "portfolio"].includes(view);
   const mapFilters = view === "map";
   if ($("project-filters").classList.contains("collapsible") !== mapFilters) $("project-filters").open = !mapFilters;
   $("project-filters").classList.toggle("collapsible", mapFilters);
   $("team-content").hidden = view !== "team";
   document.querySelectorAll("[data-view]").forEach((button) => { if (button.dataset.view === view) button.setAttribute("aria-current", "page"); else button.removeAttribute("aria-current"); });
-  $("view-title").textContent = project ? ({ map: "Project map", work: "Work", sessions: "Sessions", repository: "Branches & files", tickets: "Tickets", meetings: "Meetings" })[view] || "Work" : "Projects";
+  $("view-title").textContent = project ? ({ map: "Project map", work: "Work", sessions: "Sessions", repository: "Branches & files", tickets: "Tickets", meetings: "Meetings", portfolio: "Portfolio" })[view] || "Work" : "Projects";
   $("project-description").textContent = view === "map" && project ? "See who is building what, and where the next person can pick up." : view === "sessions" ? "What changed, what was decided, and where to continue." : view === "repository" ? "The latest repository snapshot shared by your coding agent." : project ? "Features and tasks for " + project.name + "." : "Add a repository to start planning with your team.";
   $("work-count").textContent = currentFeatures().filter((item) => !item.archivedAt).length;
   $("session-count").textContent = currentSessions().length;
@@ -287,6 +291,13 @@ function renderContent() {
     if (demo) { content.innerHTML = empty("Meetings belong to your team", "Sign in to save transcripts and review ideas with your teammates."); return; }
     const meetingTeamId = teamId;
     mountMeetings(content, { api, copy, teamId, projectId, userId: data.user.id, owner: data.selectedTeam.ownerUserId === data.user.id, readOnly: !!project.archivedAt, isCurrent: () => view === "meetings" && projectId === project.id && teamId === meetingTeamId });
+    return;
+  }
+  if (view === "portfolio") {
+    $("detail-pane").hidden = true;
+    if (demo) { content.innerHTML = empty("Sharing is your choice", "Sign in to preview and publish a real project portfolio."); return; }
+    const portfolioTeamId = teamId;
+    mountPortfolioManager(content, { api, copy, teamId, projectId, projectName: project.name, features: currentFeatures(), sessions: currentSessions(), owner: data.selectedTeam.ownerUserId === data.user.id, isCurrent: () => view === "portfolio" && projectId === project.id && teamId === portfolioTeamId });
     return;
   }
   if (view === "map") { renderMap(project, query); renderDetail(); return; }
@@ -634,6 +645,7 @@ $("auth-form").addEventListener("submit", (event) => {
   formAction(event.currentTarget, async () => {
     const body = Object.fromEntries(new FormData($("auth-form")));
     await api("/api/auth/" + authMode, { method: "POST", body: JSON.stringify(body) });
+    if (requestedReturnPath && !authorizationId && !invitation) { location.assign(requestedReturnPath); return; }
     $("auth-form").reset(); members = []; await load();
   });
 });

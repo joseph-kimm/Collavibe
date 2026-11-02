@@ -322,6 +322,7 @@ app.get("/health", (_req, res) => res.json({ ok: true, service: "collavibe", ver
 
 const publicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
 registerCollaborationRoutes(app, requireUser);
+app.get("/p/:portfolioId", (_req, res) => res.sendFile(path.join(publicDirectory, "portfolio.html")));
 app.use(express.static(publicDirectory));
 
 app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
