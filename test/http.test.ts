@@ -189,6 +189,51 @@ describe("Streamable HTTP transport", () => {
     expect((await call(`/api/teams/${team}/projects/${project.id}`, "PATCH", { ...patch, archived: false, expectedUpdatedAt: changed.updatedAt })).status).toBe(200);
   });
 
+  it("runs journals, tickets, meetings, private intake and reviewed publication with distinct user roles", async () => {
+    const call = (pathname:string,method="GET",body?:unknown,cookie=authCookie,headers={})=>fetch(baseUrl+pathname,{method,headers:{"content-type":"application/json",cookie,...headers},...(body===undefined?{}:{body:JSON.stringify(body)})});
+    const dashboard=await (await call("/api/dashboard")).json(),team=dashboard.selectedTeam.id;
+    const session=dashboard.sessions[0],project=session.projectId;
+    const base=`/api/teams/${team}/projects/${project}`;
+    const signup=await call("/api/auth/signup","POST",{name:"Course learner",email:"course-learner@example.com",password:"course-learner-test-password"},"");
+    const learner=signup.headers.get("set-cookie")!.split(";")[0];
+    expect((await call("/api/teams/join","POST",{joinCode:dashboard.selectedTeam.joinCode},learner)).status).toBe(200);
+    const stranger=await call("/api/auth/login","POST",{email:"stranger@example.com",password:"a-different-test-password"},"");
+    const visitor=stranger.headers.get("set-cookie")!.split(";")[0];
+    const learning=base+`/sessions/${session.id}/learning`;
+    expect((await call(learning,"GET",undefined,"")).status).toBe(401);
+    const note=(await (await call(learning+"/reflection","PUT",{text:"I changed the data model after feedback."},learner)).json()).record;
+    expect(note.payload.humanWritten).toBe(true);
+    expect((await call(learning,"GET",undefined,visitor)).status).toBe(403);
+    const reply=(await (await call(learning+"/replies","POST",{parentId:note.id,text:"What changed your reasoning?"})).json()).record;
+    expect(reply.payload.parentId).toBe(note.id);
+    const ticket=(await (await call(base+"/tickets","POST",{title:"Test the empty-data state"})).json()).ticket;
+    expect(ticket.payload.status).toBe("planned");
+    expect((await call(base+"/tickets","POST",{title:"Cross-origin write"},authCookie,{origin:"https://hostile.example"})).status).toBe(403);
+    const meetingResponse=await call(base+"/meetings","POST",{title:"Planning discussion",transcript:"PRIVATE_MEETING_ONLY",consentConfirmed:true});expect(meetingResponse.status).toBe(201);
+    const audio=await fetch(baseUrl+base+"/meetings/transcribe/audio",{method:"POST",headers:{cookie:authCookie,"content-type":"audio/wav"},body:new Uint8Array([1,2])});expect(audio.status).toBe(400);
+    const intake=`/api/course/teams/${team}/intake`;
+    expect((await call(intake,"PUT",{interests:"PRIVATE_INTAKE_ONLY",goals:"Learn data modeling",organizerConsent:true},learner)).status).toBe(200);
+    expect((await call(`/api/course/teams/${team}/intakes`,"GET",undefined,learner)).status).toBe(403);
+    expect(JSON.stringify(await (await call(`/api/course/teams/${team}/intakes`)).json())).toContain("PRIVATE_INTAKE_ONLY");
+    const peerDashboard=JSON.stringify(await (await call("/api/dashboard","GET",undefined,learner)).json());expect(peerDashboard).not.toContain("PRIVATE_INTAKE_ONLY");expect(peerDashboard).not.toContain("PRIVATE_MEETING_ONLY");
+    const fields={title:"Test project process",description:"A reviewed snapshot of our design work.",sessionIds:[session.id]};
+    const preview=await (await call(base+"/portfolios/preview","POST",fields)).json();
+    const published=await (await call(base+"/portfolios","POST",{...fields,previewHash:preview.previewHash,consentConfirmed:true})).json();
+    const publicPath="/api/public/portfolios/"+published.id;
+    const publicResponse=await call(publicPath,"GET",undefined,"");expect(publicResponse.status).toBe(200);
+    const publicText=JSON.stringify(await publicResponse.json());expect(publicText).not.toContain("PRIVATE_INTAKE_ONLY");expect(publicText).not.toContain("PRIVATE_MEETING_ONLY");expect(publicText).not.toContain(note.payload.text);
+    expect((await call(publicPath+"/feedback","POST",{text:"Why did you choose this design?",publicConsent:true},"")).status).toBe(401);
+    expect((await call(publicPath+"/feedback","POST",{text:"Why did you choose this design?",publicConsent:true},visitor)).status).toBe(201);
+    const storyPath=`/api/course/teams/${team}/stories`;
+    const story=(await (await call(storyPath,"POST",{title:"Our design process",body:"We tried a small prototype and changed the data model after testing it with a partner."},learner)).json()).story;
+    const storyPreview=await (await call(storyPath+"/"+story.id+"/preview","POST",{},learner)).json();
+    expect((await call(storyPath+"/"+story.id+"/publish","POST",{previewHash:storyPreview.previewHash,expectedVersion:story.version,publicConsent:true},learner)).status).toBe(200);
+    expect(JSON.stringify(await (await call("/api/course/stories","GET",undefined,"")).json())).toContain("Our design process");
+    expect((await call(base+"/portfolios/"+published.id+"/revoke","POST",{expectedVersion:published.version})).status).toBe(200);
+    expect((await call(publicPath,"GET",undefined,"")).status).toBe(404);
+    expect((await call("/course","GET",undefined,"")).status).toBe(200);
+  });
+
   it("handles malformed input without leaking server details", async () => {
     const malformedCookie = await fetch(`${baseUrl}/api/auth/status`, { headers: { cookie: "collavibe_session=%E0%A4%A" } });
     expect(malformedCookie.status).toBe(200);
