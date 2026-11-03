@@ -36,7 +36,7 @@ Each agenda totals 120 minutes including a ten-minute break. Total planned prepa
 - Chrome browser: learner resubmission, organizer schedule edit/save and Ready feedback persisted. Live weather plus air requests displayed both datasets; intentionally unavailable air retained the working weather result and showed the failure.
 - PDF handbook: 27 pages rendered and visually inspected. Full Markdown, five briefs, eight templates, runnable starters and the SQL script are included in the downloadable kit.
 
-Responsive, preview and production results are recorded below after their execution. Disposable synthetic fixtures are removed after deployment QA; no real learner work is used for tests.
+The Vercel preview `dpl_3JhUwD8GznUofWzbEaBPd8SrX8va` served version 0.10.0 and the 22-file kit downloaded successfully through the browser. At 390px the public lessons/assignments and resource filter worked; the authenticated learner saw the persisted Ready decision and feedback history. This check exposed a long intake button overflowing the viewport, fixed by allowing course buttons to wrap. Disposable synthetic fixtures are removed after deployment QA; no real learner work is used for tests.
 
 ## Rebuilding the downloads
 
