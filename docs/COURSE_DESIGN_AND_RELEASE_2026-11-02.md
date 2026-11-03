@@ -45,3 +45,14 @@ Run `npm run build:course-kit` to regenerate the Markdown handbook, briefs and t
 ## Remaining operational limits
 
 Set and confirm actual cohort dates/location, facilitator support and learner agent access before opening enrollment. The course has not yet been piloted, and workload estimates should be revised from learner experience. There is no automatic course enrollment, certificate, reminder email or gradebook. Existing documented product limits, including account recovery delivery, independent security/load audit and provider-specific audio limits, still apply.
+
+## Production verification
+
+- Published runtime commit: `19d4324` on `main`, pushed without rewriting history. The existing development branch is retained.
+- Vercel production deployment: `dpl_9uKxeA9M2opSGfJipukqFSvDeirQ`, aliased to https://collavibe.vercel.app. Browser health showed version `0.10.0`, `hosted-mcp` mode.
+- Live course: https://collavibe.vercel.app/course. Five lessons and five briefs loaded; direct lesson/assignment links opened and scrolled to the correct content.
+- A disposable learner signed in on production, saw the saved organizer feedback, saved an Assignment 2 private draft and retrieved its exact text after a reload.
+- At 390px the authenticated course page had a document width of 390px after the wrapping fix. The public final brief also fit 320px without horizontal overflow. Resource filtering and expand/collapse controls worked. These are browser checks, not a full accessibility audit.
+- Production API starter displayed two live datasets. With intentional air failure enabled it displayed one working dataset and reported the missing provider without silently switching to fictional data.
+- The downloaded production PDF matched the checked-in, rendered 27-page handbook byte-for-byte (SHA-256 `03d45d82c191d864869bece29ec82a7a0b28c5d787ec758bde04d142a58668fe`). The kit contained 22 files including the PDF.
+- Disposable synthetic team, projects, records, three accounts and the temporary credential file were removed after QA. A fresh live course page showed no test stories. Production screenshots were saved under ignored `output/playwright/`; no credentials or private discussion sources were committed.
