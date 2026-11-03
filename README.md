@@ -4,7 +4,7 @@ Collavibe is an agent-agnostic MCP server for collaborative coding. It gives an 
 
 Hosted workspace: **https://collavibe.vercel.app**
 
-The v0.9 branch adds session learning journals and replies, assignable tickets with human-reviewed agent suggestions, consent-based speaker-labeled meeting transcription, reviewed public portfolios and feedback, and a separate ten-hour course site with private intake and author-controlled stories. Apply the new database migration before enabling these features. See [collaboration and course usage](docs/COLLABORATION_AND_COURSE.md), [workspace usage](docs/WORKSPACE.md), and [executed QA results](docs/TEST_RESULTS.md) for behavior, permissions, and deployment status.
+Version 0.10 adds the complete [Vibecode 101 course](https://collavibe.vercel.app/course): five detailed two-hour lessons, home preparation, five assignment briefs, a runnable two-API starter and database labs, private submissions, human organizer feedback, and cohort calendars. It also includes learning journals and replies, assignable tickets with human-reviewed suggestions, consent-based speaker-labeled meeting transcription, and reviewed public portfolios. See [course delivery](docs/COLLABORATION_AND_COURSE.md), [course design and release checks](docs/COURSE_DESIGN_AND_RELEASE_2026-11-02.md), and [workspace usage](docs/WORKSPACE.md).
 
 The agent does the language work. Collavibe provides the durable coordination layer:
 
@@ -19,7 +19,7 @@ Collavibe never commits, pushes, or edits project source code.
 
 ## Team onboarding
 
-The hosted preview includes Supabase-backed account and team onboarding:
+The hosted workspace includes Supabase-backed account and team onboarding:
 
 1. Sign up with a name, email, and password.
 2. Create a named team or join an existing team using its eight-character invite code.

@@ -1,9 +1,10 @@
 {
   "name": "collavibe",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "build:course-kit": "python3 scripts/build-course-kit.py",
     "dev": "concurrently -n web,mcp -c blue,magenta \"npm:dev:web\" \"npm:dev:mcp\"",
     "dev:web": "tsx watch server/http.ts",
     "dev:mcp": "tsx watch server/stdio.ts",

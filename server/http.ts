@@ -31,7 +31,10 @@ if (process.env.COLLAVIBE_QA_TRACE === "1") app.use((req, res, next) => {
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "same-origin");
-  res.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
+  // Only the public teaching starter can contact its two fixed, no-key data
+  // services. Account, cohort and workspace pages remain same-origin only.
+  const courseApiOrigins = req.path.startsWith("/course-kit/api-starter/") ? " https://api.open-meteo.com https://air-quality-api.open-meteo.com" : "";
+  res.setHeader("Content-Security-Policy", `default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'${courseApiOrigins}; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`);
   // Recording still requires an explicit button, participant-consent checkbox,
   // and the browser's permission. No third-party frame gets microphone access.
   res.setHeader("Permissions-Policy", "camera=(), microphone=(self), geolocation=()");
@@ -319,7 +322,7 @@ for (const method of ["get", "delete"] as const) {
   app[method]("/mcp", (_req, res) => res.status(405).json({ jsonrpc: "2.0", error: { code: -32000, message: "Method not allowed for stateless MCP." }, id: null }));
 }
 
-app.get("/health", (_req, res) => res.json({ ok: true, service: "collavibe", version: "0.9.0", mode: isSupabaseConfigured() ? "hosted-mcp" : "local" }));
+app.get("/health", (_req, res) => res.json({ ok: true, service: "collavibe", version: "0.10.0", mode: isSupabaseConfigured() ? "hosted-mcp" : "local" }));
 
 const publicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
 registerCollaborationRoutes(app, requireUser);

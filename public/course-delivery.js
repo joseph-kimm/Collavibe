@@ -6,15 +6,18 @@ const when=(value,zone)=>value?new Intl.DateTimeFormat(undefined,{timeZone:zone,
 function artifactLinks(rows){return (rows||[]).map(row=>`<a href="${e(safeHref(row.url))}" target="_blank" rel="noopener noreferrer">${e(row.label)}</a>`).join(" · ");}
 async function load(){
   const {account,teamId,course}=courseContext();if(!account||!teamId||!course)return;
+  const expanded=[...$("course-delivery").querySelectorAll('details[open]')].map(element=>element.querySelector('summary').textContent);
   const current=++sequence,base=`/api/course/teams/${encodeURIComponent(teamId)}`;
   $("course-delivery").innerHTML='<p role="status">Loading your schedule and private work…</p>';
   try{
     const [schedule,mine]=await Promise.all([api(base+"/schedule"),api(base+"/submissions")]);if(current!==sequence||teamId!==courseContext().teamId)return;
     const zone=schedule.calendar.timeZone;
+    $("course-schedule-visibility").textContent=schedule.calendar.scheduled?"These dates belong to your selected course team. Check for updates before each class.":"Your course team has no confirmed dates yet. Follow the relative weekly sequence until the organizer sets them.";
     document.querySelectorAll('[data-session-date]').forEach(element=>{const row=schedule.calendar.sessions.find(row=>row.number===Number(element.dataset.sessionDate));element.textContent=row.start?when(row.start,zone):"Date to be confirmed";});
     document.querySelectorAll('[data-assignment-due]').forEach(element=>{const row=schedule.calendar.assignments.find(row=>row.id===element.dataset.assignmentDue);element.textContent="Due: "+(row.due?when(row.due,zone):row.relative);});
     $("course-cohort-schedule").innerHTML=`<h3>${e(account.teams.find(row=>row.id===teamId).name)}</h3><p>${schedule.calendar.scheduled?`Your cohort uses ${e(zone)}. ${e(schedule.settings.location||"Location to be confirmed.")}`:"The organizer has not set dates for this cohort. Use the relative schedule above."}</p>${schedule.calendar.scheduled?`<a class="button quiet no-print" href="${base}/calendar.ics">Download cohort calendar</a><p class="subtle">One-time export, not an automatically synced calendar. Check the website when dates change.</p>`:""}`;
     $("course-delivery").innerHTML=`${schedule.organizer?'<details class="course-detail"><summary>Organizer: set class dates and location</summary><div id="schedule-editor"></div></details>':""}<h3>Your private assignment work</h3><p>Drafts are visible only to you. Submitting shares the work and your reflection with this course team's organizer. Other learners, public visitors, and MCP agents cannot read it. Submit links only when the organizer can access them; making a repository public is not required.</p><label class="course-account-picker">Choose an assignment<select id="assignment-select">${course.assignments.map(row=>{const saved=mine.submissions.find(item=>item.payload.assignmentId===row.id);return `<option value="${e(row.id)}">${row.number}. ${e(row.title)} · ${saved?.payload.review?.status==="ready"?"Ready":saved?.payload.review?.status==="revise"?"Revision requested":saved?.payload.status||"Not started"}</option>`;}).join("")}</select></label><div id="submission-editor"></div>${schedule.organizer?'<details class="course-detail"><summary>Organizer: review submitted work</summary><div id="course-reviews"></div></details>':""}`;
+    $("course-delivery").querySelectorAll('details').forEach(element=>{element.open=expanded.includes(element.querySelector('summary').textContent);});
     $("assignment-select").value=selectedAssignment;
     $("assignment-select").addEventListener("change",()=>{selectedAssignment=$("assignment-select").value;submissionForm();});
     function submissionForm(){

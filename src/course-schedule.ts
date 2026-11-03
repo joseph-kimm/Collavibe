@@ -35,6 +35,7 @@ export async function saveCourseSchedule(actor:Actor,teamId:string,raw:unknown){
 }
 const icsText=(value:string)=>value.replace(/\\/g,"\\\\").replace(/\r\n|\r|\n/g,"\\n").replace(/;/g,"\\;").replace(/,/g,"\\,");
 const stamp=(value:string)=>value.replace(/[-:]/g,"").replace(/\.\d{3}/,"");
+function foldIcsLine(line:string){const chunks:string[]=[];let current="";for(const character of line){if(Buffer.byteLength(current+character,"utf8")>75){chunks.push(current);current=" ";}current+=character;}chunks.push(current);return chunks.join("\r\n");}
 export function courseCalendarIcs(teamId:string,calendar:ReturnType<typeof buildCourseCalendar>){
   if(!calendar.scheduled)throw new WorkspaceError("The organizer must set the class dates before exporting a calendar.",409);
   const lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Collavibe//Vibecode 101//EN","CALSCALE:GREGORIAN","METHOD:PUBLISH"];
@@ -42,5 +43,5 @@ export function courseCalendarIcs(teamId:string,calendar:ReturnType<typeof build
   for(const session of calendar.sessions)add("session-"+session.number,`Vibecode 101: ${session.title}`,session.start!,session.end!,session.location||"Location to be confirmed with the organizer.");
   for(const assignment of calendar.assignments)add("due-"+assignment.id,`Due: ${assignment.title}`,assignment.due!,new Date(Date.parse(assignment.due!)+300000).toISOString(),"Private course submission. Ask the organizer about an extension if needed.");
   add("candidate","Final project: demo-ready candidate",calendar.candidateDue!,new Date(Date.parse(calendar.candidateDue!)+300000).toISOString(),"Bring a running main journey and a backup demonstration to Session 5.");
-  return lines.concat("END:VCALENDAR","").join("\r\n");
+  return lines.concat("END:VCALENDAR","").map(foldIcsLine).join("\r\n");
 }

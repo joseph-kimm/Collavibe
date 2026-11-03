@@ -234,6 +234,31 @@ describe("Streamable HTTP transport", () => {
     expect((await call("/course","GET",undefined,"")).status).toBe(200);
   });
 
+  it("delivers the course kit and protects private submissions and organizer scheduling over HTTP", async () => {
+    const call=(pathname:string,method="GET",body?:unknown,cookie=authCookie)=>fetch(baseUrl+pathname,{method,headers:{"content-type":"application/json",cookie},...(body===undefined?{}:{body:JSON.stringify(body)})});
+    const dashboard=await (await call("/api/dashboard")).json(),team=dashboard.selectedTeam.id,base=`/api/course/teams/${team}`;
+    const login=await call("/api/auth/login","POST",{email:"course-learner@example.com",password:"course-learner-test-password"},"");
+    const learner=login.headers.get("set-cookie")!.split(";")[0];
+    expect((await call(base+"/schedule","GET",undefined,"")).status).toBe(401);
+    expect((await call(base+"/schedule","PUT",{},learner)).status).toBe(403);
+    const saved=await call(base+"/schedule","PUT",{dates:["2027-02-16","2027-02-23","2027-03-02","2027-03-09","2027-03-16"],startTime:"18:00",timeZone:"America/New_York",location:"Disposable HTTP test room"});expect(saved.status).toBe(200);
+    const calendar=await call(base+"/calendar.ics","GET",undefined,learner);expect(calendar.status).toBe(200);expect(calendar.headers.get("content-type")).toContain("text/calendar");expect((await calendar.text()).match(/BEGIN:VEVENT/g)).toHaveLength(11);
+    const evidence={action:"draft",workSummary:"PRIVATE_COURSE_EVIDENCE: normal and empty input were checked.",reflection:"I changed the label after a peer test.",aiUse:"The agent implemented the interaction; I ran the checks.",checkedCriteria:["user"]};
+    const draft=await call(base+"/assignments/first-build","PUT",evidence,learner);expect(draft.status).toBe(200);const row=(await draft.json()).submission;
+    expect(JSON.stringify(await (await call(base+"/reviews")).json())).not.toContain("PRIVATE_COURSE_EVIDENCE");
+    const submitted=await call(base+"/assignments/first-build","PUT",{...evidence,action:"submit",expectedVersion:row.version},learner);expect(submitted.status).toBe(200);const work=(await submitted.json()).submission;
+    expect(JSON.stringify(await (await call(base+"/reviews")).json())).toContain("PRIVATE_COURSE_EVIDENCE");
+    expect((await call(base+"/reviews","GET",undefined,learner)).status).toBe(403);
+    expect((await call(base+"/reviews/"+work.id,"POST",{expectedVersion:work.version,status:"ready",feedback:"The evidence supports this small interaction."})).status).toBe(200);
+    expect(JSON.stringify(await (await call(base+"/submissions","GET",undefined,learner)).json())).toContain("The evidence supports");
+    expect(JSON.stringify(await (await call("/api/dashboard")).json())).not.toContain("PRIVATE_COURSE_EVIDENCE");
+    const handbook=await call("/api/course/handbook","GET",undefined,"");expect(handbook.status).toBe(200);expect(await handbook.text()).toContain("Make two APIs useful together");
+    expect((await call("/api/course/assignments/two-api/brief","GET",undefined,"")).status).toBe(200);expect((await call("/api/course/assignments/unknown/brief","GET",undefined,"")).status).toBe(404);
+    const kit=await call("/course-kit/course-kit.zip","GET",undefined,"");expect(kit.status).toBe(200);expect((await kit.arrayBuffer()).byteLength).toBeGreaterThan(10000);
+    const starter=await call("/course-kit/api-starter/","GET",undefined,"");expect(starter.headers.get("content-security-policy")).toContain("https://api.open-meteo.com");
+    const account=await call("/course","GET",undefined,"");expect(account.headers.get("content-security-policy")).not.toContain("https://api.open-meteo.com");
+  });
+
   it("handles malformed input without leaking server details", async () => {
     const malformedCookie = await fetch(`${baseUrl}/api/auth/status`, { headers: { cookie: "collavibe_session=%E0%A4%A" } });
     expect(malformedCookie.status).toBe(200);

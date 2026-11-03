@@ -43,7 +43,10 @@
 .course-agenda h4 { margin:0; }
 .agenda-time { color:var(--muted); font-size:15px; padding-top:3px; }
 .course-detail { border-top:1px solid var(--line); margin:22px 0; padding-bottom:12px; scroll-margin-top:24px; }
-.course-detail > summary { padding:18px 0; cursor:pointer; font-size:19px; font-weight:550; line-height:1.5; }
+.course-detail > summary { display:block; position:relative; list-style:none; padding:18px 38px 18px 0; cursor:pointer; font-size:19px; font-weight:550; line-height:1.5; }
+.course-detail > summary::-webkit-details-marker { display:none; }
+.course-detail > summary::after { content:"+"; position:absolute; right:4px; top:18px; color:var(--accent); font-size:23px; }
+.course-detail[open] > summary::after { content:"−"; }
 .course-detail > summary > span { display:block; color:var(--muted); font-size:14px; font-weight:400; margin-bottom:6px; }
 .course-detail > summary > small { display:block; color:var(--muted); font-size:16px; font-weight:400; margin-top:6px; }
 .course-due { border-left:3px solid var(--accent); padding-left:16px; margin:24px 0!important; font-weight:550; }

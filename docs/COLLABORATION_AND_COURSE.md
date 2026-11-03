@@ -23,7 +23,13 @@ The browser authorization description includes saved meeting access. There is no
 
 ## Course site
 
-`/course` is a separate Vibecode 101 course surface: five 120-minute sessions, practical activities, reflection prompts, facilitator notes, and official resource links. It is a proposed facilitated course, not an enrollment or scholarship service. Sponsored tool access must be confirmed by the organizer.
+`/course` contains the complete Vibecode 101 teaching edition: five 120-minute sessions, timed in-class agendas, home preparation with specified video excerpts/text alternatives, five assignment briefs and observable criteria, eight templates, facilitator support notes, and 22 primary resources. Download the PDF handbook, editable Markdown, or course kit. Sponsored tool access, venue and actual dates must be confirmed by the organizer; this is not an enrollment or scholarship service.
+
+The assignment sequence is a first interaction, a meaningful two-API app, persistence/access-rule evidence, a group charter, and one narrow group app. The API kit includes live no-key requests, explicitly synthetic offline data, and deliberate partial failures. The browser storage lab is explicitly a simulation; the SQL lab tests actual Postgres row policies in a disposable database and rolls back. The standard showcase supports at most four teams, each with five minutes to present and three minutes for questions. No grades or contribution rankings are used.
+
+The course-team owner sets five confirmed class dates, start time, IANA timezone and location in **Your course and work**. Members see their dates and can download an 11-event calendar. This is a one-time ICS export, not an automatic subscription or invitation. Assignment 1–3 deadlines are 6 pm the day before the following class; the charter is due at Session 4's start; the final candidate is due 24 hours before Session 5; final revisions are due exactly 72 hours after Session 5 ends. Without settings, the curriculum stays relative and undated.
+
+Learners save private drafts, then explicitly submit to their course team's owner. Other members and MCP clients cannot read submissions. The organizer sees only submitted work and gives descriptive **Keep revising** or **Ready** feedback. Version checks prevent stale overwrites; feedback history survives revision and resubmission. Saving a private revision hides the current draft from the organizer again. Reflections are the learner's own words, not AI-generated learning assessments. The course cohort team may differ from a final-project team.
 
 Log in and select the team the organizer is using for the course. Private intake is visible only to its author and that team's owner. Learners can revise or remove their response. Ordinary peers and agents cannot retrieve it. No demographic questions are required.
 
@@ -32,6 +38,8 @@ Learners and organizers can write course stories, save drafts, preview, explicit
 ## Audio setup and limits
 
 Apply `supabase/migrations/20261102001000_collaboration_records.sql` before using the new features. It is additive; browser database roles have no direct table/RPC access. Application routes enforce membership and author/organizer rights, and the service-only RPC enforces scope, immutable identity and optimistic revision checks.
+
+Also apply `supabase/migrations/20261102002000_course_delivery.sql` for course schedules and submissions. It expands the existing record-kind constraint without loosening table/RPC permissions.
 
 Set `OPENAI_API_KEY` server-side for the default speaker-labeled transcription. It uses `gpt-4o-transcribe-diarize`, `diarized_json`, and automatic chunking. OpenAI has announced retirement on **February 26, 2027**. The adapter is isolated and configurable; switch to a supported diarization provider before that date. Sources: [speech-to-text guide](https://developers.openai.com/api/docs/guides/speech-to-text), [deprecations](https://developers.openai.com/api/docs/deprecations).
 
