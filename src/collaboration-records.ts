@@ -6,7 +6,7 @@ import { cloudMembers } from "./cloud-workspace.js";
 import { nextRevision, WorkspaceError } from "./workspace-model.js";
 
 export type Actor = { id: string; name: string; email?: string; createdAt?: string };
-export const recordKind = z.enum(["reflection", "reply", "ticket", "meeting", "portfolio", "feedback", "intake", "post"]);
+export const recordKind = z.enum(["reflection", "reply", "ticket", "meeting", "portfolio", "feedback", "intake", "post", "course_settings", "course_submission"]);
 export type RecordKind = z.infer<typeof recordKind>;
 export interface CollaborationRecord {
   id: string; teamId: string; projectId: string | null; kind: RecordKind;

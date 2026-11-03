@@ -53,6 +53,17 @@ try{
   const tickets=(await tool("get_collaboration_plan",{projectId:project.id})).tickets;assert(tickets[0].payload.status==="proposed"&&!tickets[0].payload.assigneeId,"Agent proposal became assigned work.");
   await json(await request(learner.cookie,courseRoot+"/intake","PUT",{interests:"PRIVATE_QA_INTAKE",goals:"Build an app for local observations",organizerConsent:true}));
   assert((await request(learner.cookie,courseRoot+"/intakes")).status===403,"Learner could read cohort intake.");
+  const scheduleFields={dates:["2027-02-16","2027-02-23","2027-03-02","2027-03-09","2027-03-16"],startTime:"18:00",timeZone:"America/New_York",location:"Disposable course QA room"};
+  assert((await request(learner.cookie,courseRoot+"/schedule","PUT",scheduleFields)).status===403,"Learner could change the cohort schedule.");
+  const schedule=await json(await request(owner.cookie,courseRoot+"/schedule","PUT",scheduleFields));assert(schedule.calendar.scheduled,"Cohort dates did not persist.");
+  const calendar=await request(learner.cookie,courseRoot+"/calendar.ics");assert(calendar.ok&&(await calendar.text()).includes("BEGIN:VCALENDAR"),"Calendar export failed.");
+  const evidence={workSummary:"I built a small checklist and tested normal, empty, and phone-width cases.",reflection:"A partner could not find the add action, so I changed its label.",aiUse:"The agent implemented the form; I chose the task and ran the checks."};
+  let submission=(await json(await request(learner.cookie,courseRoot+"/assignments/first-build","PUT",{...evidence,action:"draft"}))).submission;
+  assert((await json(await request(owner.cookie,courseRoot+"/reviews"))).submissions.length===0,"Private learner draft leaked to the organizer.");
+  submission=(await json(await request(learner.cookie,courseRoot+"/assignments/first-build","PUT",{...evidence,action:"submit",expectedVersion:submission.version}))).submission;
+  assert((await request(visitor.cookie,courseRoot+"/reviews")).status===403,"Visitor could read course work.");
+  await json(await request(owner.cookie,courseRoot+"/reviews/"+submission.id,"POST",{expectedVersion:submission.version,status:"revise",feedback:"Please include the observed empty-input result, then explain what you changed."}));
+  const savedWork=await json(await request(learner.cookie,courseRoot+"/submissions"));assert(savedWork.submissions[0].payload.review.status==="revise","Human feedback did not reach the learner.");
   const fields={title:"Field notes: our process",description:"A reviewed record of how we designed and tested an observation form.",sessionIds:[session.id],includeReflections:true};
   const preview=await json(await request(owner.cookie,root+"/portfolios/preview","POST",fields));
   const portfolio=await json(await request(owner.cookie,root+"/portfolios","POST",{...fields,previewHash:preview.previewHash,consentConfirmed:true}));fixture.portfolioId=portfolio.id;

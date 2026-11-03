@@ -1,8 +1,9 @@
 import { escape as e } from "./portfolio-content.js";
+import {renderCurriculum} from "./course-curriculum.js";
 const $=id=>document.getElementById(id);
 export async function api(path,options={}) {const response=await fetch(path,{cache:"no-store",...options,headers:{"Content-Type":"application/json",...options.headers}});const result=await response.json();if(!response.ok)throw new Error(result.error||"The request failed.");return result;}
-let account,teamId,intake;
-export const courseContext=()=>({account,teamId});
+let account,teamId,intake,curriculum;
+export const courseContext=()=>({account,teamId,course:curriculum});
 async function loadTeam() {
   $("course-intake").innerHTML="<p role='status'>Loading your response…</p>";$("course-organizer").replaceChildren();
   try {
@@ -18,13 +19,11 @@ async function loadTeam() {
 }
 async function load() {
   try {
-    const course=await api("/api/course");$("course-description").textContent=course.description;$("course-status").textContent=course.access;
-    $("course-sessions").innerHTML=course.sessions.map(session=>`<details class="course-session" id="session-${session.number}"><summary>${session.number}. ${e(session.title)}<span>120 minutes · ${e(session.outcome)}</span></summary><div class="course-session-content"><h3>The session</h3><ol class="course-agenda">${session.agenda.map(item=>`<li><strong>${item.minutes} min.</strong> ${e(item.task)}</li>`).join("")}</ol><h3>Build and investigate</h3><p>${e(session.activity)}</p><h3>Questions to reflect on</h3><ul>${session.prompts.map(prompt=>`<li>${e(prompt)}</li>`).join("")}</ul><h3>Resources</h3><ul>${session.resources.map(id=>{const resource=course.resources.find(row=>row.id===id);return `<li><a href="${e(resource.url)}" target="_blank" rel="noopener noreferrer">${e(resource.title)}</a></li>`;}).join("")}</ul><details><summary>For the facilitator</summary><p>${e(session.facilitator)}</p></details></div></details>`).join("");
-    $("course-resources").className="course-resources";$("course-resources").innerHTML=course.resources.map(row=>`<article><h3><a href="${e(row.url)}" target="_blank" rel="noopener noreferrer">${e(row.title)}</a></h3><p>${e(row.note)}</p></article>`).join("");
+    curriculum=await api("/api/course");renderCurriculum(curriculum);
     const auth=await api("/api/auth/status");if(!auth.authenticated){$("course-account-content").innerHTML='<p>Log in to save your private learner intake and write a course story.</p><a class="button" href="/?returnTo=%2Fcourse">Log in or create an account</a>';}
     else{account=await api("/api/course/account");$("course-account-content").innerHTML=`<p>Signed in as ${e(account.name)}. <a href="/">Open your workspace</a></p>${account.teams.length?`<label class="course-account-picker">Your course team<select id="course-team">${account.teams.map(team=>`<option value="${e(team.id)}">${e(team.name)}</option>`).join("")}</select></label><p>Choose the team your organizer is using for this course.</p>`:'<p>Create or join your course team in <a href="/">your workspace</a>, then return here.</p>'}`;if(account.teams.length){teamId=account.teams[0].id;$("course-team").addEventListener("change",()=>{teamId=$("course-team").value;loadTeam();});await loadTeam();}}
     document.dispatchEvent(new CustomEvent("course-ready"));
   }catch(error){$("course-status").textContent=error.message;}
 }
 // Load the story module before emitting readiness events, without a circular import.
-import("./course-stories.js").then(load);
+Promise.all([import("./course-stories.js"),import("./course-delivery.js")]).then(load);
