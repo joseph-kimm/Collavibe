@@ -41,6 +41,7 @@ let memberError = "";
 let issuedKey = "";
 let connections = [];
 let authorizationId = new URLSearchParams(location.search).get("authorize") || "";
+let setupCourseTeam = new URLSearchParams(location.search).get("setupTeam") === "1";
 const requestedReturnPath = safeReturnTo(new URLSearchParams(location.search).get("returnTo"));
 let invitation = new URLSearchParams(location.search).get("join") || "";
 const hash = new URLSearchParams(location.hash.slice(1));
@@ -72,8 +73,9 @@ function showGate(which) {
   $("team-gate").hidden = which !== "team";
   $("workspace").hidden = which !== "workspace";
   $("consent-gate").hidden = which !== "consent";
-  if (which === "auth" && (authorizationId || invitation)) {
-    $("account").scrollIntoView({ block: "start" });
+  if (which === "auth" && (location.pathname === "/login" || requestedReturnPath || authorizationId || invitation || location.hash.includes("team="))) {
+    document.body.classList.add("focused-auth");
+    $("auth-form").elements.email.focus({ preventScroll: true });
   }
 }
 function toast(message, error = false) {
@@ -128,13 +130,15 @@ async function load({ quiet = false } = {}) {
       const auth = await api("/api/auth/status");
       if (sequence !== requestSequence || demo) return;
       if (!auth.authenticated) { showGate("auth"); return; }
-      if (requestedReturnPath && !authorizationId && !invitation) { location.assign(requestedReturnPath); return; }
+      if (requestedReturnPath && !authorizationId && !invitation && !setupCourseTeam) { location.assign(requestedReturnPath); return; }
     }
     const next = await api("/api/dashboard" + (teamId ? "?teamId=" + encodeURIComponent(teamId) : ""));
     if (sequence !== requestSequence || demo) return;
     data = next;
-    if (!data.teams.length || invitation) {
+    if (!data.teams.length || invitation || setupCourseTeam) {
       $("back-workspace").hidden = !data.teams.length;
+      $("back-workspace").textContent = requestedReturnPath ? "Return to course" : "Back to workspace";
+      if (setupCourseTeam) setTeamMode("join");
       if (invitation) { setTeamMode("join"); $("join-team-form").elements.joinCode.value = invitation; }
       showGate("team"); return;
     }
@@ -660,7 +664,7 @@ $("auth-form").addEventListener("submit", (event) => {
   formAction(event.currentTarget, async () => {
     const body = Object.fromEntries(new FormData($("auth-form")));
     await api("/api/auth/" + authMode, { method: "POST", body: JSON.stringify(body) });
-    if (requestedReturnPath && !authorizationId && !invitation) { location.assign(requestedReturnPath); return; }
+    if (requestedReturnPath && !authorizationId && !invitation && !setupCourseTeam) { location.assign(requestedReturnPath); return; }
     $("auth-form").reset(); members = []; await load();
   });
 });
@@ -669,7 +673,10 @@ for (const [id, path] of [["create-team-form", "/api/teams"], ["join-team-form",
     event.preventDefault(); const form = event.currentTarget;
     formAction(form, async () => {
       const result = await api(path, { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(form))) });
-      teamId = result.team.id; invitation = ""; members = [];
+      teamId = result.team.id; invitation = ""; setupCourseTeam = false; members = [];
+      localStorage.setItem("collavibe-team", teamId);
+      try { sessionStorage.setItem("collavibe-course-team:" + data.user.id, teamId); } catch { /* Team remains available if storage is restricted. */ }
+      if (requestedReturnPath && !authorizationId) { location.assign(requestedReturnPath); return; }
       history.replaceState(null, "", location.pathname + (authorizationId ? "?authorize=" + encodeURIComponent(authorizationId) : "")); form.reset(); view = "map";
       await load(); toast(id === "create-team-form" ? "Team created." : "You joined the team.");
     });
@@ -786,7 +793,7 @@ $("team-select").addEventListener("change", async () => {
   await load();
 });
 $("add-team").addEventListener("click", () => { if (!canWrite()) return; $("back-workspace").hidden = false; setTeamMode("create"); showGate("team"); });
-$("back-workspace").addEventListener("click", () => { invitation = ""; showGate("workspace"); });
+$("back-workspace").addEventListener("click", () => { invitation = ""; setupCourseTeam = false; if (requestedReturnPath) { location.assign(requestedReturnPath); return; } showGate("workspace"); });
 $("mobile-projects").addEventListener("click", () => setMobileNav(!$("workspace").classList.contains("mobile-nav")));
 for (const id of ["close-navigation", "nav-backdrop"]) $(id).addEventListener("click", () => { setMobileNav(false); $("mobile-projects").focus(); });
 document.querySelector(".main").addEventListener("click", (event) => { if (!event.target.closest("#mobile-projects")) setMobileNav(false); });
@@ -820,7 +827,7 @@ function enterDemo() {
   showGate("workspace"); render();
 }
 hydrateIcons();
-initializeLanding({ setAuthMode, copy, invitation, authorizationId });
+initializeLanding({ setAuthMode, copy, invitation, authorizationId, requestedReturnPath });
 document.querySelectorAll("dialog").forEach((dialog) => {
   dialog.addEventListener("click", (event) => { if (event.target !== dialog) return; const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) { if (dialog.id === "confirm-dialog") $("confirm-cancel").click(); else dialog.close(); } });
 });

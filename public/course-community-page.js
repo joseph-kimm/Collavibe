@@ -10,12 +10,12 @@ async function load() {
     const status = await api("/api/auth/status");
     if (!status.authenticated) {
       const target = encodeURIComponent("/course/community" + location.hash);
-      host.innerHTML = `<p>Sign in to read and post in your cohort forum.</p><a class="button primary" href="/?returnTo=${e(target)}">Sign in</a>`;
+      host.innerHTML = `<p>Sign in to read and post in your cohort forum.</p><a class="button primary" href="/login?returnTo=${e(target)}">Sign in</a>`;
       return;
     }
     const account = await api("/api/course/account");
     if (!account.teams.length) {
-      host.innerHTML = '<p>Join your cohort team to read and post in the forum.</p><a class="button primary" href="/">Open workspace</a>';
+      host.innerHTML = '<p>Join your cohort team to read and post in the forum.</p><a class="button primary" href="/login?returnTo=%2Fcourse%2Fcommunity&setupTeam=1">Join your cohort</a>';
       return;
     }
     accountHost.innerHTML = `<label class="course-account-picker">Cohort<select>

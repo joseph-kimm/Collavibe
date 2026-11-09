@@ -22,12 +22,12 @@ export const workflowSteps = Object.freeze({
   },
 });
 
-export function initializeLanding({ setAuthMode, copy, invitation = "", authorizationId = "" }) {
+export function initializeLanding({ setAuthMode, copy, invitation = "", authorizationId = "", requestedReturnPath = "" }) {
   let selected = "start";
   const byId = (id) => document.getElementById(id);
   const context = byId("auth-context");
-  context.hidden = !invitation && !authorizationId;
-  context.textContent = authorizationId ? "Log in or create an account to authorize your coding agent. You’ll choose the team it can access next." : invitation ? "Log in or create an account to join the team using your invitation." : "";
+  context.hidden = !invitation && !authorizationId && !requestedReturnPath;
+  context.textContent = authorizationId ? "Log in or create an account to authorize your coding agent. You’ll choose the team it can access next." : invitation ? "Log in or create an account to join the team using your invitation." : requestedReturnPath.startsWith("/course/community") ? "Sign in to continue to your cohort forum." : requestedReturnPath.startsWith("/course") ? "Sign in to continue to your course." : requestedReturnPath ? "Sign in to return to the project portfolio and leave feedback." : "";
   document.querySelectorAll("[data-open-account]").forEach((button) => button.addEventListener("click", () => {
     setAuthMode(button.dataset.openAccount);
     byId("account").scrollIntoView({ behavior: "auto", block: "start" });

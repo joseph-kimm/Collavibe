@@ -8,7 +8,7 @@ export function safeReturnTo(value) {
       return url.pathname + (/^#post_[0-9a-f-]{36}$/.test(url.hash) ? url.hash : "");
     }
     if (url.pathname === "/course" || url.pathname === "/course/") {
-      return "/course" + (["#community", "#learner-portfolio"].includes(url.hash) ? url.hash : "");
+      return "/course" + (["#community", "#learner-portfolio", "#course-account", "#stories"].includes(url.hash) ? url.hash : "");
     }
   } catch { /* Ignore invalid or external destinations. */ }
   return "";

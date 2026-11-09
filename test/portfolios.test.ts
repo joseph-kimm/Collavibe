@@ -70,6 +70,9 @@ describe("opt-in reviewed public portfolio", () => {
     expect(publicText("https://example.com?api_key=secret-value")).toBe("[private URL]");
     for(const path of ["https://evil.example", "//evil.example", "/\\evil.example", "/api/teams", "/course/../api/private"]) expect(safeReturnTo(path)).toBe("");
     expect(safeReturnTo("/course")).toBe("/course");
+    expect(safeReturnTo("/course#course-account")).toBe("/course#course-account");
+    expect(safeReturnTo("/course#stories")).toBe("/course#stories");
+    expect(safeReturnTo("/course#untrusted")).toBe("/course");
     expect(safeReturnTo("/course/community#post_12345678-1234-1234-1234-123456789012")).toBe("/course/community#post_12345678-1234-1234-1234-123456789012");
     expect(safeReturnTo("/p/portfolio_12345678-1234-1234-1234-123456789012")).toContain("/p/portfolio_");
   });

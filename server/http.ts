@@ -327,6 +327,7 @@ app.get("/health", (_req, res) => res.json({ ok: true, service: "collavibe", ver
 const publicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../public");
 registerCollaborationRoutes(app, requireUser);
 registerCourseRoutes(app, requireUser);
+app.get("/login", (_req, res) => res.sendFile(path.join(publicDirectory, "index.html")));
 app.get("/course", (_req, res) => res.sendFile(path.join(publicDirectory, "course.html")));
 app.get("/course/community", (_req, res) => res.sendFile(path.join(publicDirectory, "course-community.html")));
 app.get("/course/portfolio/:id", (_req, res) => res.sendFile(path.join(publicDirectory, "learner-portfolio.html")));
