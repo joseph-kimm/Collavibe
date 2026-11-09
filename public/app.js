@@ -74,7 +74,7 @@ function showGate(which) {
   $("team-gate").hidden = which !== "team";
   $("workspace").hidden = which !== "workspace";
   $("consent-gate").hidden = which !== "consent";
-  if (which === "auth" && (requestedReturnPath || authorizationId || invitation || location.hash.includes("team="))) {
+  if (which === "auth" && (requestedReturnPath || authorizationId || invitation || location.hash === "#account" || location.hash.includes("team="))) {
     $("account").scrollIntoView({ block: "start" });
     $("auth-form").elements.email.focus({ preventScroll: true });
   }
