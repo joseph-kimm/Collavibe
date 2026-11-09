@@ -16,7 +16,19 @@ export async function mountMeetings(host, context) {
     meetings = next.meetings; audio = next.audio; render();
   }
   function remember(form) {
-    draft = { ...draft, title: form.elements.title.value, transcript: form.elements.transcript.value, summary: form.elements.summary.value, consentConfirmed: form.elements.consentConfirmed.checked, speakersReviewed: form.elements.speakersReviewed.checked, speakers: Object.fromEntries([...form.querySelectorAll("[data-speaker-id]")].map(input => [input.dataset.speakerId, input.value])) };
+    const transcript = form.elements.transcript.value;
+    const changedText = transcript !== draft.transcript;
+    if (changedText) form.elements.speakersReviewed.checked = false;
+    draft = {
+      ...draft,
+      title: form.elements.title.value,
+      transcript,
+      segments: changedText ? [] : draft.segments,
+      summary: form.elements.summary.value,
+      consentConfirmed: form.elements.consentConfirmed.checked,
+      speakersReviewed: form.elements.speakersReviewed.checked,
+      speakers: Object.fromEntries([...form.querySelectorAll("[data-speaker-id]")].map(input => [input.dataset.speakerId, input.value])),
+    };
     drafts.set(key, draft);
   }
   function render() {
@@ -34,7 +46,10 @@ export async function mountMeetings(host, context) {
       if (!current() || selected) return;
       if (clipUrl) URL.revokeObjectURL(clipUrl); clipUrl = URL.createObjectURL(blob);
       const player = host.querySelector("audio"); player.src = clipUrl; player.hidden = false;
-      const download = host.querySelector("[data-download-clip]"); download.href = clipUrl; download.download = blob.type.includes("mp4") ? "meeting.m4a" : "meeting.webm"; download.hidden = false;
+      const download = host.querySelector("[data-download-clip]");
+      download.href = clipUrl;
+      download.download = blob instanceof File ? blob.name : blob.type.includes("mp4") ? "meeting.m4a" : "meeting.webm";
+      download.hidden = false;
       host.querySelector("[data-stop-recording]").disabled = true; host.querySelector("[data-record]").disabled = false;
       status(`Clip ready (${Math.ceil(blob.size / 1024)} KB). It has not been uploaded.`);
     }

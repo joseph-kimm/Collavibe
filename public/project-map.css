@@ -31,7 +31,7 @@ body { line-height: 1.5; }
 .map-view .page-title { padding-top: 22px; padding-bottom: 16px; }
 .map-view .repository-summary { padding-top: 12px; padding-bottom: 12px; margin-bottom: 12px; }
 .view-tabs { gap: 28px; flex-wrap: wrap; }
-.view-tabs button { min-height: 52px; padding-bottom: 10px; font-size: 1rem; }
+.view-tabs button { min-height: 52px; margin-right: 0; padding-bottom: 10px; font-size: 1rem; }
 .toolbar { flex-wrap: wrap; }
 .toolbar select { font-size: 1rem; min-height: 44px; max-width: 200px; }
 .search-wrap input { font-size: 1rem; min-height: 44px; }
@@ -119,6 +119,10 @@ details[open] > summary > .map-chevron { transform: rotate(90deg); }
 }
 @media (max-width:700px) {
   .project-map { padding: 20px 16px 28px; }
+  .page-header { padding-inline:16px; }
+  .page-header .header-actions { flex:1 1 100%; min-width:0; justify-content:space-between; gap:8px; }
+  .page-header .connection { min-width:0; white-space:normal; font-size:.8125rem; }
+  .page-header #refresh { flex-shrink:0; }
   .project-filters.collapsible > summary { margin-left: 16px; }
   .page-title { display: block; padding: 24px 16px 16px; }
   .page-title h1 { font-size: 1.75rem; }
@@ -126,8 +130,8 @@ details[open] > summary > .map-chevron { transform: rotate(90deg); }
   .title-actions { margin-top: 16px; justify-content: flex-start; }
   .title-actions .button { font-size: .875rem; }
   .repository-summary { margin-inline: 16px; }
-  .view-tabs { padding-inline: 16px; gap: 12px 24px; }
-  .view-tabs button { font-size: 1rem; padding-bottom: 8px; }
+  .view-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); padding-inline:16px; gap:0 10px; }
+  .view-tabs button { min-width:0; min-height:44px; padding:6px 0; gap:4px; font-size:.875rem; line-height:1.3; text-align:left; }
   .toolbar { padding: 14px 16px; }
   .toolbar select { font-size: 1rem; min-width: 0; max-width: none; }
   .map-root { padding: 18px; gap: 12px; }

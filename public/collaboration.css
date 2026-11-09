@@ -1,4 +1,5 @@
 .form .checkbox-label input[type="checkbox"], .portfolio-preview .checkbox-label input[type="checkbox"] { width:18px; height:18px; min-height:18px; flex:0 0 18px; padding:0; }
+.collaboration-page .button { max-width:100%; white-space:normal; overflow-wrap:anywhere; text-align:left; }
 .form .checkbox-label { min-width:0; overflow-wrap:anywhere; }
 .learning-journal { margin-top: 28px; border-top: 1px solid var(--line); padding-top: 24px; }
 .learning-journal > .subtle { margin: 12px 0 20px; }

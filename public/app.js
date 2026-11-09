@@ -410,6 +410,12 @@ function renderDetail() {
     if (commentFocus && $("comment-text")) { $("comment-text").focus({ preventScroll: true }); $("comment-text").setSelectionRange(commentFocus.start, commentFocus.end); }
   }
   if (!isFeature && !demo) {
+    if (item.sync && canWrite()) {
+      const next = document.createElement("section");
+      next.className = "detail-section";
+      next.innerHTML = '<h3>Plan the next session</h3><p>Turn a useful next step into a draft ticket. Review suggestions under Tickets before assigning work.</p><button class="button compact" type="button" data-action="copy-session-proposals">Copy ticket proposal prompt</button>';
+      $("detail").append(next);
+    }
     const journal = document.createElement("section");
     journal.className = "learning-journal";
     $("detail").append(journal);
@@ -634,6 +640,12 @@ document.addEventListener("click", async (event) => {
       await copy(setupValues().start + ' I want to work on feature "' + item.title + '" (feature ID: ' + item.id + "). Load its current checklist and ask me to confirm before claiming it.");
     }
     if (action === "copy-handoff") await copy(handoffText(data.sessions.find((item) => item.id === selection?.id)));
+    if (action === "copy-session-proposals") {
+      const session = data.sessions.find(item => item.id === selection?.id);
+      if (session?.sync && canWrite()) {
+        await copy(`Call Collavibe get_project_context and find session "${session.id}" in the returned sessions. Suggest follow-ups based on its saved outcomes, blockers, and next steps. When I confirm which ideas to save, call propose_project_tickets with projectId "${session.projectId}", a new requestId (reuse it for retries), and the confirmed proposals. Set sourceKind to "session" and both sourceId and sessionId to "${session.id}" on each proposal. Leave them unassigned for human review under Tickets.`);
+      }
+    }
     if (action === "export-session") { const session = data.sessions.find((item) => item.id === selection?.id); download(filename(session.participant + "-" + session.id) + ".md", handoffText(session)); }
     if (action === "copy-team") await copy(data.selectedTeam.joinCode);
     if (action === "copy-invite") await copy(location.origin + "/?join=" + encodeURIComponent(data.selectedTeam.joinCode));
