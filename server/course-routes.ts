@@ -8,6 +8,11 @@ import { requestLimit } from "./request-limits.js";
 import {getCourseSchedule,saveCourseSchedule,courseCalendarIcs} from "../src/course-schedule.js";
 import {ownSubmissions,saveSubmission,organizerSubmissions,reviewSubmission} from "../src/course-submissions.js";
 import {courseHandbook,assignmentMarkdown} from "../src/course-handbook.js";
+import {
+  addCourseDiscussion, addDiscussionReply, courseDiscussions, removeDiscussionEntry,
+  ownLearnerPortfolio, saveLearnerPortfolio, previewLearnerPortfolio, publishLearnerPortfolio,
+  unpublishLearnerPortfolio, publicLearnerPortfolio,
+} from "../src/course-community.js";
 
 type AuthRequest = Request & { collavibeUser?: Actor };
 const route = (handler:(req:AuthRequest,res:Response)=>Promise<unknown>):RequestHandler => (req,res,next:NextFunction)=>{Promise.resolve(handler(req as AuthRequest,res)).catch(next);};
@@ -17,6 +22,44 @@ export function registerCourseRoutes(app:Express,requireUser:RequestHandler) {
   app.get("/api/course/assignments/:assignmentId/brief",(req,res)=>{const markdown=assignmentMarkdown(String(req.params.assignmentId));if(!markdown){res.status(404).json({error:"Assignment not found."});return;}res.type("text/markdown").attachment(`Vibecode 101 - ${String(req.params.assignmentId)}.md`).send(markdown);});
   app.get("/api/course/account",requireUser,route(async(req,res)=>res.json(await courseAccount(req.collavibeUser!))));
   const base="/api/course/teams/:teamId";
+  const discussions = base + "/discussions";
+  const portfolio = base + "/learner-portfolio";
+  const discussionLimit = requestLimit("course-discussion", 30, 600);
+  app.get(discussions, requireUser, route(async (req, res) => {
+    res.json({ threads: await courseDiscussions(req.collavibeUser!, String(req.params.teamId)) });
+  }));
+  app.post(discussions, requireUser, discussionLimit, route(async (req, res) => {
+    res.status(201).json({ id: await addCourseDiscussion(req.collavibeUser!, String(req.params.teamId), req.body) });
+  }));
+  app.post(discussions + "/:threadId/replies", requireUser, discussionLimit, route(async (req, res) => {
+    res.status(201).json({ id: await addDiscussionReply(req.collavibeUser!, String(req.params.teamId), String(req.params.threadId), req.body) });
+  }));
+  app.delete(discussions + "/:threadId", requireUser, route(async (req, res) => {
+    await removeDiscussionEntry(req.collavibeUser!, String(req.params.teamId), String(req.params.threadId), req.body);
+    res.json({ removed: true });
+  }));
+  app.delete(discussions + "/:threadId/replies/:replyId", requireUser, route(async (req, res) => {
+    await removeDiscussionEntry(req.collavibeUser!, String(req.params.teamId), String(req.params.threadId), req.body, String(req.params.replyId));
+    res.json({ removed: true });
+  }));
+  app.get(portfolio, requireUser, route(async (req, res) => {
+    res.json({ portfolio: await ownLearnerPortfolio(req.collavibeUser!, String(req.params.teamId)) });
+  }));
+  app.put(portfolio, requireUser, route(async (req, res) => {
+    res.json({ portfolio: await saveLearnerPortfolio(req.collavibeUser!, String(req.params.teamId), req.body) });
+  }));
+  app.get(portfolio + "/preview", requireUser, route(async (req, res) => {
+    res.json(await previewLearnerPortfolio(req.collavibeUser!, String(req.params.teamId)));
+  }));
+  app.post(portfolio + "/publish", requireUser, route(async (req, res) => {
+    res.json({ portfolio: await publishLearnerPortfolio(req.collavibeUser!, String(req.params.teamId), req.body) });
+  }));
+  app.post(portfolio + "/unpublish", requireUser, route(async (req, res) => {
+    res.json({ portfolio: await unpublishLearnerPortfolio(req.collavibeUser!, String(req.params.teamId), req.body) });
+  }));
+  app.get("/api/course/portfolios/:id", route(async (req, res) => {
+    res.json(await publicLearnerPortfolio(String(req.params.id)));
+  }));
   app.get(base+"/schedule",requireUser,route(async(req,res)=>res.json(await getCourseSchedule(req.collavibeUser!,String(req.params.teamId)))));
   app.put(base+"/schedule",requireUser,route(async(req,res)=>res.json(await saveCourseSchedule(req.collavibeUser!,String(req.params.teamId),req.body))));
   app.get(base+"/calendar.ics",requireUser,route(async(req,res)=>{const schedule=await getCourseSchedule(req.collavibeUser!,String(req.params.teamId));res.type("text/calendar").attachment("Vibecode 101.ics").send(courseCalendarIcs(String(req.params.teamId),schedule.calendar));}));

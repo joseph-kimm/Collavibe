@@ -1,8 +1,8 @@
 # Vibecode 101
 
-Build a useful app. Understand your decisions. Work with other people.
+Build an app with AI. Learn to explain the choices you made.
 
-Teaching edition 1.0. Resources checked November 2, 2026. Dates below are relative until the organizer configures a cohort. This plan has not yet been validated through a classroom pilot.
+Teaching edition 1.1. Resources checked November 2, 2026. Dates below are relative until the organizer configures a cohort. This plan has not yet been validated through a classroom pilot.
 
 A five-week, in-person course for adults with an idea and little or no programming experience. Direct an AI coding agent, build three small individual projects, and work in a team to finish one useful app. Understand and stand behind what you build, without memorizing programming syntax.
 
@@ -78,6 +78,20 @@ The showcase can stay within the class. Get agreement before recording, inviting
 - **Keep revising:** An important criterion lacks evidence or the main task fails. Name the missing test/decision and agree a manageable revision.
 - **Ready:** The task and required evidence are present, limits are honest, and the learner can explain a key decision. Optional features are not required.
 - **Extend if useful:** The core is ready. Improve accessibility or investigate a deeper trade-off without expanding everyone else's workload.
+
+---
+
+## Cohort participation and project portfolios
+
+Use the cohort forum to learn from peers’ actual build experiences. Keep a personal project portfolio as you go, so the final showcase draws on work you have already documented.
+
+- Week 1. Start your portfolio with the first prototype. Share one thing that changed after a user tried it.
+- Week 2. Post a firsthand question or comparison about an API, prompt, or tool. Include what you tried, the context, and a result. Reply to a peer with a concrete observation or question.
+- Week 3. Add the two-API and data projects to your portfolio. Compare a deployment or access-rule trade-off with a peer. State the date and conditions when discussing cost or performance.
+- Week 4. Share a team update with one decision, one test result, and one request for feedback. Link evidence the cohort is allowed to see.
+- Week 5. Add your final team project and explain your own contribution. Submit a short demo and include a portfolio summary with your private final work.
+
+Use text, captioned video, or an illustrated walkthrough for project explanations. A 1–2-minute final demo should show one journey and one decision. A written walkthrough with screenshots is an equivalent option. Keep the portfolio private for course completion or publish a reviewed version. LinkedIn and other external posts are optional.
 
 ---
 
@@ -551,7 +565,7 @@ Due: 72 hours after Session 5 ends; demo-ready candidate 24 hours before Session
 
 Demonstrate a small working product and a collaborative process that another person can understand.
 
-Build the single journey in your approved charter. The final app must use at least one external API or a persistent data store; both are optional. It does not have to contain an AI-powered feature. The important work is directing the agent, testing the result, making decisions together, and handing off context.
+Build the single journey in your approved charter. Use at least one external API or a persistent data store. The important work is directing the agent, testing the result, making decisions together, and handing off context.
 
 ## What to do
 
@@ -565,12 +579,13 @@ Build the single journey in your approved charter. The final app must use at lea
 
 ## Submit
 
-- The app URL or reproducible local run instructions, plus a short backup demo or screenshots.
-- Repository access or an agreed source snapshot for the organizer. Do not make a private repository public just to submit it.
-- The charter, final scope, architecture sketch, dependency/data source notes, and setup instructions without real keys.
+- The app URL or reproducible local run instructions. Include a 1–2-minute captioned demo or an equivalent written walkthrough with screenshots that shows one journey and one decision.
+- Repository access or an agreed source snapshot for the organizer. Keep a private repository private when submitting.
+- The charter, final scope, architecture sketch, dependency and data source notes, and setup instructions without real keys.
 - The acceptance matrix, one outsider test, changes after feedback, and known limitations.
-- Selected Collavibe handoffs/tickets that explain the sequence of decisions, not a full chat dump or contribution ranking.
-- Each member's 150–250-word personal reflection or equivalent 1–2-minute spoken account: one decision, one revision, what you can now explain, and what remains uncertain.
+- Selected Collavibe handoffs or tickets that explain the sequence of decisions.
+- Each member's portfolio covering the three individual builds and final team project. Include the four project summaries or a reviewed portfolio link with your private submission.
+- Each member's 150–250-word personal reflection or equivalent 1–2-minute spoken account covering one decision, one revision, what you can now explain, and what remains uncertain.
 
 ## Evidence checks
 
@@ -648,6 +663,38 @@ Fallback: Choose the guided route when access, licensing, browser support, or re
 ---
 
 ## Copyable templates
+
+### Peer tool comparison
+
+```text
+What I was trying to build:
+Tool, model, or hosting plan I used (and date):
+One thing I tested and the result:
+A trade-off or cost I actually observed:
+Where this comparison might not apply:
+One question for a peer:
+```
+
+### Project portfolio entry
+
+```text
+Project and who it helps:
+Tools I used and my role:
+One decision, an alternative, and why I chose it:
+What I checked or changed after feedback:
+Optional project link or captioned demo link:
+What I have permission to share:
+```
+
+### 90-second project demo
+
+```text
+0:00–0:20 Introduce the user and problem.
+0:20–0:55 Show the main journey with fictional data.
+0:55–1:20 Explain one decision and evidence from a test.
+1:20–1:30 Name a limitation or next step.
+Add captions or a transcript, or provide the same walkthrough in text with screenshots.
+```
 
 ### Four-sentence brief
 

@@ -3,7 +3,18 @@ import { assignments } from "./course-assignments.js";
 
 // Single source for the website, handbook, assignment briefs and schedule.
 export const course = {
-  id:"vibecode-101",version:"1.0",title:"Vibecode 101",subtitle:"Build a useful app. Understand your decisions. Work with other people.",
+  id:"vibecode-101",version:"1.1",title:"Vibecode 101",subtitle:"Build an app with AI. Learn to explain the choices you made.",
+  participation: {
+    introduction: "Use the cohort forum to learn from peers’ actual build experiences. Keep a personal project portfolio as you go, so the final showcase draws on work you have already documented.",
+    milestones: [
+      "Week 1. Start your portfolio with the first prototype. Share one thing that changed after a user tried it.",
+      "Week 2. Post a firsthand question or comparison about an API, prompt, or tool. Include what you tried, the context, and a result. Reply to a peer with a concrete observation or question.",
+      "Week 3. Add the two-API and data projects to your portfolio. Compare a deployment or access-rule trade-off with a peer. State the date and conditions when discussing cost or performance.",
+      "Week 4. Share a team update with one decision, one test result, and one request for feedback. Link evidence the cohort is allowed to see.",
+      "Week 5. Add your final team project and explain your own contribution. Submit a short demo and include a portfolio summary with your private final work.",
+    ],
+    formats: "Use text, captioned video, or an illustrated walkthrough for project explanations. A 1–2-minute final demo should show one journey and one decision. A written walkthrough with screenshots is an equivalent option. Keep the portfolio private for course completion or publish a reviewed version. LinkedIn and other external posts are optional.",
+  },
   description:"A five-week, in-person course for adults with an idea and little or no programming experience. Direct an AI coding agent, build three small individual projects, and work in a team to finish one useful app. Understand and stand behind what you build, without memorizing programming syntax.",
   access:"Ten class hours, plus about eight to ten hours of preparation and project work. Bring a laptop and internet access. The organizer must confirm access to one supported coding agent or a paired alternative before enrollment. Sponsored access is a plan, not a promise. No paid API or billing card is required for the core assignments.",
   audience:"Adults 18+ who can use a browser, manage basic files, and describe an app idea in English. No programming prerequisite. This version is designed for 8–12 learners and at most four final-project teams. Bring your own examples and tell the organizer what support would help.",
@@ -65,6 +76,9 @@ export const course = {
       activity:"Show the useful result and how you arrived there. A reproducible failure you can explain is better than a claim that everything works. Stories and public portfolios are optional after review.",prompts:["What changed because someone used or questioned our app?","What can I explain now that I could not explain before?"],facilitator:"The standard timetable supports four teams. Arrange a longer/parallel showcase for more teams before advertising the course; never compress access accommodations or questions.",exitCheck:"Every learner explains one choice and names the next test.",between:"Finish one reasoned revision, submit the group package, and add each person's reflection by the agreed deadline. Public sharing is a separate consent decision."},
   ],
   toolkit:[
+    {id:"peer-tool-comparison",title:"Peer tool comparison",text:"What I was trying to build:\nTool, model, or hosting plan I used (and date):\nOne thing I tested and the result:\nA trade-off or cost I actually observed:\nWhere this comparison might not apply:\nOne question for a peer:"},
+    {id:"portfolio-project",title:"Project portfolio entry",text:"Project and who it helps:\nTools I used and my role:\nOne decision, an alternative, and why I chose it:\nWhat I checked or changed after feedback:\nOptional project link or captioned demo link:\nWhat I have permission to share:"},
+    {id:"short-project-demo",title:"90-second project demo",text:"0:00–0:20 Introduce the user and problem.\n0:20–0:55 Show the main journey with fictional data.\n0:55–1:20 Explain one decision and evidence from a test.\n1:20–1:30 Name a limitation or next step.\nAdd captions or a transcript, or provide the same walkthrough in text with screenshots."},
     {id:"build-brief",title:"Four-sentence brief",text:"The person is…\nThey struggle with…\nThe one action this app supports is…\nI will know it works when…"},
     {id:"agent-plan",title:"Plan → Build → Check",text:"Build [one interaction] for [person]. First explain the smallest plan, files/services you would change, and checks to run. Wait for my choice. Use fictional data and no paid services. After a small change, show what changed and what you actually tested. Ask before publishing, spending money, using credentials, or changing unrelated work."},
     {id:"api-check",title:"Two-source API check",text:"User question:\nProvider + official docs:\nEndpoint and sample query:\nFields, units, timezone/date, missing values:\nAuthentication, free-use terms, attribution, limits:\nBrowser CORS or fixed server route:\nRelationship to the other dataset:\nTimeout, empty data, partial failure:\nDate checked:"},

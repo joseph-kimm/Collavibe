@@ -1,8 +1,28 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="description" content="A complete five-week course in building useful apps with AI coding agents. Lessons, assignments, API starter, database lab, and a collaborative final project."/><title>Vibecode 101 · Collavibe</title><link rel="stylesheet" href="/styles.css"/><link rel="stylesheet" href="/design.css"/><link rel="stylesheet" href="/collaboration.css"/><link rel="stylesheet" href="/course.css"/></head>
-<body class="course-reader"><a class="skip-link" href="#course-main">Skip to course</a><header class="public-header"><a class="brand" href="/">Collavibe</a><span>Vibecode 101 · Course handbook</span><a href="/#account">Workspace / log in</a></header>
-<div class="course-layout"><nav class="course-navigation no-print" aria-label="Course sections"><p>Vibecode 101</p><a href="#overview">Start here</a><a href="#schedule">Schedule</a><a href="#sessions">Weekly lessons</a><a href="#assignments">Assignments</a><a href="#api-lab">Two-API toolkit</a><a href="#toolkit">Templates</a><a href="#resources">Watch and read</a><a href="#course-account">Your course and work</a><a href="#stories">Stories and projects</a><a href="#instructor">Facilitator guide</a><a href="#glossary">Glossary</a></nav>
-<main id="course-main" class="public-main course-main"><div class="course-introduction"><p class="overline">Five weeks · Ten class hours · Adult beginners</p><h1>Vibecode 101</h1><p class="course-lede">Build a useful app.<br/>Understand your decisions.<br/>Work with other people.</p><p id="course-description"></p><p id="course-status" role="status">Loading course…</p><div class="course-links no-print"><a class="button" href="#sessions">Explore the lessons</a><a class="button quiet" href="/course-kit/Vibecode%20101%20-%20Course%20Handbook.pdf">Download PDF handbook</a><a href="/api/course/handbook">Editable handbook</a><button class="button quiet" id="print-course" type="button">Print this page</button></div></div>
+<body class="course-reader"><a class="skip-link" href="#course-main">Skip to course</a><header class="public-header"><a class="brand" href="/">Collavibe</a><span>Vibecode 101</span><a href="/?returnTo=%2Fcourse">Workspace / sign in</a></header>
+<div class="course-layout">
+<nav class="course-navigation no-print" aria-label="Course sections">
+  <p>Course</p>
+  <a href="#overview">Overview</a><a href="#schedule">Schedule</a><a href="#sessions">Weekly lessons</a><a href="#assignments">Assignments</a>
+  <p>Cohort</p>
+  <a href="#course-account">Your course and work</a><a href="#community">Cohort forum</a><a href="#learner-portfolio">Your portfolio</a><a href="#stories">Public stories</a>
+  <p>Reference</p>
+  <a href="#api-lab">API and data labs</a><a href="#toolkit">Templates</a><a href="#resources">Resources</a><a href="#instructor">Facilitator guide</a><a href="#glossary">Glossary</a>
+</nav>
+<main id="course-main" class="public-main course-main">
+<div class="course-introduction">
+  <p class="overline">Five weeks · Ten class hours</p>
+  <h1>Vibecode 101</h1>
+  <p class="course-lede">Build an app with AI. Learn to explain the choices you made.</p>
+  <p id="course-description"></p>
+  <div class="course-links no-print">
+    <a class="button primary" href="#sessions">Explore the lessons</a>
+    <a href="/course-kit/Vibecode%20101%20-%20Course%20Handbook.pdf">Download handbook (PDF)</a>
+  </div>
+  <p class="course-intro-note" id="course-status" role="status">Loading course…</p>
+  <details class="course-downloads no-print"><summary>More formats</summary><div class="course-links"><a href="/api/course/handbook">Editable handbook</a><button class="button quiet" id="print-course" type="button">Print this page</button></div></details>
+</div>
 <section id="overview"><p class="overline">The course</p><h2>Start with a small, useful thing.</h2><div id="course-overview"></div></section>
 <section id="schedule"><h2>Schedule and deadlines</h2><p id="course-schedule-note"></p><div id="course-schedule-list"></div><div id="course-cohort-schedule"></div></section>
 <section id="sessions"><p class="overline">The five weeks</p><h2>Prepare. Build. Test. Explain.</h2><p>Each lesson includes preparation to watch/read at home, a complete 120-minute class plan, an exit check, and the next assignment. Open a week to see the details.</p><div id="course-sessions"></div></section>
@@ -11,7 +31,18 @@
 <section id="toolkit"><h2>Templates you can actually use.</h2><p>Adapt these to your own project. Personal reflections should describe your own thinking, not an agent's invented account of it.</p><div id="course-templates"></div></section>
 <section id="resources"><h2>Watch, read, and try.</h2><p>Primary resources from the tool creators and teaching organizations. Required excerpts are specified within each week's preparation. The rest is reference material, not an extra pile of homework.</p><label class="course-resource-search no-print">Find a resource<input id="resource-search" type="search" placeholder="API, video, GitHub, security…"/></label><p id="resource-search-status" role="status"></p><div id="course-resources"></div></section>
 <section id="course-account" class="no-print"><h2>Your course and work</h2><div id="course-account-content"></div><div id="course-delivery"></div><details class="course-detail"><summary>Your private learner intake</summary><div id="course-intake"></div><div id="course-organizer"></div></details></section>
-<section id="stories"><h2>Stories and projects</h2><p>First-hand accounts of building, revising, and working together. Authors choose what to share; public posting is not an assignment requirement.</p><div id="course-stories"></div><div id="course-story-editor" class="no-print"></div></section>
+<section id="community" class="no-print">
+  <h2>Cohort forum</h2>
+  <p>Show what you tried, ask what worked for a peer, or compare tools using results from your own build.</p>
+  <details class="course-detail"><summary>Weekly participation plan</summary><div id="course-participation"></div></details>
+  <div id="course-discussions"></div>
+</section>
+<section id="learner-portfolio" class="no-print">
+  <h2>Your project portfolio</h2>
+  <p>Keep a page for your three individual builds and final team project. Describe the problem, tools, decision, and evidence for each. Add a demo link or describe the walkthrough in writing.</p>
+  <div id="learner-portfolio-editor"></div>
+</section>
+<section id="stories"><h2>Public stories</h2><p>Read first-hand accounts of building, revising, and working together. Authors choose which stories to publish.</p><div id="course-stories"></div><div id="course-story-editor" class="no-print"></div></section>
 <section id="instructor"><h2>Facilitator guide</h2><details class="course-detail"><summary>Prepare and run this course</summary><div id="course-facilitator"></div></details></section>
 <section id="glossary"><h2>A small glossary</h2><div id="course-glossary"></div></section>
-<footer class="course-footer"><p>Teaching edition 1.0 · Resources checked November 2, 2026. This is a course design, not a claim of proven learning outcomes. Confirm cohort dates, access, and audience arrangements before teaching.</p><a href="#course-main">Back to the top</a></footer></main></div><script type="module" src="/course.js"></script></body></html>
+<footer class="course-footer"><p>Teaching edition 1.1 · Confirm cohort dates, access, and audience arrangements before teaching.</p><a href="#course-main">Back to the top</a></footer></main></div><script type="module" src="/course.js"></script></body></html>

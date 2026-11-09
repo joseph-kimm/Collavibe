@@ -328,6 +328,7 @@ const publicDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)
 registerCollaborationRoutes(app, requireUser);
 registerCourseRoutes(app, requireUser);
 app.get("/course", (_req, res) => res.sendFile(path.join(publicDirectory, "course.html")));
+app.get("/course/portfolio/:id", (_req, res) => res.sendFile(path.join(publicDirectory, "learner-portfolio.html")));
 app.get("/p/:portfolioId", (_req, res) => res.sendFile(path.join(publicDirectory, "portfolio.html")));
 app.use(express.static(publicDirectory));
 

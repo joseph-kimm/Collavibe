@@ -20,10 +20,15 @@ async function loadTeam() {
 async function load() {
   try {
     curriculum=await api("/api/course");renderCurriculum(curriculum);
-    const auth=await api("/api/auth/status");if(!auth.authenticated){$("course-account-content").innerHTML='<p>Log in to save your private learner intake and write a course story.</p><a class="button" href="/?returnTo=%2Fcourse">Log in or create an account</a>';}
-    else{account=await api("/api/course/account");$("course-account-content").innerHTML=`<p>Signed in as ${e(account.name)}. <a href="/">Open your workspace</a></p>${account.teams.length?`<label class="course-account-picker">Your course team<select id="course-team">${account.teams.map(team=>`<option value="${e(team.id)}">${e(team.name)}</option>`).join("")}</select></label><p>Choose the team your organizer is using for this course.</p>`:'<p>Create or join your course team in <a href="/">your workspace</a>, then return here.</p>'}`;if(account.teams.length){teamId=account.teams[0].id;$("course-team").addEventListener("change",()=>{teamId=$("course-team").value;loadTeam();});await loadTeam();}}
+    const auth=await api("/api/auth/status");if(!auth.authenticated){$("course-account-content").innerHTML='<p>Log in to join your cohort, submit work, and save your portfolio.</p><a class="button primary" href="/?returnTo=%2Fcourse">Log in or create an account</a>';}
+    else{account=await api("/api/course/account");$("course-account-content").innerHTML=`<p>Signed in as ${e(account.name)}. <a href="/">Open your workspace</a></p>${account.teams.length?`<label class="course-account-picker">Your course team<select id="course-team">${account.teams.map(team=>`<option value="${e(team.id)}">${e(team.name)}</option>`).join("")}</select></label><p>Choose the team your organizer is using for this course.</p>`:'<p>Create or join your course team in <a href="/">your workspace</a>, then return here.</p>'}`;if(account.teams.length){teamId=account.teams[0].id;$("course-team").addEventListener("change",()=>{teamId=$("course-team").value;document.dispatchEvent(new Event("course-scope-change"));loadTeam();});await loadTeam();}}
     document.dispatchEvent(new CustomEvent("course-ready"));
   }catch(error){$("course-status").textContent=error.message;}
 }
 // Load the story module before emitting readiness events, without a circular import.
-Promise.all([import("./course-stories.js"),import("./course-delivery.js")]).then(load);
+Promise.all([
+  import("./course-stories.js"),
+  import("./course-delivery.js"),
+  import("./course-community.js"),
+  import("./course-learner-portfolio.js"),
+]).then(load);

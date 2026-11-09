@@ -5,6 +5,8 @@ function resourceLink(resource){return `<a href="${e(safeHref(resource.url))}" t
 export function renderCurriculum(course){
   const resource=id=>course.resources.find(row=>row.id===id);
   $("course-description").textContent=course.description;$("course-status").textContent=course.access;
+  const participation = course.participation;
+  $("course-participation").innerHTML = `<p>${e(participation.introduction)}</p>${list(participation.milestones)}<p>${e(participation.formats)}</p>`;
   $("course-overview").innerHTML=`<p>${e(course.audience)}</p><h3>By the end, you should be able to…</h3>${list(course.outcomes.map(row=>row.text))}<details class="course-detail"><summary>Tools, setup, and access</summary>${course.tools.map(row=>`<article class="course-resource"><h4>${e(row.name)}</h4><p>${e(row.purpose)}</p>${resourceLink(resource(row.resource))}</article>`).join("")}<h4>Before the first class</h4>${list(course.setup)}</details><details class="course-detail"><summary>Working agreements and feedback</summary>${course.policies.map(row=>`<h4>${e(row.title)}</h4><p>${e(row.text)}</p>`).join("")}<h4>How feedback works</h4>${list(course.feedbackGuide.map(row=>`${row.level}: ${row.meaning}`))}</details>`;
   $("course-schedule-note").textContent=course.scheduleNote;
   $("course-schedule-list").innerHTML=`<ol class="course-roadmap">${course.sessions.map(row=>`<li><span>Week ${row.number}</span><a href="#session-${row.number}">${e(row.title)}</a><small data-session-date="${row.number}">Date to be confirmed</small></li>`).join("")}</ol><p id="course-schedule-visibility">Sign in below to see the dates for your course team. The public curriculum uses a relative weekly schedule.</p>`;

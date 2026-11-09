@@ -30,14 +30,21 @@ export async function collaborationMembers(actor: Actor, teamId: string) {
 
 // Reads here are internal. Every HTTP/MCP caller must enforce its own projection
 // and scope before returning records. Anonymous callers never receive this list.
-export async function readRecords(teamId?: string, projectId?: string | null, kind?: RecordKind): Promise<CollaborationRecord[]> {
+export async function readRecords(teamId?: string, projectId?: string | null, kind?: RecordKind, courseEntry?: string | null): Promise<CollaborationRecord[]> {
   if (!isSupabaseConfigured()) {
-    return (await readState()).collaborationRecords?.filter(row => (!teamId || row.teamId === teamId) && (projectId === undefined || row.projectId === projectId) && (!kind || row.kind === kind)) || [];
+    return (await readState()).collaborationRecords?.filter(row =>
+      (!teamId || row.teamId === teamId) &&
+      (projectId === undefined || row.projectId === projectId) &&
+      (!kind || row.kind === kind) &&
+      (courseEntry === undefined || (row.payload.courseEntry ?? null) === courseEntry)
+    ) || [];
   }
   let query = getSupabaseAdmin().from("collaboration_records").select("payload");
   if (teamId) query = query.eq("team_id", teamId);
   if (projectId !== undefined) query = projectId === null ? query.is("project_id", null) : query.eq("project_id", projectId);
   if (kind) query = query.eq("kind", kind);
+  if (courseEntry === null) query = query.is("payload->payload->>courseEntry", null);
+  if (typeof courseEntry === "string") query = query.eq("payload->payload->>courseEntry", courseEntry);
   const rows = await query.order("created_at");
   if (rows.error?.code === "42P01" || rows.error?.code === "PGRST205") throw new WorkspaceError("Collaboration features need the November 2 database migration before they can be used.", 503);
   throwSupabaseError(rows.error);

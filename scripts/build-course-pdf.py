@@ -20,7 +20,7 @@ if (font_root / "Arial.ttf").exists():
     regular, bold = "Course", "CourseBold"
 else:
     regular, bold = "Helvetica", "Helvetica-Bold"
-ink, accent = colors.HexColor("#263128"), colors.HexColor("#3d5e48")
+ink, accent = colors.HexColor("#29241f"), colors.HexColor("#883f29")
 body = ParagraphStyle("Body", fontName=regular, fontSize=10.5, leading=15.2, textColor=ink, spaceAfter=8, splitLongWords=True)
 styles = {
     1: ParagraphStyle("Title", parent=body, fontName=bold, fontSize=34, leading=40, spaceAfter=20),
@@ -29,12 +29,12 @@ styles = {
     4: ParagraphStyle("Minor", parent=body, fontName=bold, fontSize=11, leading=16, spaceBefore=9, keepWithNext=True),
 }
 bullet = ParagraphStyle("Bullet", parent=body, leftIndent=13, firstLineIndent=-10, spaceAfter=6)
-code = ParagraphStyle("Template", parent=body, fontSize=10, leading=15, leftIndent=12, rightIndent=12, backColor=colors.HexColor("#f0f3eb"), borderPadding=10, spaceBefore=10, spaceAfter=14)
+code = ParagraphStyle("Template", parent=body, fontSize=10, leading=15, leftIndent=12, rightIndent=12, backColor=colors.HexColor("#f8f4ee"), borderPadding=10, spaceBefore=10, spaceAfter=14)
 
 def inline(text):
     text = text.replace("—", " - ").replace("–", "-").replace("\u2011", "-")
     text = escape(text)
-    text = re.sub(r"\[([^\]]+)\]\((https?://[^)]+)\)", r'<link href="\2" color="#3d5e48"><u>\1</u></link>', text)
+    text = re.sub(r"\[([^\]]+)\]\((https?://[^)]+)\)", r'<link href="\2" color="#883f29"><u>\1</u></link>', text)
     text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
     return text
 
@@ -45,7 +45,9 @@ def flush():
         story.append(Paragraph(inline(" ".join(paragraph)), body))
         paragraph.clear()
 
-for line in (root / "public/course-kit/Course Handbook.md").read_text().splitlines():
+handbook = (root / "public/course-kit/Course Handbook.md").read_text()
+edition = re.search(r"^Teaching edition (\d+\.\d+)\.", handbook, re.MULTILINE)
+for line in handbook.splitlines():
     if line.startswith("```"):
         flush()
         if inside_code:
@@ -80,12 +82,12 @@ flush()
 
 def furniture(canvas, doc):
     canvas.saveState()
-    canvas.setStrokeColor(colors.HexColor("#d6ded2"))
+    canvas.setStrokeColor(colors.HexColor("#ded6cb"))
     canvas.line(50, 755, 562, 755)
     canvas.setFont(regular, 8)
     canvas.setFillColor(accent)
     canvas.drawString(50, 766, "COLLAVIBE / VIBECODE 101")
-    canvas.drawString(50, 30, "Teaching edition 1.0  |  November 2, 2026")
+    canvas.drawString(50, 30, "Teaching edition " + edition.group(1) if edition else "Vibecode 101")
     canvas.drawRightString(562, 30, str(doc.page))
     canvas.restoreState()
 

@@ -6,13 +6,14 @@ import { WorkspaceError } from "./workspace-model.js";
 
 const fields=z.object({title:z.string().trim().min(3).max(200),body:z.string().trim().min(20).max(15000),demoUrl:publicUrl.default(""),portfolioId:z.string().regex(/^portfolio_[a-f0-9-]{36}$/).or(z.literal("")).default("")});
 const hash=(value:unknown)=>createHash("sha256").update(JSON.stringify(value)).digest("hex");
+const isStory = (row: CollaborationRecord) => row.kind === "post" && row.payload.courseEntry === undefined;
 function projectStory(row:CollaborationRecord) {
   return {id:row.id,title:publicText(row.payload.title,200),body:publicText(row.payload.body,15000),demoUrl:String(row.payload.demoUrl||""),portfolioId:String(row.payload.portfolioId||""),authorName:publicText(row.authorName,120)};
 }
 async function scoped(actor:Actor,teamId:string,id:string) {
   const scope=await collaborationScope(actor,teamId);
   const row=await findRecord(id);
-  if(!row||row.kind!=="post"||row.teamId!==teamId||row.deletedAt)throw new WorkspaceError("Course story not found.",404);
+  if(!row||!isStory(row)||row.teamId!==teamId||row.deletedAt)throw new WorkspaceError("Course story not found.",404);
   return {scope,row};
 }
 async function checkPortfolio(teamId:string,id:string) {
@@ -22,7 +23,7 @@ async function checkPortfolio(teamId:string,id:string) {
 }
 export async function listCourseStories(actor:Actor,teamId:string) {
   const scope=await collaborationScope(actor,teamId);
-  return (await readRecords(teamId,null,"post")).filter(row=>!row.deletedAt&&(row.authorId===actor.id||scope.owner));
+  return (await readRecords(teamId,null,"post",null)).filter(row=>isStory(row)&&!row.deletedAt&&(row.authorId===actor.id||scope.owner));
 }
 export async function saveCourseStory(actor:Actor,teamId:string,raw:unknown,id?:string) {
   const input=fields.extend({expectedVersion:z.number().int().positive().optional()}).parse(raw);
@@ -56,7 +57,7 @@ export async function unpublishCourseStory(actor:Actor,teamId:string,id:string,e
   return saveRecord(actor,reviseRecord(row,{...row.payload,published:false}),row.version);
 }
 export async function publicCourseStories() {
-  const rows=(await readRecords(undefined,null,"post")).filter(row=>row.payload.published===true&&!row.deletedAt).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,200);
+  const rows=(await readRecords(undefined,null,"post",null)).filter(row=>isStory(row)&&row.payload.published===true&&!row.deletedAt).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,200);
   const result=[];
   for(const row of rows){const snapshot={...(row.payload.snapshot as ReturnType<typeof projectStory>),publishedAt:row.payload.publishedAt};
     if(snapshot.portfolioId){const portfolio=await findRecord(snapshot.portfolioId);if(!portfolio||portfolio.teamId!==row.teamId||portfolio.payload.published!==true||portfolio.deletedAt)snapshot.portfolioId="";}

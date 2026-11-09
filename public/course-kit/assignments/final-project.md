@@ -8,7 +8,7 @@ Due: 72 hours after Session 5 ends; demo-ready candidate 24 hours before Session
 
 Demonstrate a small working product and a collaborative process that another person can understand.
 
-Build the single journey in your approved charter. The final app must use at least one external API or a persistent data store; both are optional. It does not have to contain an AI-powered feature. The important work is directing the agent, testing the result, making decisions together, and handing off context.
+Build the single journey in your approved charter. Use at least one external API or a persistent data store. The important work is directing the agent, testing the result, making decisions together, and handing off context.
 
 ## What to do
 
@@ -22,12 +22,13 @@ Build the single journey in your approved charter. The final app must use at lea
 
 ## Submit
 
-- The app URL or reproducible local run instructions, plus a short backup demo or screenshots.
-- Repository access or an agreed source snapshot for the organizer. Do not make a private repository public just to submit it.
-- The charter, final scope, architecture sketch, dependency/data source notes, and setup instructions without real keys.
+- The app URL or reproducible local run instructions. Include a 1–2-minute captioned demo or an equivalent written walkthrough with screenshots that shows one journey and one decision.
+- Repository access or an agreed source snapshot for the organizer. Keep a private repository private when submitting.
+- The charter, final scope, architecture sketch, dependency and data source notes, and setup instructions without real keys.
 - The acceptance matrix, one outsider test, changes after feedback, and known limitations.
-- Selected Collavibe handoffs/tickets that explain the sequence of decisions, not a full chat dump or contribution ranking.
-- Each member's 150–250-word personal reflection or equivalent 1–2-minute spoken account: one decision, one revision, what you can now explain, and what remains uncertain.
+- Selected Collavibe handoffs or tickets that explain the sequence of decisions.
+- Each member's portfolio covering the three individual builds and final team project. Include the four project summaries or a reviewed portfolio link with your private submission.
+- Each member's 150–250-word personal reflection or equivalent 1–2-minute spoken account covering one decision, one revision, what you can now explain, and what remains uncertain.
 
 ## Evidence checks
 
