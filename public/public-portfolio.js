@@ -1,3 +1,4 @@
+import { mountSignIn, watchSession } from "./inline-auth.js";
 import { escape, portfolioContent } from "./portfolio-content.js";
 const id = location.pathname.split("/").filter(Boolean)[1];
 const endpoint = "/api/public/portfolios/" + encodeURIComponent(id || "");
@@ -12,8 +13,10 @@ async function load() {
     $("portfolio-status").textContent = "A public snapshot selected by the team. Private workspace access is not included.";
     $("portfolio-feedback").hidden = false;
     const auth = await api("/api/auth/status");
+    watchSession(auth.authenticated);
     permissions = auth.authenticated ? await api(endpoint + "/permissions") : null;
-    $("public-feedback-account").innerHTML = permissions ? `<p>Posting as ${escape(permissions.name)}. Your feedback and display name will be public.</p>` : `<p><a class="button" href="/login?returnTo=${encodeURIComponent(location.pathname)}">Log in to give feedback</a></p>`;
+    if (permissions) $("public-feedback-account").innerHTML = `<p>Posting as ${escape(permissions.name)}. Your feedback and display name will be public.</p>`;
+    else mountSignIn($("public-feedback-account"), { message: "Sign in to join the discussion about this project." });
     $("public-feedback-form").hidden = !permissions;
     $("public-feedback-form").elements.sessionId.innerHTML = '<option value="">The project overall</option>' + data.snapshot.sessions.map(session => `<option value="${escape(session.id)}">${escape(session.participant)}: ${escape(session.summary.slice(0,80) || "Building session")}</option>`).join("");
     $("public-feedback-list").innerHTML = data.feedback.map(row => `<article class="ticket-row"><div class="comment-heading"><strong>${escape(row.authorName)}</strong><time>${escape(new Date(row.createdAt).toLocaleString())}</time></div><p class="subtle">${row.sessionId ? "About a building session" : "About the project"}${row.parentId ? " · Reply in a discussion" : ""}</p><p class="learning-text">${escape(row.text)}</p>${permissions ? `<button class="text-button" type="button" data-reply-feedback="${escape(row.id)}">Reply</button>` : ""}${permissions?.removableIds.includes(row.id) ? `<button class="text-button" type="button" data-remove-feedback="${escape(row.id)}">Remove feedback</button>` : ""}</article>`).join("") || '<p class="subtle">No public feedback yet.</p>';

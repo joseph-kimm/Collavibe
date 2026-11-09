@@ -1,3 +1,4 @@
+import { mountSignIn, watchSession } from "./inline-auth.js";
 import { escape as e } from "./portfolio-content.js";
 import {renderCurriculum} from "./course-curriculum.js";
 import { api, rememberCourseTeam, selectedCourseTeam } from "./course-api.js";
@@ -26,12 +27,16 @@ async function loadTeam(message = "") {
 async function load() {
   try {
     curriculum=await api("/api/course");renderCurriculum(curriculum);
-    const auth=await api("/api/auth/status");if(!auth.authenticated){$("course-account-content").innerHTML='<p>Log in to join your cohort, submit work, and save your portfolio.</p><a class="button primary" href="/login?returnTo=%2Fcourse%23course-account">Log in or create an account</a>';}
+    const auth = await api("/api/auth/status");
+    watchSession(auth.authenticated);
+    if (!auth.authenticated) {
+      mountSignIn($("course-account-content"), { message: "Sign in to join your cohort, submit work, and save your portfolio." });
+    }
     else {
       account = await api("/api/course/account");
       $("course-account-content").innerHTML = `<p>Signed in as ${e(account.name)}. <a href="/">Open your workspace</a></p>${account.teams.length
         ? `<label class="course-account-picker">Your course team<select id="course-team">${account.teams.map(team=>`<option value="${e(team.id)}">${e(team.name)}</option>`).join("")}</select></label><p>Choose the team your organizer is using for this course.</p>`
-        : '<p>Create or join your course team in <a href="/login?returnTo=%2Fcourse%23course-account&setupTeam=1">your workspace</a>.</p>'}`;
+        : '<p>Create or join your course team in <a href="/?returnTo=%2Fcourse%23course-account&setupTeam=1">your workspace</a>.</p>'}`;
       if (account.teams.length) {
         const picker = $("course-team");
         teamId = picker.value = selectedCourseTeam(account);

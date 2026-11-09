@@ -174,13 +174,7 @@ dialog::backdrop { background: #17253766; backdrop-filter: blur(3px); }
 }
 @media (prefers-reduced-motion:reduce) { .button, .workflow-steps button, .workflow-steps button > [data-icon] { transition: none; } }
 
-/* Direct sign-in keeps the destination and the form in the first viewport. */
-.focused-auth .landing-hero,
-.focused-auth .landing-workflow,
-.focused-auth .landing-setup,
-.focused-auth .account-intro,
-.focused-auth .landing-footer,
-.focused-auth .landing-header nav { display: none; }
-.focused-auth .landing-account { display: block; padding: 48px 24px 64px; }
-.focused-auth .landing-account .auth-form-wrap { width: min(100%, 420px); margin: 0 auto; }
-.focused-auth .auth-context { font-size: 16px; line-height: 1.6; }
+.inline-auth { width: min(100%, 420px); padding: 12px 0 28px; }
+.inline-auth h2 { font-family: inherit; font-size: 24px; font-weight: 550; letter-spacing: -.025em; }
+.inline-auth .auth-message { margin: 0 0 20px; color: var(--muted); }
+.inline-auth .form { margin-top: 20px; }

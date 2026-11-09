@@ -103,7 +103,12 @@ describe("Streamable HTTP transport", () => {
       body: JSON.stringify({ name: "HTTP Owner", email: "owner@example.com", password: "a-secure-test-password" }),
     });
     expect(signup.status).toBe(201);
-    authCookie = signup.headers.get("set-cookie")!.split(";")[0];
+    const sessionCookie = signup.headers.get("set-cookie")!;
+    expect(sessionCookie).toContain("HttpOnly");
+    expect(sessionCookie).toContain("SameSite=Strict");
+    expect(sessionCookie).toContain("Path=/");
+    expect(sessionCookie).toContain("Max-Age=2592000");
+    authCookie = sessionCookie.split(";")[0];
     const signedStatus = await fetch(`${baseUrl}/api/auth/status`, { headers: { cookie: authCookie } });
     expect(signedStatus.status).toBe(200);
     await expect(signedStatus.json()).resolves.toEqual({ authenticated: true });
@@ -257,6 +262,21 @@ describe("Streamable HTTP transport", () => {
     const kit=await call("/course-kit/course-kit.zip","GET",undefined,"");expect(kit.status).toBe(200);expect((await kit.arrayBuffer()).byteLength).toBeGreaterThan(10000);
     const starter=await call("/course-kit/api-starter/","GET",undefined,"");expect(starter.headers.get("content-security-policy")).toContain("https://api.open-meteo.com");
     const account=await call("/course","GET",undefined,"");expect(account.headers.get("content-security-policy")).not.toContain("https://api.open-meteo.com");
+  });
+
+  it("returns legacy login links to inline account pages and rejects external destinations", async () => {
+    for (const [target, destination] of [
+      ["/course/community", "/course/community"],
+      ["/course#course-account", "/course#course-account"],
+      ["https://evil.example", "/#account"],
+      ["//evil.example", "/#account"],
+    ]) {
+      const response = await fetch(baseUrl + "/login?returnTo=" + encodeURIComponent(target), { redirect: "manual" });
+      expect(response.status).toBe(302);
+      expect(response.headers.get("location")).toBe(destination);
+    }
+    const join = await fetch(baseUrl + "/login?setupTeam=1&returnTo=%2Fcourse%2Fcommunity", { redirect: "manual" });
+    expect(join.headers.get("location")).toBe("/?setupTeam=1&returnTo=%2Fcourse%2Fcommunity");
   });
 
   it("handles malformed input without leaking server details", async () => {

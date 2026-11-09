@@ -1,3 +1,4 @@
+import { mountSignIn, watchSession } from "./inline-auth.js";
 import { api, rememberCourseTeam, selectedCourseTeam } from "./course-api.js";
 import { mountCourseDiscussions } from "./course-community.js";
 import { escape as e } from "./portfolio-content.js";
@@ -8,14 +9,14 @@ const accountHost = document.getElementById("forum-account");
 async function load() {
   try {
     const status = await api("/api/auth/status");
+    watchSession(status.authenticated);
     if (!status.authenticated) {
-      const target = encodeURIComponent("/course/community" + location.hash);
-      host.innerHTML = `<p>Sign in to read and post in your cohort forum.</p><a class="button primary" href="/login?returnTo=${e(target)}">Sign in</a>`;
+      mountSignIn(host, { message: "Sign in to read and post in your cohort forum." });
       return;
     }
     const account = await api("/api/course/account");
     if (!account.teams.length) {
-      host.innerHTML = '<p>Join your cohort team to read and post in the forum.</p><a class="button primary" href="/login?returnTo=%2Fcourse%2Fcommunity&setupTeam=1">Join your cohort</a>';
+      host.innerHTML = '<p>Join your cohort team to read and post in the forum.</p><a class="button primary" href="/?returnTo=%2Fcourse%2Fcommunity&setupTeam=1">Join your cohort</a>';
       return;
     }
     accountHost.innerHTML = `<label class="course-account-picker">Cohort<select>

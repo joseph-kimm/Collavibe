@@ -1,3 +1,4 @@
+import { announceAuthChange, watchSession } from "./inline-auth.js";
 import { sampleWorkspace } from "./demo.js";
 import { repositoryPresentation } from "./repository-ui.js";
 import { buildProjectMap, sessionBranch } from "./project-map.js";
@@ -73,8 +74,8 @@ function showGate(which) {
   $("team-gate").hidden = which !== "team";
   $("workspace").hidden = which !== "workspace";
   $("consent-gate").hidden = which !== "consent";
-  if (which === "auth" && (location.pathname === "/login" || requestedReturnPath || authorizationId || invitation || location.hash.includes("team="))) {
-    document.body.classList.add("focused-auth");
+  if (which === "auth" && (requestedReturnPath || authorizationId || invitation || location.hash.includes("team="))) {
+    $("account").scrollIntoView({ block: "start" });
     $("auth-form").elements.email.focus({ preventScroll: true });
   }
 }
@@ -129,6 +130,7 @@ async function load({ quiet = false } = {}) {
     if (!data.user) {
       const auth = await api("/api/auth/status");
       if (sequence !== requestSequence || demo) return;
+      watchSession(auth.authenticated);
       if (!auth.authenticated) { showGate("auth"); return; }
       if (requestedReturnPath && !authorizationId && !invitation && !setupCourseTeam) { location.assign(requestedReturnPath); return; }
     }
@@ -664,6 +666,7 @@ $("auth-form").addEventListener("submit", (event) => {
   formAction(event.currentTarget, async () => {
     const body = Object.fromEntries(new FormData($("auth-form")));
     await api("/api/auth/" + authMode, { method: "POST", body: JSON.stringify(body) });
+    announceAuthChange();
     if (requestedReturnPath && !authorizationId && !invitation && !setupCourseTeam) { location.assign(requestedReturnPath); return; }
     $("auth-form").reset(); members = []; await load();
   });
@@ -801,6 +804,7 @@ async function logout() {
   if (demo) { await leaveSample(); return; }
   try { if (!demo) await api("/api/auth/logout", { method: "POST" }); }
   catch (error) { toast(error.message, true); return; }
+  announceAuthChange(); watchSession(false);
   commentDrafts.clear(); issuedKey = ""; connections = []; $("agent-key-value").value = ""; document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
   requestSequence++; busyLoad = false; demo = false; members = []; fingerprint = ""; selection = null; view = "map";
   data = { user: null, teams: [], projects: [], features: [], sessions: [] };

@@ -18,8 +18,8 @@ async function start() {
   const { account, teamId } = courseContext();
   if (!teamId) {
     host.innerHTML = account
-      ? '<p>Join your cohort team to start your portfolio.</p><a href="/login?returnTo=%2Fcourse%23learner-portfolio&setupTeam=1">Join your cohort</a>'
-      : '<p>Sign in to save a private project portfolio.</p><a class="button primary" href="/login?returnTo=%2Fcourse%23learner-portfolio">Sign in</a>';
+      ? '<p>Join your cohort team to start your portfolio.</p><a href="/?returnTo=%2Fcourse%23learner-portfolio&setupTeam=1">Join your cohort</a>'
+      : '<p>Sign in to save a private project portfolio.</p><a class="button primary" href="/course#course-account">Sign in</a>';
     return;
   }
   const endpoint = `/api/course/teams/${encodeURIComponent(teamId)}/learner-portfolio`;
