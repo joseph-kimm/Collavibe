@@ -10,6 +10,7 @@ const discussionFields = z.object({
   category: z.enum(["update", "question", "comparison"]),
   title: z.string().trim().min(4).max(140),
   body: z.string().trim().min(12).max(4000),
+  groupName: z.string().trim().max(100).default(""),
   evidenceUrl: link,
 });
 const replyFields = z.object({ body: z.string().trim().min(3).max(2500) });
@@ -70,6 +71,7 @@ export async function courseDiscussions(actor: Actor, teamId: string) {
       ...discussionView(row, actor, owner),
       category: row.payload.category,
       title: row.payload.title,
+      groupName: row.payload.groupName || "",
       evidenceUrl: row.payload.evidenceUrl,
       replies: byThread.get(row.id) ?? [],
     }));

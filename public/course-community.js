@@ -1,7 +1,5 @@
-import { api, courseContext } from "./course.js";
 import { escape as e, safeHref } from "./portfolio-content.js";
 
-const host = document.getElementById("course-discussions");
 const categories = { update: "Build update", question: "Ask for experience", comparison: "Tool comparison" };
 let generation = 0;
 
@@ -17,31 +15,24 @@ function removalControl(row, label) {
   </details>`;
 }
 
-async function start() {
+export async function mountCourseDiscussions(host, { api, teamId }) {
   const run = ++generation;
-  const { account, teamId } = courseContext();
-  if (!teamId) {
-    host.innerHTML = account
-      ? '<p>Join your cohort team to read and post in its forum.</p><a href="/">Open workspace</a>'
-      : '<p>Sign in and join your cohort team to participate.</p><a class="button primary" href="/?returnTo=%2Fcourse%23community">Sign in</a>';
-    return;
-  }
-  const teamName = account.teams.find(team => team.id === teamId)?.name;
   const endpoint = `/api/course/teams/${encodeURIComponent(teamId)}/discussions`;
   host.innerHTML = `
-    <p class="cohort-label">Visible to members of <strong>${e(teamName)}</strong> · <a href="#course-account">Change team</a></p>
     <details class="community-compose">
       <summary>Start a discussion</summary>
       <form class="form community-post-form">
         <label>Post type<select name="category">${Object.entries(categories).map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label>
         <label>Title<input name="title" minlength="4" maxlength="140" required /></label>
+        <label>Group name (optional)<input name="groupName" maxlength="100" placeholder="If you are posting on behalf of a group" /></label>
         <label>Your post<textarea name="body" rows="5" minlength="12" maxlength="4000" placeholder="What did you try, what happened, and what input would help?" required></textarea></label>
         <label>Evidence or demo link (optional)<input name="evidenceUrl" type="url" maxlength="2048" placeholder="https://" /></label>
         <button class="button primary" type="submit">Post to cohort</button>
       </form>
     </details>
     <div class="community-toolbar">
-      <label>Show <select class="community-filter"><option value="">All discussions</option>${Object.entries(categories).map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label>
+      <label class="community-search">Search discussions<input type="search" maxlength="200" placeholder="Try hosting, APIs, or prompts" /></label>
+      <label>Category<select class="community-filter"><option value="">All discussions</option>${Object.entries(categories).map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label>
       <button type="button" class="button quiet community-refresh">Refresh</button>
     </div>
     <p class="community-status" role="status"></p>
@@ -49,6 +40,7 @@ async function start() {
   const status = host.querySelector(".community-status");
   const list = host.querySelector(".community-list");
   const filter = host.querySelector(".community-filter");
+  const search = host.querySelector('input[type="search"]');
   const compose = host.querySelector(".community-compose");
   let threads = [];
   const replyDrafts = new Map();
@@ -56,12 +48,16 @@ async function start() {
   let busy = false;
 
   function render(openIds = []) {
-    const matches = threads.filter(thread => !filter.value || thread.category === filter.value);
+    const query = search.value.trim().toLowerCase();
+    const matches = threads.filter(thread => {
+      const searchable = [thread.title, thread.body, thread.authorName, thread.groupName].join(" ").toLowerCase();
+      return (!filter.value || thread.category === filter.value) && searchable.includes(query);
+    });
     list.innerHTML = matches.slice(0, count).map(thread => {
       const url = safeHref(thread.evidenceUrl);
-      return `<article class="community-thread" data-thread="${e(thread.id)}">
-        <p class="thread-meta">${e(categories[thread.category])} · ${e(thread.authorName)} · ${e(displayDate(thread.createdAt))}</p>
-        <h3>${e(thread.title)}</h3>
+      return `<article class="community-thread" id="${e(thread.id)}" data-thread="${e(thread.id)}">
+        <p class="thread-meta"><strong>${e(categories[thread.category])}</strong> · ${e(thread.authorName)}${thread.groupName ? ` for ${e(thread.groupName)}` : ""} · ${e(displayDate(thread.createdAt))}</p>
+        <h3><a href="#${e(thread.id)}">${e(thread.title)}</a></h3>
         <p class="course-story-body">${e(thread.body)}</p>
         ${url ? `<p><a href="${e(url)}" target="_blank" rel="noopener noreferrer">Open evidence or demo</a></p>` : ""}
         <details class="community-replies" ${openIds.includes(thread.id) ? "open" : ""}>
@@ -80,7 +76,9 @@ async function start() {
         </details>
         ${removalControl(thread, "Remove discussion")}
       </article>`;
-    }).join("") || '<p class="community-empty">No discussions here yet. Share a result or ask what worked for someone else.</p>';
+    }).join("") || (threads.length
+      ? '<p class="community-empty">No matching discussions. Try a different search or category.</p>'
+      : '<p class="community-empty">No discussions yet. Share a result or ask what worked for someone else.</p>');
     if (matches.length > count) list.insertAdjacentHTML("beforeend", '<button class="button quiet" type="button" data-more>Show more discussions</button>');
   }
 
@@ -116,6 +114,8 @@ async function start() {
       post.reset();
       compose.open = false;
       filter.value = "";
+      search.value = "";
+      count = 15;
       await refresh("Discussion posted.");
     });
   });
@@ -138,6 +138,8 @@ async function start() {
     });
   });
   list.addEventListener("click", event => {
+    const title = event.target.closest(".community-thread h3 a");
+    if (title) title.closest(".community-thread").querySelector(".community-replies").open = true;
     const button = event.target.closest("button");
     if (!button) return;
     if (button.hasAttribute("data-more")) {
@@ -155,11 +157,23 @@ async function start() {
       await refresh("Removed from the cohort forum.");
     });
   });
-  filter.addEventListener("change", () => { count = 15; render(); });
+  const applyFilters = () => { count = 15; render(); };
+  filter.addEventListener("change", applyFilters);
+  search.addEventListener("input", applyFilters);
   host.querySelector(".community-refresh").addEventListener("click", event => perform(event.currentTarget, () => refresh("Forum refreshed.")));
   status.textContent = "Loading discussions…";
-  try { await refresh(); } catch (error) { if (run === generation) status.textContent = error.message; }
+  try {
+    const target = location.hash.slice(1);
+    await refresh("", target ? [target] : []);
+    if (run === generation && /^post_[a-f0-9-]{36}$/.test(target)) {
+      const index = threads.findIndex(thread => thread.id === target);
+      if (index >= 0) {
+        count = Math.max(count, index + 1);
+        render([target]);
+        document.getElementById(target)?.scrollIntoView({ block: "start" });
+      } else {
+        status.textContent = "This discussion is unavailable in the selected cohort.";
+      }
+    }
+  } catch (error) { if (run === generation) status.textContent = error.message; }
 }
-
-document.addEventListener("course-ready", start);
-document.addEventListener("course-scope-change", start);

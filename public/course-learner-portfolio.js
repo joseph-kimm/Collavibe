@@ -190,4 +190,4 @@ async function start() {
 }
 
 document.addEventListener("course-ready", start);
-document.addEventListener("course-scope-change", start);
+document.addEventListener("course-team-change", start);

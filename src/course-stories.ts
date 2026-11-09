@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { collaborationScope, findRecord, newRecord, readRecords, reviseRecord, saveRecord, type Actor, type CollaborationRecord } from "./collaboration-records.js";
-import { publicText, publicUrl } from "./portfolios.js";
+import { publicText, publicUrl, type Snapshot } from "./portfolios.js";
 import { WorkspaceError } from "./workspace-model.js";
 
 const fields=z.object({title:z.string().trim().min(3).max(200),body:z.string().trim().min(20).max(15000),demoUrl:publicUrl.default(""),portfolioId:z.string().regex(/^portfolio_[a-f0-9-]{36}$/).or(z.literal("")).default("")});
@@ -23,7 +23,18 @@ async function checkPortfolio(teamId:string,id:string) {
 }
 export async function listCourseStories(actor:Actor,teamId:string) {
   const scope=await collaborationScope(actor,teamId);
-  return (await readRecords(teamId,null,"post",null)).filter(row=>isStory(row)&&!row.deletedAt&&(row.authorId===actor.id||scope.owner));
+  return (await readRecords(teamId,null,"post",null)).filter(row=>isStory(row)&&!row.deletedAt&&
+    (row.authorId===actor.id||(scope.owner&&row.payload.published===true)))
+    .map(row => row.authorId === actor.id ? row : moderationView(row));
+}
+function moderationView(row: CollaborationRecord) {
+  return { ...row, payload: { ...row.payload.snapshot as ReturnType<typeof projectStory>, published: row.payload.published } };
+}
+export async function courseStoryPortfolioOptions(actor: Actor, teamId: string) {
+  await collaborationScope(actor, teamId);
+  return (await readRecords(teamId, undefined, "portfolio"))
+    .filter(row => row.payload.published === true && !row.deletedAt)
+    .map(row => ({ id: row.id, title: (row.payload.snapshot as Snapshot).title }));
 }
 export async function saveCourseStory(actor:Actor,teamId:string,raw:unknown,id?:string) {
   const input=fields.extend({expectedVersion:z.number().int().positive().optional()}).parse(raw);
@@ -52,9 +63,10 @@ export async function publishCourseStory(actor:Actor,teamId:string,id:string,raw
 }
 export async function unpublishCourseStory(actor:Actor,teamId:string,id:string,expectedVersion:number) {
   const {row,scope}=await scoped(actor,teamId,id);
-  if(row.authorId!==actor.id&&!scope.owner)throw new WorkspaceError("Only the author or organizer can unpublish this story.",403);
+  if(row.authorId!==actor.id&&(!scope.owner||row.payload.published!==true))throw new WorkspaceError("Only the author or organizer can unpublish a shared story.",403);
   if(row.version!==expectedVersion)throw new WorkspaceError("The story changed. Reload before unpublishing.",409);
-  return saveRecord(actor,reviseRecord(row,{...row.payload,published:false}),row.version);
+  const saved = await saveRecord(actor,reviseRecord(row,{...row.payload,published:false}),row.version);
+  return row.authorId === actor.id ? saved : moderationView(saved);
 }
 export async function publicCourseStories() {
   const rows=(await readRecords(undefined,null,"post",null)).filter(row=>isStory(row)&&row.payload.published===true&&!row.deletedAt).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,200);

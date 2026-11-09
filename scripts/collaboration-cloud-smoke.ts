@@ -49,8 +49,12 @@ try{
   const meeting=(await json(await request(owner.cookie,root+"/meetings","POST",{title:"Observation form planning",transcript:"Speaker A: We should test the empty state. Speaker B: Let's ask a partner to try it.",speakers:{A:"Organizer",B:"Learner"},speakersReviewed:true,consentConfirmed:true}))).meeting;fixture.meetingId=meeting.id;
   await tool("get_brainstorm_context",{projectId:project.id,meetingId:meeting.id});
   await tool("save_brainstorm_summary",{projectId:project.id,meetingId:meeting.id,expectedVersion:meeting.version,summary:"Draft: test empty-state instructions with a partner before extending the form."});
-  await tool("propose_project_tickets",{projectId:project.id,requestId:`qa-${run}-next`,proposals:[{title:"Test the empty-state instructions",sourceKind:"meeting",sourceId:meeting.id}]});
+  await tool("propose_project_tickets",{projectId:project.id,requestId:`qa-${run}-next`,proposals:[{title:"Test the empty-state instructions",sourceKind:"meeting",sourceId:meeting.id},{title:"Check the saved form handoff",sourceKind:"session",sourceId:session.id,sessionId:session.id}]});
   const tickets=(await tool("get_collaboration_plan",{projectId:project.id})).tickets;assert(tickets[0].payload.status==="proposed"&&!tickets[0].payload.assigneeId,"Agent proposal became assigned work.");
+  const fromSession=tickets.find((ticket:any)=>ticket.payload.sourceId===session.id);
+  assert(fromSession?.payload.status==="proposed","Session proposal is missing.");
+  const approved=(await json(await request(owner.cookie,root+"/tickets/"+fromSession.id,"PATCH",{action:"approve",expectedVersion:fromSession.version,fields:{...fromSession.payload,status:"planned",assigneeId:learner.id}}))).ticket;
+  assert(approved.payload.status==="planned"&&approved.payload.assigneeId===learner.id,"Human ticket review did not persist.");
   await json(await request(learner.cookie,courseRoot+"/intake","PUT",{interests:"PRIVATE_QA_INTAKE",goals:"Build an app for local observations",organizerConsent:true}));
   assert((await request(learner.cookie,courseRoot+"/intakes")).status===403,"Learner could read cohort intake.");
   const scheduleFields={dates:["2027-02-16","2027-02-23","2027-03-02","2027-03-09","2027-03-16"],startTime:"18:00",timeZone:"America/New_York",location:"Disposable course QA room"};
@@ -70,11 +74,42 @@ try{
   const publicPath="/api/public/portfolios/"+portfolio.id;const publicData=JSON.stringify(await json(await request("",publicPath)));
   assert(!publicData.includes("PRIVATE_QA_INTAKE")&&!publicData.includes(note.payload.text)&&!publicData.includes(meeting.payload.transcript),"Private material leaked into portfolio.");
   await json(await request(visitor.cookie,publicPath+"/feedback","POST",{text:"Could you explain the empty-state test?",sessionId:session.id,publicConsent:true}));
-  const story=(await json(await request(learner.cookie,courseRoot+"/stories","POST",{title:"Testing the first observation",body:"We asked a partner to use the form and learned that the empty state needed a clear next action.",portfolioId:portfolio.id}))).story;
+  const story=(await json(await request(learner.cookie,courseRoot+"/stories","POST",{title:"Synthetic QA story",body:"We asked a partner to use the form and learned that the empty state needed a clear next action.",portfolioId:portfolio.id}))).story;
+  const moderation=await json(await request(owner.cookie,courseRoot+"/stories"));
+  assert(!moderation.stories.some((item:any)=>item.id===story.id),"A private story draft leaked to the organizer.");
+  assert(moderation.portfolios.some((item:any)=>item.id===portfolio.id),"Published project missing from story choices.");
   const postPreview=await json(await request(learner.cookie,courseRoot+`/stories/${story.id}/preview`,"POST",{}));
-  await json(await request(learner.cookie,courseRoot+`/stories/${story.id}/publish`,"POST",{previewHash:postPreview.previewHash,expectedVersion:postPreview.version,publicConsent:true}));
+  const sharedStory=(await json(await request(learner.cookie,courseRoot+`/stories/${story.id}/publish`,"POST",{previewHash:postPreview.previewHash,expectedVersion:postPreview.version,publicConsent:true}))).story;
+  assert((await json(await request("","/api/course/stories"))).stories.some((item:any)=>item.id===story.id),"Published story missing from public feed.");
+  await json(await request(owner.cookie,courseRoot+`/stories/${story.id}/unpublish`,"POST",{expectedVersion:sharedStory.version}));
+  assert(!(await json(await request("","/api/course/stories"))).stories.some((item:any)=>item.id===story.id),"Unpublished story stayed in the public feed.");
+
+  const forum=courseRoot+"/discussions";
+  const thread=(await json(await request(learner.cookie,forum,"POST",{
+    title:"How did you handle a slow API?", body:"We measured the timeout on a test app and kept the completed result visible.",
+    groupName:"Field Notes team",category:"comparison",
+  }))).id;
+  await json(await request(owner.cookie,forum+"/"+thread+"/replies","POST",{body:"Can you repeat the test after changing the timeout?"}));
+  const threads=(await json(await request(learner.cookie,forum))).threads;
+  assert(threads[0].groupName==="Field Notes team"&&threads[0].replies.length===1,"Forum thread or reply did not persist.");
+  assert((await request("",forum)).status===401&&(await request(visitor.cookie,forum)).status===403,"Forum was readable outside the cohort.");
+  const learnerPortfolio=courseRoot+"/learner-portfolio";
+  await json(await request(learner.cookie,learnerPortfolio,"PUT",{title:"Synthetic QA portfolio",projects:[{
+    assignmentId:"two-api",title:"Weather and air dashboard",problem:"Compare local weather and air quality.",
+    tools:"Open-Meteo and JavaScript",decision:"Separate timeouts keep partial results useful.",
+    evidence:"I simulated a failed provider and kept the weather available.",
+  }]}));
+  assert((await json(await request(owner.cookie,learnerPortfolio))).portfolio===null,"The organizer received someone else's portfolio draft.");
+  const learnerPreview=await json(await request(learner.cookie,learnerPortfolio+"/preview"));
+  const publishedProfile=(await json(await request(learner.cookie,learnerPortfolio+"/publish","POST",{
+    expectedVersion:learnerPreview.version,previewHash:learnerPreview.previewHash,consent:true,
+  }))).portfolio;
+  const profilePath="/api/course/portfolios/"+publishedProfile.publicId;
+  assert((await json(await request("",profilePath))).projects.length===1,"Published learner portfolio was not readable.");
+  await json(await request(learner.cookie,learnerPortfolio+"/unpublish","POST",{expectedVersion:publishedProfile.version}));
+  assert((await request("",profilePath)).status===404,"Unpublished learner portfolio was still public.");
   assert((await request(visitor.cookie,root+"/meetings")).status===403,"Outsider could read meetings.");
   const direct=await db.from("collaboration_records").select("id,version").eq("team_id",team.id);check(direct.error);assert(direct.data!.length>=7,"Cloud records were not persisted.");
   await writeFile(fixturePath,JSON.stringify(fixture),{mode:0o600});
-  console.log(JSON.stringify({passed:true,hostedMcpTools:tools.tools.length,persistedRecords:direct.data!.length,privateIntakeProtected:true,agentProposalsRequireReview:true,browserFixture:fixturePath}));
+  console.log(JSON.stringify({passed:true,hostedMcpTools:tools.tools.length,persistedRecords:direct.data!.length,privateIntakeProtected:true,agentProposalsRequireReview:true,forumAndPortfolioAccessVerified:true,storyDraftModerationVerified:true,browserFixture:fixturePath}));
 }finally{await mcp.close();}

@@ -3,7 +3,7 @@ import type { Express, Request, RequestHandler, Response, NextFunction } from "e
 import type { Actor } from "../src/collaboration-records.js";
 import { course } from "../src/course-content.js";
 import { courseAccount, ownIntake, saveIntake, organizerIntakes, removeIntake } from "../src/course.js";
-import { listCourseStories,saveCourseStory,previewCourseStory,publishCourseStory,unpublishCourseStory,publicCourseStories } from "../src/course-stories.js";
+import { listCourseStories,saveCourseStory,previewCourseStory,publishCourseStory,unpublishCourseStory,publicCourseStories,courseStoryPortfolioOptions } from "../src/course-stories.js";
 import { requestLimit } from "./request-limits.js";
 import {getCourseSchedule,saveCourseSchedule,courseCalendarIcs} from "../src/course-schedule.js";
 import {ownSubmissions,saveSubmission,organizerSubmissions,reviewSubmission} from "../src/course-submissions.js";
@@ -68,7 +68,15 @@ export function registerCourseRoutes(app:Express,requireUser:RequestHandler) {
   app.get(base+"/reviews",requireUser,route(async(req,res)=>res.json({submissions:await organizerSubmissions(req.collavibeUser!,String(req.params.teamId))})));
   app.post(base+"/reviews/:submissionId",requireUser,route(async(req,res)=>res.json({submission:await reviewSubmission(req.collavibeUser!,String(req.params.teamId),String(req.params.submissionId),req.body)})));
   app.get("/api/course/stories",route(async(_req,res)=>res.json({stories:await publicCourseStories()})));
-  app.get(base+"/stories",requireUser,route(async(req,res)=>res.json({stories:await listCourseStories(req.collavibeUser!,String(req.params.teamId))})));
+  app.get(base+"/stories", requireUser, route(async (req, res) => {
+    const actor = req.collavibeUser!;
+    const teamId = String(req.params.teamId);
+    const [stories, portfolios] = await Promise.all([
+      listCourseStories(actor, teamId),
+      courseStoryPortfolioOptions(actor, teamId),
+    ]);
+    res.json({ stories, portfolios });
+  }));
   app.post(base+"/stories",requireUser,requestLimit("course-story",20,600),route(async(req,res)=>res.status(201).json({story:await saveCourseStory(req.collavibeUser!,String(req.params.teamId),req.body)})));
   app.patch(base+"/stories/:storyId",requireUser,route(async(req,res)=>res.json({story:await saveCourseStory(req.collavibeUser!,String(req.params.teamId),req.body,String(req.params.storyId))})));
   app.post(base+"/stories/:storyId/preview",requireUser,route(async(req,res)=>res.json(await previewCourseStory(req.collavibeUser!,String(req.params.teamId),String(req.params.storyId)))));

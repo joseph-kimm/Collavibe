@@ -11,7 +11,7 @@ let fixture: Awaited<ReturnType<typeof collaborationFixture>>;
 beforeAll(async () => { fixture = await collaborationFixture(); });
 afterAll(async () => { await fixture.cleanup(); });
 
-const post = { title: "Comparing two free hosts", body: "I tried the same app on two hosting plans and checked the cold start.", category: "comparison" };
+const post = { title: "Comparing two free hosts", body: "I tried the same app on two hosting plans and checked the cold start.", category: "comparison", groupName: "Field Notes team" };
 const content = {
   title: "Four project notes", introduction: "Contact: learner@example.com",
   projects: [{
@@ -30,7 +30,7 @@ describe("cohort community", () => {
     await expect(courseDiscussions(outsider, teamId)).rejects.toMatchObject({ status: 403 });
     await expect(addDiscussionReply(outsider, teamId, id, { body: "I should not be able to reply." })).rejects.toMatchObject({ status: 403 });
     const [thread] = await courseDiscussions(member, teamId);
-    expect(thread).toMatchObject({ id, title: post.title, canRemove: true, replies: [{ canRemove: false }] });
+    expect(thread).toMatchObject({ id, title: post.title, groupName: "Field Notes team", canRemove: true, replies: [{ canRemove: false }] });
     expect(await listCourseStories(owner, teamId)).toEqual([]);
     expect(await publicCourseStories()).toEqual([]);
     await expect(previewCourseStory(member, teamId, id)).rejects.toMatchObject({ status: 404 });

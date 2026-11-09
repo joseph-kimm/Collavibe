@@ -284,12 +284,12 @@ Outcome: A tested demonstration, useful feedback, and a final revision.
 - **35–50 min: Run the acceptance matrix.** Check empty data, a failed dependency, keyboard, narrow layout, and unauthorized access where relevant. Output: Actual results and honest limits.
 - **50–60 min: Break and audience setup.** Confirm audience, accessibility arrangements, and consent. No surprise recording. Output: A ready showcase.
 - **60–100 min: Four-team showcase.** Each team gets five minutes to demo/explain and three for questions. Use eight minutes for transitions/shared synthesis. Output: Product, decisions, and useful feedback.
-- **100–115 min: Choose a revision and reflect.** Choose one response to feedback. Each person drafts their own account of a decision and what they can now explain. Output: A final revision and reflection.
+- **100–115 min: Choose a revision and reflect.** Compare one test count with a peer observation using the usage-evidence worksheet. Choose one revision and name a test that could change your decision. Each person records their own reasoning. Output: A final revision and reflection.
 - **115–120 min: Confirm the finish line.** The final package is due 72 hours after this class ends. Check the exact cohort deadline. Offer private, written, and demo alternatives to public sharing. Output: An agreed submission plan.
 
 ### Activity
 
-Show the useful result and how you arrived there. A reproducible failure you can explain is better than a claim that everything works. Stories and public portfolios are optional after review.
+Show the useful result and how you arrived there. Compare one interaction with an existing app and explain the trade-off for your user. Include a reproducible failure and what you tried next. Stories and public portfolios are optional after review.
 
 ### Discussion
 
@@ -663,6 +663,22 @@ Fallback: Choose the guided route when access, licensing, browser support, or re
 ---
 
 ## Copyable templates
+
+### Use feedback and usage evidence
+
+```text
+Week 5 practice example. In a fictional test of a study planner, 12 participants started a task. Nine saved a plan and only four found the edit action. One participant said, ‘I thought I had to make a new plan.’
+1. Explain what the counts tell you and what they leave uncertain. Report the denominator and the test conditions.
+2. Compare the same edit task in an existing app. Note one difference that might help your user.
+3. Choose one revision and say what evidence would change your mind. Retest the task with two consenting peers. Record outcomes without names.
+Use synthetic counts when you lack permission or a suitable sample. A click count alone does not explain why someone struggled.
+```
+
+### Plan around tool limits
+
+```text
+Before building, identify the coding-agent plan you can use, its usage meter, and any API or hosting limits. Check the provider’s current terms and date your notes. Tokens, requests, and subscription limits can be different measures. Pick one stop condition and one offline or no-key fallback. Ask your organizer before any paid step.
+```
 
 ### Peer tool comparison
 
