@@ -279,6 +279,15 @@ describe("Streamable HTTP transport", () => {
     expect(join.headers.get("location")).toBe("/?setupTeam=1&returnTo=%2Fcourse%2Fcommunity");
   });
 
+  it("serves public community pages and feeds without granting anonymous write access", async()=>{
+    for(const path of ["/forum","/blog","/api/forum","/api/course/stories"]) {
+      expect((await fetch(baseUrl+path)).status).toBe(200);
+    }
+    for(const path of ["/api/forum","/api/forum/post_example/replies"]) {
+      expect((await fetch(baseUrl+path,{method:"POST",headers:{"content-type":"application/json"},body:"{}"})).status).toBe(401);
+    }
+    expect((await fetch(baseUrl+"/api/forum/manage")).status).toBe(401);
+  });
   it("handles malformed input without leaking server details", async () => {
     const malformedCookie = await fetch(`${baseUrl}/api/auth/status`, { headers: { cookie: "collavibe_session=%E0%A4%A" } });
     expect(malformedCookie.status).toBe(200);

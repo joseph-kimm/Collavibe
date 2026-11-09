@@ -36,7 +36,9 @@ async function editor(selectedId = null, message = "") {
   const { account, teamId } = courseContext();
   const host = $("course-story-editor");
   if (!account || !teamId) {
-    host.replaceChildren();
+    host.innerHTML = !account
+      ? '<p><a href="#course-account">Sign in on this page</a> to write a story. Published stories are readable by everyone on the <a href="/blog">public blog</a>.</p>'
+      : '<p>Join your course team to write a story. <a href="#course-account">Open your course account</a>.</p>';
     return;
   }
   host.innerHTML = '<p role="status">Loading your stories…</p>';

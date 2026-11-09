@@ -1,3 +1,4 @@
+import { publicForum, postPublicDiscussion, removePublicDiscussion } from "../src/public-forum.js";
 import { z } from "zod";
 import type { Express, Request, RequestHandler, Response, NextFunction } from "express";
 import type { Actor } from "../src/collaboration-records.js";
@@ -17,6 +18,18 @@ import {
 type AuthRequest = Request & { collavibeUser?: Actor };
 const route = (handler:(req:AuthRequest,res:Response)=>Promise<unknown>):RequestHandler => (req,res,next:NextFunction)=>{Promise.resolve(handler(req as AuthRequest,res)).catch(next);};
 export function registerCourseRoutes(app:Express,requireUser:RequestHandler) {
+  app.get("/api/forum", route(async (_req,res) => res.json({ threads: await publicForum() })));
+  app.get("/api/forum/manage", requireUser, route(async (req,res) => res.json({ threads: await publicForum(req.collavibeUser!) })));
+  app.post("/api/forum", requireUser, requestLimit("public-forum", 20, 600), route(async (req,res) =>
+    res.status(201).json({ id: await postPublicDiscussion(req.collavibeUser!, req.body) })));
+  app.post("/api/forum/:id/replies", requireUser, requestLimit("public-forum-reply", 40, 600), route(async (req,res) =>
+    res.status(201).json({ id: await postPublicDiscussion(req.collavibeUser!, req.body, String(req.params.id)) })));
+  app.delete("/api/forum/:id", requireUser, route(async (req,res) => {
+    await removePublicDiscussion(req.collavibeUser!, String(req.params.id), req.body); res.json({ removed: true });
+  }));
+  app.delete("/api/forum/:id/replies/:replyId", requireUser, route(async (req,res) => {
+    await removePublicDiscussion(req.collavibeUser!, String(req.params.id), req.body, String(req.params.replyId)); res.json({ removed: true });
+  }));
   app.get("/api/course",(_req,res)=>res.json(course));
   app.get("/api/course/handbook",(_req,res)=>res.type("text/markdown").attachment("Vibecode 101 - Course Handbook.md").send(courseHandbook()));
   app.get("/api/course/assignments/:assignmentId/brief",(req,res)=>{const markdown=assignmentMarkdown(String(req.params.assignmentId));if(!markdown){res.status(404).json({error:"Assignment not found."});return;}res.type("text/markdown").attachment(`Vibecode 101 - ${String(req.params.assignmentId)}.md`).send(markdown);});

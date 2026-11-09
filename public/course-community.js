@@ -15,11 +15,11 @@ function removalControl(row, label) {
   </details>`;
 }
 
-export async function mountCourseDiscussions(host, { api, teamId }) {
+export async function mountCourseDiscussions(host, { api, teamId, publicForum = false, canPost = true }) {
   const run = ++generation;
-  const endpoint = `/api/course/teams/${encodeURIComponent(teamId)}/discussions`;
+  const endpoint = publicForum ? "/api/forum" : `/api/course/teams/${encodeURIComponent(teamId)}/discussions`;
   host.innerHTML = `
-    <details class="community-compose">
+    <details class="community-compose" ${canPost ? "" : "hidden"}>
       <summary>Start a discussion</summary>
       <form class="form community-post-form">
         <label>Post type<select name="category">${Object.entries(categories).map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label>
@@ -27,7 +27,8 @@ export async function mountCourseDiscussions(host, { api, teamId }) {
         <label>Group name (optional)<input name="groupName" maxlength="100" placeholder="If you are posting on behalf of a group" /></label>
         <label>Your post<textarea name="body" rows="5" minlength="12" maxlength="4000" placeholder="What did you try, what happened, and what input would help?" required></textarea></label>
         <label>Evidence or demo link (optional)<input name="evidenceUrl" type="url" maxlength="2048" placeholder="https://" /></label>
-        <button class="button primary" type="submit">Post to cohort</button>
+        ${publicForum ? '<label class="checkbox-label"><input name="publicConsent" type="checkbox" required/>Publish this post and my display name for anyone to read</label>' : ""}
+        <button class="button primary" type="submit">${publicForum ? "Post publicly" : "Post to cohort"}</button>
       </form>
     </details>
     <div class="community-toolbar">
@@ -69,11 +70,13 @@ export async function mountCourseDiscussions(host, { api, teamId }) {
               ${removalControl(reply, "Remove reply")}
             </div>`).join("")}
           </div>
-          <form class="form community-reply-form">
+          <form class="form community-reply-form" ${canPost ? "" : "hidden"}>
             <label>Your reply<textarea name="body" rows="3" minlength="3" maxlength="2500" placeholder="Share a result, trade-off, or question from your own experience." required>${e(replyDrafts.get(thread.id) || "")}</textarea></label>
+            ${publicForum ? '<label class="checkbox-label"><input name="publicConsent" type="checkbox" required/>Publish this reply and my display name</label>' : ""}
             <button class="button primary" type="submit">Post reply</button>
           </form>
         </details>
+        ${!canPost ? '<p><a href="#forum-account">Sign in to post or reply</a></p>' : ""}
         ${removalControl(thread, "Remove discussion")}
       </article>`;
     }).join("") || (threads.length
@@ -154,7 +157,7 @@ export async function mountCourseDiscussions(host, { api, teamId }) {
       await api(`${endpoint}/${encodeURIComponent(threadId)}${suffix}`, {
         method: "DELETE", body: JSON.stringify({ expectedVersion: Number(button.dataset.version) }),
       });
-      await refresh("Removed from the cohort forum.");
+      await refresh("Discussion removed.");
     });
   });
   const applyFilters = () => { count = 15; render(); };
