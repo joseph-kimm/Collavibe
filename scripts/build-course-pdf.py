@@ -20,7 +20,7 @@ if (font_root / "Arial.ttf").exists():
     regular, bold = "Course", "CourseBold"
 else:
     regular, bold = "Helvetica", "Helvetica-Bold"
-ink, accent = colors.HexColor("#29241f"), colors.HexColor("#883f29")
+ink, accent = colors.HexColor("#172537"), colors.HexColor("#245783")
 body = ParagraphStyle("Body", fontName=regular, fontSize=10.5, leading=15.2, textColor=ink, spaceAfter=8, splitLongWords=True)
 styles = {
     1: ParagraphStyle("Title", parent=body, fontName=bold, fontSize=34, leading=40, spaceAfter=20),
@@ -29,12 +29,12 @@ styles = {
     4: ParagraphStyle("Minor", parent=body, fontName=bold, fontSize=11, leading=16, spaceBefore=9, keepWithNext=True),
 }
 bullet = ParagraphStyle("Bullet", parent=body, leftIndent=13, firstLineIndent=-10, spaceAfter=6)
-code = ParagraphStyle("Template", parent=body, fontSize=10, leading=15, leftIndent=12, rightIndent=12, backColor=colors.HexColor("#f8f4ee"), borderPadding=10, spaceBefore=10, spaceAfter=14)
+code = ParagraphStyle("Template", parent=body, fontSize=10, leading=15, leftIndent=12, rightIndent=12, backColor=colors.HexColor("#f3f6fa"), borderPadding=10, spaceBefore=10, spaceAfter=14)
 
 def inline(text):
     text = text.replace("—", " - ").replace("–", "-").replace("\u2011", "-")
     text = escape(text)
-    text = re.sub(r"\[([^\]]+)\]\((https?://[^)]+)\)", r'<link href="\2" color="#883f29"><u>\1</u></link>', text)
+    text = re.sub(r"\[([^\]]+)\]\((https?://[^)]+)\)", r'<link href="\2" color="#245783"><u>\1</u></link>', text)
     text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
     return text
 
@@ -82,7 +82,7 @@ flush()
 
 def furniture(canvas, doc):
     canvas.saveState()
-    canvas.setStrokeColor(colors.HexColor("#ded6cb"))
+    canvas.setStrokeColor(colors.HexColor("#d8e1eb"))
     canvas.line(50, 755, 562, 755)
     canvas.setFont(regular, 8)
     canvas.setFillColor(accent)

@@ -1,15 +1,15 @@
-/* Shared materials: paper neutrals, a single rust accent, locally served icons. */
+/* Shared palette: cool white, slate, and one deep blue accent. */
 :root {
-  --bg: #fffdfa; --sidebar: #f3eee7; --surface: #f8f4ee;
-  --ink: #29241f; --muted: #635c54; --line: #ded6cb;
-  --accent: #883f29; --accent-soft: #f3e5dc; --action: #883f29; --action-hover: #6b2d1d;
-  --selection: #f3e5dc;
+  --bg: #fcfdff; --sidebar: #eef2f7; --surface: #f3f6fa;
+  --ink: #172537; --muted: #526174; --line: #d8e1eb; --line-strong: #8a9db3;
+  --accent: #245783; --accent-soft: #e6eff8; --action: var(--accent); --action-hover: #194469;
+  --selection: var(--accent-soft);
   --display: Georgia, "Times New Roman", serif;
 }
 .ui-icon { display: inline-block; width: 20px; height: 20px; flex: 0 0 20px; vertical-align: middle; pointer-events: none; }
 [data-icon] { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .button { min-height: 44px; padding: 10px 16px; border-radius: 4px; font-weight: 600; line-height: 1.35; border-color: var(--line); transition: background .16s, border-color .16s; }
-.button:hover:not(:disabled) { background: var(--surface); border-color: #a39485; }
+.button:hover:not(:disabled) { background: var(--surface); border-color: var(--line-strong); }
 .button.primary { background: var(--action); border-color: var(--action); }
 .button.primary:hover:not(:disabled) { background: var(--action-hover); }
 .button.primary:hover:not(:disabled) { border-color: var(--action-hover); }
@@ -31,9 +31,9 @@
 .view-tabs button[aria-current=page] { color: var(--accent); border-bottom-color: var(--accent); }
 .tag { border-radius: 5px; }
 .form input, .form select, .form textarea { border-radius: 7px; }
-dialog { border-color: var(--line); border-radius: 12px; box-shadow: 0 20px 80px #17261726; }
-dialog::backdrop { background: #18211966; backdrop-filter: blur(3px); }
-.detail-pane { box-shadow: -8px 0 28px #1d291b06; }
+dialog { border-color: var(--line); border-radius: 12px; box-shadow: 0 20px 80px #17253726; }
+dialog::backdrop { background: #17253766; backdrop-filter: blur(3px); }
+.detail-pane { box-shadow: -8px 0 28px #17253706; }
 
 /* The public homepage is a real introduction, not a pre-populated team. */
 .landing-page { background: var(--surface); }
@@ -55,9 +55,9 @@ dialog::backdrop { background: #18211966; backdrop-filter: blur(3px); }
 .hero-actions .button { min-height: 50px; padding: 13px 19px; }
 .hero-figure { margin: 34px 0 0; color: var(--ink); }
 .flow-project { display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 600; font-size: 17px; padding-bottom: 31px; position: relative; }
-.flow-project::after { content: ""; position: absolute; width: 1px; height: 31px; background: #ad9a89; bottom: 0; left: 50%; }
+.flow-project::after { content: ""; position: absolute; width: 1px; height: 31px; background: var(--line-strong); bottom: 0; left: 50%; }
 .flow-branches { display: grid; grid-template-columns: 1fr 1fr; padding-top: 39px; position: relative; }
-.flow-branches::before { content: ""; position: absolute; top: 0; left: 25%; right: 25%; height: 39px; border: 1px solid #ad9a89; border-bottom: 0; border-radius: 8px 8px 0 0; }
+.flow-branches::before { content: ""; position: absolute; top: 0; left: 25%; right: 25%; height: 39px; border: 1px solid var(--line-strong); border-bottom: 0; border-radius: 8px 8px 0 0; }
 .flow-person { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 0 10px; position: relative; }
 .flow-avatar { width: 60px; height: 60px; border-radius: 50%; background: var(--accent-soft); display: grid; place-items: center; font-size: 15px; border: 1px solid var(--line); margin-bottom: 10px; }
 .flow-avatar.teammate { background: var(--bg); }
@@ -71,7 +71,7 @@ dialog::backdrop { background: #18211966; backdrop-filter: blur(3px); }
 .flow-handoff div > span { color: var(--muted); font-size: 14px; margin-top: 5px; }
 .hero-figure figcaption { font-size: 14px; color: var(--muted); text-align: center; margin-top: 20px; }
 .landing-workflow, .landing-setup, .landing-account { padding: 88px max(6vw,24px); scroll-margin-top: 24px; }
-.landing-workflow { background: #fefefd; }
+.landing-workflow { background: var(--bg); }
 .section-heading { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 9vw; max-width: 1200px; margin: 0 auto 42px; }
 .section-heading .overline { grid-column: 1/-1; margin-bottom: 0; }
 .section-heading h2, .landing-setup h2, .account-intro h2 { font-size: clamp(29px,3.1vw,43px); line-height: 1.2; font-weight: 500; letter-spacing: -.04em; }
@@ -94,7 +94,7 @@ dialog::backdrop { background: #18211966; backdrop-filter: blur(3px); }
 .workflow-panel h3 { font-size: 19px; font-weight: 550; }
 .workflow-panel blockquote { font-size: 17px; line-height: 1.65; margin: 15px 0 20px; }
 .workflow-panel .button { font-size: 14px; }
-.workflow-result { display: flex; gap: 12px; margin-top: 25px; padding-top: 23px; border-top: 1px solid #dce2d5; }
+.workflow-result { display: flex; gap: 12px; margin-top: 25px; padding-top: 23px; border-top: 1px solid var(--line); }
 .workflow-result > [data-icon] { align-self: flex-start; margin-top: 3px; color: var(--accent); }
 .workflow-result strong { font-size: 15px; font-weight: 600; }
 .workflow-result p, .workflow-boundary { color: var(--muted); font-size: 14px; line-height: 1.65; margin-top: 6px; }
@@ -107,7 +107,7 @@ dialog::backdrop { background: #18211966; backdrop-filter: blur(3px); }
 .landing-setup li > span { font-family: ui-monospace, monospace; font-size: 14px; color: var(--muted); padding-top: 3px; }
 .landing-setup h3 { font-size: 18px; font-weight: 550; margin-bottom: 8px; }
 .landing-setup li p { font-size: 16px; color: var(--muted); }
-.landing-account { display: grid; grid-template-columns: 1fr 1fr; gap: 9vw; background: #fefefd; }
+.landing-account { display: grid; grid-template-columns: 1fr 1fr; gap: 9vw; background: var(--bg); }
 .account-intro { justify-self: end; width: min(100%,555px); }
 .account-intro > p:not(.overline) { color: var(--muted); margin-top: 24px; max-width: 450px; }
 .account-intro details { margin-top: 24px; max-width: 450px; }
@@ -151,7 +151,7 @@ dialog::backdrop { background: #18211966; backdrop-filter: blur(3px); }
   .flow-project::after { height: 20px; }
   .flow-branches { padding-top: 24px; }
   .flow-branches::before { height: 24px; }
-  .flow-avatar { width: 44px; height: 44px; margin-bottom: 4px; box-shadow: 0 0 0 5px #edf0e6; }
+  .flow-avatar { width: 44px; height: 44px; margin-bottom: 4px; }
   .flow-person strong { font-size: 14px; }
   .flow-person > span:last-child { display: none; }
   .flow-handoff { margin-top: 20px; padding: 16px 8px; }
