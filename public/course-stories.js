@@ -14,7 +14,7 @@ function storyMarkup(row) {
     <p class="subtle">${e(row.authorName)}${row.publishedAt ? " · " + e(new Date(row.publishedAt).toLocaleDateString()) : ""}</p>
     <p class="course-story-body">${e(row.body)}</p>
     <div class="form-actions">
-      ${demoUrl ? `<a href="${e(demoUrl)}" target="_blank" rel="noopener noreferrer">Watch demo or try project</a>` : ""}
+      ${demoUrl ? `<a href="${e(demoUrl)}" target="_blank" rel="noopener noreferrer">Open demo or related work</a>` : ""}
       ${projectUrl ? `<a href="${e(projectUrl)}">Read project portfolio</a>` : ""}
     </div>
   </article>`;

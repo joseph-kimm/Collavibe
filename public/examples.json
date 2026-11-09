@@ -1,0 +1,68 @@
+{
+  "synthetic": true,
+  "projects": [
+    {
+      "name": "Rain Check",
+      "team": "Weather Window",
+      "description": "A fictional planner that combines a weather forecast and air-quality data to help someone choose a time for an outdoor activity.",
+      "people": [
+        "Maya Chen",
+        "Sam Patel",
+        "Alex Rivera"
+      ],
+      "portfolio": "/p/portfolio_052e6303-3cd5-4b03-adf3-c51cb252eb6f",
+      "learnerPortfolio": "/course/portfolio/learner_f371563cd9544129a806155ee119990d05ff0e10c820f39121eb30db4310e941",
+      "stories": [
+        "/blog#post_d9e2ce59-c03e-4125-887d-7fb165c3fe1b",
+        "/blog#post_3d9e9641-8762-42b2-89ae-c90be2be172a"
+      ],
+      "threads": [
+        "/forum#post_96355faf-d999-4c7c-bc70-897594edc30b",
+        "/forum#post_b7cd0120-d2f1-42a9-a2af-5d28e9e89086",
+        "/forum#post_39b20cd4-ba25-4245-b3d0-581bbc35c435"
+      ]
+    },
+    {
+      "name": "Quiet Corner",
+      "team": "Study Together",
+      "description": "A fictional study-space finder that helps a group compare seating, opening hours, accessibility notes, and noise preferences.",
+      "people": [
+        "Noor Ali",
+        "Jamie Brooks",
+        "Leo Park"
+      ],
+      "portfolio": "/p/portfolio_f4210c01-5758-45cd-992e-3af4e13899e9",
+      "learnerPortfolio": "/course/portfolio/learner_43ee61bbc8a48e832dcc0f9914c0b6f7c0f8709e89b3ef9ade12943afe9441b0",
+      "stories": [
+        "/blog#post_97eb4475-30f5-4124-8acc-9390445f96e9",
+        "/blog#post_8ba763d5-1439-4d3c-a36c-8405459da6e1"
+      ],
+      "threads": [
+        "/forum#post_6f97a810-ddb4-4185-ba56-240b47824c41",
+        "/forum#post_a15314c5-3ddd-4bb8-9769-50a337c8f792",
+        "/forum#post_84ffa8e9-ae57-4c17-8e09-0d2d1394fe10"
+      ]
+    },
+    {
+      "name": "Pantry Path",
+      "team": "Neighborhood Table",
+      "description": "A fictional community pantry directory that explains opening times, eligibility notes, and what visitors should confirm before travelling.",
+      "people": [
+        "Elena Cruz",
+        "Omar Hassan",
+        "Priya Shah"
+      ],
+      "portfolio": "/p/portfolio_b5ecbe5a-c3de-4da1-af91-98d7562eddf8",
+      "learnerPortfolio": "/course/portfolio/learner_30f8a804c259d34cc21406b3a52c37bd81ba080f097583b2397dc68464d2238d",
+      "stories": [
+        "/blog#post_0ff6c6f6-5988-425d-b26c-0a975710b331",
+        "/blog#post_c56f3d13-3ee3-46bc-beca-783ccde05205"
+      ],
+      "threads": [
+        "/forum#post_4feac1fa-d225-404f-bb80-d845b11566b1",
+        "/forum#post_61fa714f-c1c2-4312-a9b8-f1173a020cd9",
+        "/forum#post_733c6685-6577-4d51-96c0-e7c4144098be"
+      ]
+    }
+  ]
+}

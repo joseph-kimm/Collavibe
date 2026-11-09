@@ -10,7 +10,7 @@ function render() {
   host.innerHTML=matches.map(row=>{
     const demo=safeHref(row.demoUrl);
     const portfolio=/^portfolio_[a-f0-9-]{36}$/.test(row.portfolioId) ? "/p/"+row.portfolioId : "";
-    return `<article class="course-story" id="${e(row.id)}"><h2><a href="#${e(row.id)}">${e(row.title)}</a></h2><p class="subtle">${e(row.authorName)} · ${e(new Date(row.publishedAt).toLocaleDateString())}</p><p class="course-story-body">${e(row.body)}</p><div class="form-actions">${demo?`<a href="${e(demo)}" target="_blank" rel="noopener noreferrer">Watch demo or try project</a>`:""}${portfolio?`<a href="${portfolio}">Read project portfolio</a>`:""}<a href="/forum">Join the public discussion</a></div></article>`;
+    return `<article class="course-story" id="${e(row.id)}"><h2><a href="#${e(row.id)}">${e(row.title)}</a></h2><p class="subtle">${e(row.authorName)} · ${e(new Date(row.publishedAt).toLocaleDateString())}</p><p class="course-story-body">${e(row.body)}</p><div class="form-actions">${demo?`<a href="${e(demo)}" target="_blank" rel="noopener noreferrer">Open demo or related work</a>`:""}${portfolio?`<a href="${portfolio}">Read project portfolio</a>`:""}<a href="/forum">Join the public discussion</a></div></article>`;
   }).join("");
   status.textContent=matches.length ? `${matches.length} published ${matches.length===1?"story":"stories"}` : stories.length ? "No matching stories. Try another search." : "No stories have been published yet. Authors can write and publish from the course page.";
 }

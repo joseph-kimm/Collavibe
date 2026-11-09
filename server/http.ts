@@ -333,6 +333,7 @@ app.get("/login", (req, res) => {
   res.redirect(302, req.query.setupTeam === "1" ? "/?setupTeam=1&returnTo=" + encodeURIComponent(target) : target || "/#account");
 });
 app.get("/course", (_req, res) => res.sendFile(path.join(publicDirectory, "course.html")));
+app.get("/examples", (_req, res) => res.sendFile(path.join(publicDirectory, "examples.html")));
 app.get("/forum", (_req, res) => res.sendFile(path.join(publicDirectory, "forum.html")));
 app.get("/blog", (_req, res) => res.sendFile(path.join(publicDirectory, "blog.html")));
 app.get("/course/community", (_req, res) => res.sendFile(path.join(publicDirectory, "course-community.html")));
