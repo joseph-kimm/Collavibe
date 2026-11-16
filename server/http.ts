@@ -1,3 +1,4 @@
+import { profilePatchSchema } from "../src/profile.js";
 import { safeReturnTo } from "../public/auth-return.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,9 +12,9 @@ import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middlew
 import { CollavibeOAuthProvider, OAUTH_BROWSER_COOKIE, serviceOrigin, authorizationRequest, approveAuthorization } from "./oauth.js";
 import { createAgentKey, listAgentConnections, revokeAgentConnection, type AgentIdentity } from "../src/agent-access.js";
 import { requestLimit } from "./request-limits.js";
-import { addProjectToTeam, createTeam, getDashboard, getUserForToken, joinTeam, loginUser, logoutUser, signUpUser } from "../src/store.js";
+import { addProjectToTeam, createTeam, getDashboard, getUserForToken, joinTeam, loginUser, logoutUser, signUpUser, updateUserProfile } from "../src/store.js";
 import { withoutInternalGitEvidence } from "../src/public.js";
-import { cloudCreateTeam, cloudDashboard, cloudJoinTeam, cloudLogin, cloudLogout, cloudSignUp, cloudUserForSession, isSupabaseConfigured, type CloudSession } from "../src/supabase.js";
+import { cloudCreateTeam, cloudDashboard, cloudJoinTeam, cloudLogin, cloudLogout, cloudSignUp, cloudUserForSession, cloudUpdateProfile, isSupabaseConfigured, type CloudSession } from "../src/supabase.js";
 import type { NextFunction, Request, Response } from "express";
 import { addRemoteProject, createPlannedFeature, listTeamMembers, removeTeamMember, rotateTeamCode, updatePlannedFeature, updateTeamName, updateWorkspaceProject, workspaceFeatureAction } from "../src/store.js";
 import { cloudAddProject, cloudCreateFeature, cloudEditFeature, cloudMembers, cloudReadiness, cloudRemoveMember, cloudRotateCode, cloudUpdateTeam, cloudUpdateProject, cloudFeatureAction } from "../src/cloud-workspace.js";
@@ -165,6 +166,14 @@ app.get("/api/auth/status", api(async (req, res) => {
   }
   const user = await getUserForToken(cookie(req, AUTH_COOKIE));
   res.json({ authenticated: Boolean(user) });
+}));
+
+app.patch("/api/account/profile", requireUser, api(async (req, res) => {
+  const input = profilePatchSchema.parse(req.body);
+  const user = isSupabaseConfigured()
+    ? await cloudUpdateProfile(req.collavibeUser!.id, input)
+    : await updateUserProfile(req.collavibeUser!.id, input);
+  res.json({ user });
 }));
 
 app.get("/api/dashboard", requireUser, api(async (req, res) => {

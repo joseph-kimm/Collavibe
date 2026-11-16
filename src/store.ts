@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from "no
 import { mkdir, open, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
+import { displayNameSchema } from "./profile.js";
 import { inspectDelta, inspectRepository } from "./git.js";
 import { cloudSyncUrl, publishCloudState } from "./cloud-sync.js";
 import { applyFeatureAction, editFeature, makeFeature, makeProject, nextRevision, WorkspaceError, type FeatureAction, type FeatureFields, projectPatchSchema } from "./workspace-model.js";
@@ -149,6 +150,17 @@ export async function signUpUser(input: { name: string; email: string; password:
     const user: User = { id: `user_${randomUUID()}`, name, email, passwordHash, createdAt: new Date().toISOString() };
     state.users.push(user);
     return { user: publicUser(user), token: issueAuthSession(state, user.id) };
+  });
+}
+
+export async function updateUserProfile(userId: string, input: { name: string }) {
+  const name = displayNameSchema.parse(input.name);
+  return mutate((state) => {
+    const user = state.users.find((candidate) => candidate.id === userId);
+    if (!user) throw new WorkspaceError("Unknown user.", 401);
+    user.name = name;
+    // Sessions, comments, and Git authors remain a record of their original identity.
+    return publicUser(user);
   });
 }
 

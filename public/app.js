@@ -206,6 +206,7 @@ function render() {
   $("account-name").title = data.user?.name || "";
   $("account-email").title = demo ? "You are viewing fictional sample data, not your account." : data.user?.email || "";
   $("account-avatar").textContent = initial(data.user?.name);
+  $("edit-profile").hidden = demo;
   $("logout-label").textContent = demo ? "Leave sample" : "Log out";
   const projectLink = (item) => `<button class="project-link ${item.id === projectId && view !== "team" ? "selected" : ""}" data-project="${e(item.id)}" title="${e(item.name)}" type="button"><span class="project-symbol" aria-hidden="true">${e(initial(item.name).slice(0,1))}</span><span>${e(item.name)}</span><small title="Open features">${data.features.filter((f) => f.projectId === item.id && f.status !== "done" && !f.archivedAt).length} open</small></button>`;
   $("project-list").innerHTML = data.projects.filter((item) => !item.archivedAt).map(projectLink).join("") || '<p class="subtle">No active projects.</p>';
@@ -382,7 +383,7 @@ function evidence(sync) {
   const verified = sync?.verified;
   if (!verified) return "";
   const local = verified.source === "local_git";
-  return `<section class="detail-section"><h3>Repository changes</h3><p>${local ? "Read from local Git." : "Reported by the coding agent; not independently checked by Collavibe."}</p><p><code>${e(verified.startHead.slice(0,7))} → ${e(verified.endHead.slice(0,7))}</code></p>${verified.commits.length ? '<ul class="commit-list">' + verified.commits.map((commit) => `<li><code>${e(commit.shortHash)}</code><span>${e(commit.subject)}</span><small>${e(commit.author)}</small></li>`).join("") + "</ul>" : ""}</section>${verified.changedFiles.length ? '<section class="detail-section"><h3>Changed files</h3><ul class="file-list">' + verified.changedFiles.map((file) => "<li>" + e(file) + "</li>").join("") + "</ul></section>" : ""}`;
+  return `<section class="detail-section"><h3>Repository changes</h3><p>${local ? "Read from local Git." : "Reported by the coding agent; not independently checked by Collavibe."}</p><p><code>${e(verified.startHead.slice(0,7))} → ${e(verified.endHead.slice(0,7))}</code></p>${verified.commits.length ? '<ul class="commit-list">' + verified.commits.map((commit) => `<li><code>${e(commit.shortHash)}</code><span>${e(commit.subject)}</span><small>Git author: ${e(commit.author)}</small></li>`).join("") + "</ul>" : ""}</section>${verified.changedFiles.length ? '<section class="detail-section"><h3>Changed files</h3><ul class="file-list">' + verified.changedFiles.map((file) => "<li>" + e(file) + "</li>").join("") + "</ul></section>" : ""}`;
 }
 function sessionBranchProperties(item) {
   const finalBranch = sessionBranch(item);
@@ -806,6 +807,32 @@ $("back-workspace").addEventListener("click", () => { invitation = ""; setupCour
 $("mobile-projects").addEventListener("click", () => setMobileNav(!$("workspace").classList.contains("mobile-nav")));
 for (const id of ["close-navigation", "nav-backdrop"]) $(id).addEventListener("click", () => { setMobileNav(false); $("mobile-projects").focus(); });
 document.querySelector(".main").addEventListener("click", (event) => { if (!event.target.closest("#mobile-projects")) setMobileNav(false); });
+function openProfile() {
+  if (!canWrite() || !data.user) return;
+  const form = $("profile-form");
+  form.elements.name.value = data.user.name;
+  form.elements.email.value = data.user.email;
+  form.querySelector(".form-error").textContent = "";
+  setMobileNav(false);
+  $("profile-dialog").showModal();
+  form.elements.name.focus();
+}
+$("edit-profile").addEventListener("click", openProfile);
+$("team-account").addEventListener("click", openProfile);
+$("profile-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (!canWrite()) return;
+  const form = event.currentTarget;
+  formAction(form, async () => {
+    const result = await api("/api/account/profile", { method: "PATCH", body: JSON.stringify({ name: form.elements.name.value }) });
+    data.user = result.user;
+    members = [];
+    fingerprint = "";
+    $("profile-dialog").close();
+    await load();
+    toast("Display name saved.");
+  });
+});
 async function logout() {
   if (demo) { await leaveSample(); return; }
   try { if (!demo) await api("/api/auth/logout", { method: "POST" }); }

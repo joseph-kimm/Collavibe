@@ -305,6 +305,29 @@ describe("Streamable HTTP transport", () => {
     expect(preflight.headers.get("access-control-allow-origin")).toBe(baseUrl);
   });
 
+  it("updates only the signed-in account name and rejects unauthenticated or broader changes", async () => {
+    const patch = (body: unknown, cookie = authCookie, origin?: string) => fetch(`${baseUrl}/api/account/profile`, {
+      method: "PATCH", headers: { "content-type": "application/json", cookie, ...(origin ? { origin } : {}) }, body: JSON.stringify(body),
+    });
+    expect((await patch({ name: "Shani" }, "")).status).toBe(401);
+    for (const body of [{ name: " " }, { name: "a" }, { name: "a".repeat(121) }, { name: 42 }, { name: "Shani\nOther" }, { name: "Shani", id: "someone-else" }, { name: "Shani", email: "changed@example.com" }, { name: "Shani", password: "changed-password" }]) {
+      expect((await patch(body)).status).toBe(400);
+    }
+    expect((await patch({ name: "Shani" }, authCookie, "https://attacker.example")).status).toBe(403);
+    const before = await (await fetch(`${baseUrl}/api/dashboard`, { headers: { cookie: authCookie } })).json();
+    const changed = await patch({ name: "  Shani  " });
+    expect(changed.status).toBe(200);
+    const { user } = await changed.json();
+    expect(user).toEqual({ ...before.user, name: "Shani" });
+    const after = await (await fetch(`${baseUrl}/api/dashboard`, { headers: { cookie: authCookie } })).json();
+    expect(after.user.name).toBe("Shani");
+    expect(after.sessions).toEqual(before.sessions);
+    expect(after.features).toEqual(before.features);
+    const login = await fetch(`${baseUrl}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "owner@example.com", password: "a-secure-test-password" }) });
+    expect(login.status).toBe(200);
+    expect((await login.json()).user.name).toBe("Shani");
+  });
+
   it("restores shared project state after a server restart", async () => {
     await stopServer();
     launchServer();

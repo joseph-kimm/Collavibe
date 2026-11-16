@@ -1,3 +1,4 @@
+import { displayNameSchema } from "./profile.js";
 import { randomBytes } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { CollaborationSession, Feature, Project } from "./types.js";
@@ -56,6 +57,16 @@ export async function cloudSignUp(input: { name: string; email: string; password
   fail(signedIn.error);
   if (!created.data.user || !signedIn.data.session) throw new Error("Could not create the account.");
   return { user: cloudUser(created.data.user), session: { accessToken: signedIn.data.session.access_token, refreshToken: signedIn.data.session.refresh_token } };
+}
+
+export async function cloudUpdateProfile(userId: string, input: { name: string }) {
+  const name = displayNameSchema.parse(input.name);
+  // The existing auth.users trigger updates public.profiles in the same transaction.
+  // Updating only profiles would let a later sign-in restore the old metadata name.
+  const result = await admin().auth.admin.updateUserById(userId, { user_metadata: { name } });
+  fail(result.error);
+  if (!result.data.user) throw new Error("Could not update your profile.");
+  return cloudUser(result.data.user);
 }
 
 export async function cloudLogin(input: { email: string; password: string }) {

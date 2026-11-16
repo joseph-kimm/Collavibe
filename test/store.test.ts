@@ -5,7 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { inspectRepository } from "../src/git.js";
-import { chooseWorkItem, createTeam, getDashboard, getProjectContext, joinTeam, loginUser, readState, resetStateForTests, signUpUser, startCollaborationSession, syncCollaborationSession, createPlannedFeature, updateWorkspaceProject, workspaceFeatureAction } from "../src/store.js";
+import { chooseWorkItem, createTeam, getDashboard, getUserForToken, updateUserProfile, getProjectContext, joinTeam, loginUser, readState, resetStateForTests, signUpUser, startCollaborationSession, syncCollaborationSession, createPlannedFeature, updateWorkspaceProject, workspaceFeatureAction } from "../src/store.js";
 import { featureFields } from "../src/workspace-model.js";
 
 const exec = promisify(execFile);
@@ -38,6 +38,27 @@ afterEach(() => {
 });
 
 describe("agent-to-team session workflow", () => {
+  it("persists a profile rename without changing teammates or recorded contributions", async () => {
+    const first = await signUpUser({ name: "Earlier Name", email: "first@example.com", password: "test-password-long" });
+    const other = await signUpUser({ name: "Other Teammate", email: "other@example.com", password: "test-password-long" });
+    const team = await createTeam({ userId: first.user.id, name: "Rename test", repoPath: repo });
+    await startCollaborationSession({ repoPath: repo, participant: first.user.name });
+    const before = await readState();
+    const updated = await updateUserProfile(first.user.id, { name: "  Shani  " });
+    expect(updated.name).toBe("Shani");
+    expect(await getUserForToken(first.token)).toEqual(updated);
+    expect(await getUserForToken(other.token)).toEqual(other.user);
+    const after = await readState();
+    expect(after.sessions).toEqual(before.sessions);
+    expect(after.projects).toEqual(before.projects);
+    expect(after.features).toEqual(before.features);
+    expect(after.users[0].passwordHash).toBe(before.users[0].passwordHash);
+    expect((await loginUser({ email: first.user.email, password: "test-password-long" })).user.name).toBe("Shani");
+    expect((await getDashboard(first.user.id, team.id)).user.name).toBe("Shani");
+    await expect(updateUserProfile("missing-user", { name: "Shani" })).rejects.toMatchObject({ status: 401 });
+    await expect(updateUserProfile(first.user.id, { name: "x" })).rejects.toThrow();
+  });
+
   it("keeps archived local work out of agent context and prevents hiding active sessions", async () => {
     const account = await signUpUser({ name: "Local Owner", email: "owner@example.com", password: "local-lifecycle-password" });
     const team = await createTeam({ userId: account.user.id, name: "Lifecycle team", repoPath: repo });
