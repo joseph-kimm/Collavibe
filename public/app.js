@@ -913,7 +913,7 @@ document.querySelectorAll("dialog").forEach((dialog) => {
   dialog.addEventListener("click", (event) => { if (event.target !== dialog) return; const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) { if (dialog.id === "confirm-dialog") $("confirm-cancel").click(); else dialog.close(); } });
 });
 document.addEventListener("keydown", (event) => {
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k" && !$("workspace").hidden && !document.querySelector("dialog[open]")) { event.preventDefault(); if (view === "team") switchView("map"); $("project-filters").open = true; $("search").focus(); }
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k" && !$("workspace").hidden && !document.querySelector("dialog[open]")) { event.preventDefault(); if (["team", "tickets", "meetings", "portfolio"].includes(view)) switchView("map"); workspaceLayout.setFocused(false); $("project-filters").open = true; $("search").focus(); }
   if (event.key === "Escape" && !document.querySelector("dialog[open]")) { const navWasOpen = $("workspace").classList.contains("mobile-nav"); setMobileNav(false); if (selection) closeDetail(); else if (workspaceLayout.focused) { workspaceLayout.setFocused(false); $("focus-tree").focus(); } if (navWasOpen) $("mobile-projects").focus(); updateHash(); }
 });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !demo && !$("workspace").hidden) load({ quiet: true }); });
