@@ -58,7 +58,7 @@
 .resource-type { font-size:14px; color:var(--muted); letter-spacing:.02em; }
 .course-resource > small { display:block; color:var(--muted); font-size:14px; margin-top:14px; }
 .course-resource-search,.course-account-picker { margin-top:24px; display:grid; gap:8px; max-width:520px; }
-.course-resource-search input,.course-account-picker select { min-height:46px; font-size:17px; padding:10px 12px; border:1px solid var(--line); border-radius:6px; background:#fff; width:100%; }
+.course-resource-search input,.course-account-picker select { min-height:46px; font-size:17px; padding:10px 12px; border:1px solid var(--line-strong); border-radius:6px; background:#fff; width:100%; }
 .course-main .form { margin:24px 0; max-width:760px; }
 .course-main .form input,.course-main .form select,.course-main .form textarea { font-size:17px; }
 .course-main .form label { min-width:0; }
@@ -123,7 +123,7 @@
 .forum-main .community-toolbar { align-items:end; justify-content:flex-start; }
 .forum-main .community-toolbar label { display:grid; flex:1 1 145px; font-size:14px; }
 .forum-main .community-toolbar .community-search { flex-basis:240px; }
-.community-search input { width:100%; min-height:44px; border:1px solid var(--line); border-radius:4px; background:var(--bg); color:var(--ink); padding:8px 11px; font:inherit; font-size:16px; }
+.community-search input { width:100%; min-height:44px; border:1px solid var(--line-strong); border-radius:4px; background:var(--bg); color:var(--ink); padding:8px 11px; font:inherit; font-size:16px; }
 .forum-main .community-thread { scroll-margin-top:24px; }
 .forum-main .community-thread:target { border-top:2px solid var(--accent); }
 @media(max-width:760px) {

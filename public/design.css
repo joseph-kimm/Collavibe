@@ -1,11 +1,9 @@
-/* Shared palette: cool white, slate, and one deep blue accent. */
+/* Shared palette lives in styles.css so every public and workspace page agrees. */
 :root {
-  --bg: #fcfdff; --sidebar: #eef2f7; --surface: #f3f6fa;
-  --ink: #172537; --muted: #526174; --line: #d8e1eb; --line-strong: #8a9db3;
-  --accent: #245783; --accent-soft: #e6eff8; --action: var(--accent); --action-hover: #194469;
-  --selection: var(--accent-soft);
   --display: Georgia, "Times New Roman", serif;
 }
+::selection { background: var(--accent-soft); color: var(--ink); }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .ui-icon { display: inline-block; width: 20px; height: 20px; flex: 0 0 20px; vertical-align: middle; pointer-events: none; }
 [data-icon] { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .button { min-height: 44px; padding: 10px 16px; border-radius: 4px; font-weight: 600; line-height: 1.35; border-color: var(--line); transition: background .16s, border-color .16s; }
@@ -31,9 +29,10 @@
 .view-tabs button[aria-current=page] { color: var(--accent); border-bottom-color: var(--accent); }
 .tag { border-radius: 5px; }
 .form input, .form select, .form textarea { border-radius: 7px; }
-dialog { border-color: var(--line); border-radius: 12px; box-shadow: 0 20px 80px #17253726; }
-dialog::backdrop { background: #17253766; backdrop-filter: blur(3px); }
-.detail-pane { box-shadow: -8px 0 28px #17253706; }
+.sidebar > select, .toolbar select { border-color: var(--line-strong); }
+dialog { border-color: var(--line); border-radius: 12px; box-shadow: 0 20px 80px #23372d26; }
+dialog::backdrop { background: #23372d66; backdrop-filter: blur(3px); }
+.detail-pane { box-shadow: -8px 0 28px #23372d06; }
 
 /* The public homepage is a real introduction, not a pre-populated team. */
 .landing-page { background: var(--surface); }
