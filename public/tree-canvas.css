@@ -1,0 +1,20 @@
+/* Workspace chrome: a persistent sidebar toggle and an uncluttered map mode. */
+.workspace.sidebar-collapsed { grid-template-columns: minmax(0,1fr); }
+.workspace.sidebar-collapsed > .sidebar { display: none; }
+#toggle-sidebar { display: inline-flex; flex-shrink: 0; }
+.workspace.tree-focused { grid-template-columns: minmax(0,1fr); }
+.workspace.tree-focused > .sidebar, .tree-focused .page-header,
+.tree-focused .page-title, .tree-focused .repository-summary,
+.tree-focused .view-tabs, .tree-focused #project-filters { display: none; }
+.tree-focused .workspace-body { min-height: 100svh; }
+.tree-focused .project-map { padding: 16px; }
+.tree-focused .map-controls { position: sticky; top: 0; z-index: 4; background: var(--bg); }
+.tree-focused .detail-pane { position: fixed; top: 0; bottom: 0; right: 0; height: 100svh; max-height: 100svh; z-index: 30; box-shadow: -12px 0 40px #23372d12; }
+@media (max-width:700px) {
+  #toggle-sidebar { display: none; }
+  .workspace.sidebar-collapsed.mobile-nav > .sidebar { display: flex; }
+  .header-actions #focus-tree { margin-right: auto; }
+}
+@media (prefers-reduced-motion:no-preference) {
+  .workspace { transition: grid-template-columns .18s ease; }
+}

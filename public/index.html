@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/project-map.css"/>
 <link rel="stylesheet" href="/design.css"/>
 <link rel="stylesheet" href="/collaboration.css"/>
+<link rel="stylesheet" href="/tree-canvas.css"/>
 </head>
 <body>
 <div id="initial-loading" class="initial-loading" role="status">Loading Collavibe…</div>
@@ -70,7 +71,7 @@
 </aside>
 <main class="main">
 <div id="demo-banner" class="demo-banner" hidden><span>Sample workspace · not your team · read-only</span><button id="exit-demo" class="text-button" type="button">Go to my workspace</button></div>
-<header class="page-header"><div class="breadcrumb"><button id="mobile-projects" class="button compact" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="workspace-navigation"><span data-icon="menu"></span> Menu</button><span id="team-name"></span><span class="slash">/</span><strong id="project-name">Projects</strong></div><div class="header-actions"><span id="connection-label" class="connection" role="status" title="When Collavibe last refreshed the workspace, not the repository">Connecting…</span><button class="button compact" id="refresh" type="button"><span data-icon="refresh-cw"></span>Refresh</button></div></header>
+<header class="page-header"><div class="breadcrumb"><button id="toggle-sidebar" class="icon-button" type="button" aria-label="Hide sidebar" aria-expanded="true" aria-controls="workspace-navigation"><span data-icon="panel-left"></span></button><button id="mobile-projects" class="button compact" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="workspace-navigation"><span data-icon="menu"></span> Menu</button><span id="team-name"></span><span class="slash">/</span><strong id="project-name">Projects</strong></div><div class="header-actions"><button id="focus-tree" class="button compact" type="button" aria-pressed="false"><span data-icon="maximize"></span><span>Focus tree</span></button><span id="connection-label" class="connection" role="status" title="When Collavibe last refreshed the workspace, not the repository">Connecting…</span><button class="button compact" id="refresh" type="button"><span data-icon="refresh-cw"></span>Refresh</button></div></header>
 <div id="load-error" class="error-banner" role="alert" hidden></div>
 <div id="project-workspace">
 <div id="archive-banner" class="archive-banner" hidden>This project is archived. Its work and session history are kept here. Restore it in Project settings to make changes.</div>

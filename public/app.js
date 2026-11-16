@@ -1,3 +1,4 @@
+import { initializeWorkspaceLayout } from "./workspace-layout.js";
 import { sessionCommits, commitEvidenceNotice } from "./commit-evidence.js";
 import { announceAuthChange, watchSession } from "./inline-auth.js";
 import { sampleWorkspace } from "./demo.js";
@@ -48,6 +49,8 @@ let setupCourseTeam = new URLSearchParams(location.search).get("setupTeam") === 
 const requestedReturnPath = safeReturnTo(new URLSearchParams(location.search).get("returnTo"));
 let invitation = new URLSearchParams(location.search).get("join") || "";
 ({ teamId, projectId, view, selection } = readWorkspaceRoute(location.hash, { teamId, projectId }));
+
+const workspaceLayout = initializeWorkspaceLayout({ workspace: $("workspace"), getView: () => view, closeMobileNav: () => setMobileNav(false) });
 
 const currentProject = () => data.projects.find((item) => item.id === projectId);
 const currentFeatures = () => data.features.filter((item) => item.projectId === projectId);
@@ -229,6 +232,7 @@ function render() {
   $("demo-banner").hidden = !demo;
   $("project-workspace").hidden = view === "team";
   $("project-workspace").classList.toggle("map-view", view === "map");
+  workspaceLayout.sync();
   $("project-filters").hidden = !project || ["tickets", "meetings", "portfolio"].includes(view);
   const mapFilters = view === "map";
   if ($("project-filters").classList.contains("collapsible") !== mapFilters) $("project-filters").open = !mapFilters;
@@ -875,7 +879,7 @@ document.querySelectorAll("dialog").forEach((dialog) => {
 });
 document.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k" && !$("workspace").hidden && !document.querySelector("dialog[open]")) { event.preventDefault(); if (view === "team") switchView("map"); $("project-filters").open = true; $("search").focus(); }
-  if (event.key === "Escape" && !document.querySelector("dialog[open]")) { const navWasOpen = $("workspace").classList.contains("mobile-nav"); setMobileNav(false); if (selection) closeDetail(); if (navWasOpen) $("mobile-projects").focus(); updateHash(); }
+  if (event.key === "Escape" && !document.querySelector("dialog[open]")) { const navWasOpen = $("workspace").classList.contains("mobile-nav"); setMobileNav(false); if (selection) closeDetail(); else if (workspaceLayout.focused) { workspaceLayout.setFocused(false); $("focus-tree").focus(); } if (navWasOpen) $("mobile-projects").focus(); updateHash(); }
 });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !demo && !$("workspace").hidden) load({ quiet: true }); });
 window.addEventListener("online", () => { if (!demo) load(); });
