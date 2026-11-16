@@ -1,3 +1,4 @@
+import { hostedDelta, amendHandoff, type CommitRange, type HandoffAmendment } from "./hosted-evidence.js";
 import { randomUUID } from "node:crypto";
 import { getSupabaseAdmin, throwSupabaseError } from "./supabase.js";
 import type { CollaborationSession, Feature, FeatureStatus, GitSnapshot, Project, VerifiedDelta, WorkOption } from "./types.js";
@@ -193,8 +194,11 @@ export async function chooseHostedWorkItem(input: { actor: AgentIdentity; sessio
 }
 
 export async function getHostedSyncTemplate(input: { actor: AgentIdentity; sessionId: string }) {
-  await hostedSession(input.actor, input.sessionId);
+  const { session } = await hostedSession(input.actor, input.sessionId);
   return {
+    startHead: session.startSnapshot.head,
+    syncRevision: session.syncRevision || 0,
+    commitRangeInstructions: "Use git log <startHead>..<endHead> to obtain the complete exact range, with full commit hashes. Include merges and other authors in that range; do not describe them as your own work. Send commitRange {baseHead:startHead, head:endHead, commits:[...]}. Recent logs are context only.",
     sessionId: input.sessionId,
     summary: "Two or three factual sentences explaining the outcome and current state.",
     workCompleted: ["Concrete behavior implemented or investigated"],
@@ -217,6 +221,7 @@ export async function syncHostedSession(input: {
   nextSteps: string[];
   changedFiles: string[];
   endGit: GitSnapshot;
+  commitRange?: CommitRange;
   completedChecklistItemIds?: string[];
   featureStatus?: FeatureStatus;
 }) {
@@ -224,22 +229,12 @@ export async function syncHostedSession(input: {
   if (session.status === "synced") throw new Error("This session has already been synced.");
   const expectedSession = structuredClone(session);
   const now = new Date().toISOString();
-  const startingCommits = new Set(session.startSnapshot.recentCommits.map((commit) => commit.hash));
-  const commits = session.startSnapshot.head === input.endGit.head ? [] : input.endGit.recentCommits.filter((commit) => !startingCommits.has(commit.hash));
   const changedFiles = [...new Set(input.changedFiles)].sort();
-  const attested: VerifiedDelta = {
-    source: "agent_attested",
-    startHead: session.startSnapshot.head,
-    endHead: input.endGit.head,
-    startBranch: session.startSnapshot.branch,
-    endBranch: input.endGit.branch,
-    commits,
-    changedFiles,
-    workingFiles: input.endGit.workingFiles,
-    reportedButUnverified: [],
-  };
+  const attested = hostedDelta(session.startSnapshot, input.endGit, changedFiles, input.commitRange);
   session.status = "synced";
   session.syncedAt = now;
+  session.syncRevision = 1;
+  session.syncUpdatedAt = now;
   session.sync = {
     summary: input.summary,
     workCompleted: input.workCompleted,
@@ -280,4 +275,17 @@ export async function syncHostedSession(input: {
     attestation: attested,
     agentInstructions: "Confirm the session was synced. Say clearly that remote Git evidence was supplied by the coding agent and was not independently read from the developer's filesystem.",
   };
+}
+
+
+export async function amendHostedSession(input: HandoffAmendment & { actor: AgentIdentity; sessionId: string }) {
+  const { session } = await hostedSession(input.actor, input.sessionId);
+  const { actor, sessionId, ...patch } = input;
+  const amended = amendHandoff(session, actor.userId, patch);
+  const projectRow = await getSupabaseAdmin().from("projects").select("*").eq("id", session.projectId).single();
+  throwSupabaseError(projectRow.error);
+  const project = projectFromRow(projectRow.data);
+  // Reuse the atomic compare-and-swap RPC. No feature or project evidence changes.
+  await commitWork(actor, project, amended, undefined, session, null, project.updatedAt);
+  return { session: amended, agentInstructions: "The corrected handoff is saved with its previous revision and reason. Feature status and project Git state were not changed. The supplied commit range remains agent-attested." };
 }

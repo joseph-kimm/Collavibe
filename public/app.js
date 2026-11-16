@@ -1,3 +1,4 @@
+import { sessionCommits, commitEvidenceNotice } from "./commit-evidence.js";
 import { announceAuthChange, watchSession } from "./inline-auth.js";
 import { sampleWorkspace } from "./demo.js";
 import { repositoryPresentation } from "./repository-ui.js";
@@ -332,7 +333,7 @@ function mapPersonTone(name) {
   return "map-tone-" + ((hash ^ (hash >>> 16)) >>> 0) % 4;
 }
 function mapSessionNode(session) {
-  const commits = session.sync?.verified?.commits?.length || 0;
+  const commits = sessionCommits(session).length;
   const files = session.sync?.verified?.changedFiles?.length || 0;
   return `<li class="map-session-item"><button type="button" class="map-session ${selected("session", session.id) ? "selected" : ""}" data-session="${e(session.id)}"><span class="avatar map-person-avatar ${mapPersonTone(sessionContributorKey(session))}" aria-hidden="true">${e(initial(session.participant))}</span><span class="map-session-copy"><span class="map-node-heading"><strong>${e(session.participant)}</strong><span class="tag">${e(sessionStatuses[session.status])}</span></span><span class="map-session-summary">${e(session.sync?.summary || session.intent || "Session started. No handoff saved yet.")}</span><span class="map-node-meta"><code>${e(sessionBranch(session) || "Branch not recorded")}</code><span>${commits} ${commits === 1 ? "commit" : "commits"} · ${files} ${files === 1 ? "file" : "files"}</span><span>${e(date(session.syncedAt || session.startedAt))}</span></span></span><span class="map-open-label">Open handoff ↗</span></button></li>`;
 }
@@ -380,8 +381,13 @@ function detailSection(title, items) {
 function evidence(sync) {
   const verified = sync?.verified;
   if (!verified) return "";
-  const local = verified.source === "local_git";
-  return `<section class="detail-section"><h3>Repository changes</h3><p>${local ? "Read from local Git." : "Reported by the coding agent; not independently checked by Collavibe."}</p><p><code>${e(verified.startHead.slice(0,7))} → ${e(verified.endHead.slice(0,7))}</code></p>${verified.commits.length ? '<ul class="commit-list">' + verified.commits.map((commit) => `<li><code>${e(commit.shortHash)}</code><span>${e(commit.subject)}</span><small>Git author: ${e(commit.author)}</small></li>`).join("") + "</ul>" : ""}</section>${verified.changedFiles.length ? '<section class="detail-section"><h3>Changed files</h3><ul class="file-list">' + verified.changedFiles.map((file) => "<li>" + e(file) + "</li>").join("") + "</ul></section>" : ""}`;
+  const commits = verified.commitEvidence === "recent_context_only" ? verified.unverifiedRecentCommits || [] : verified.commits;
+  const contextOnly = verified.source === "agent_attested" && verified.commitEvidence !== "explicit_range";
+  return `<section class="detail-section"><h3>Repository changes</h3><p>${e(commitEvidenceNotice(verified))}</p><p><code>${e(verified.startHead.slice(0,7))} → ${e(verified.endHead.slice(0,7))}</code></p>${contextOnly && commits.length ? '<h4>Unverified repository context</h4>' : ''}${commits.length ? '<ul class="commit-list">' + commits.map((commit) => `<li><code>${e(commit.shortHash)}</code><span>${e(commit.subject)}</span><small>Git author: ${e(commit.author)}</small></li>`).join("") + "</ul>" : ""}</section>${verified.changedFiles.length ? '<section class="detail-section"><h3>Changed files</h3><ul class="file-list">' + verified.changedFiles.map((file) => "<li>" + e(file) + "</li>").join("") + "</ul></section>" : ""}`;
+}
+function correctionHistory(session) {
+  if (!session.syncHistory?.length) return "";
+  return `<section class="detail-section"><h3>Handoff corrections</h3><p>Current revision ${e(session.syncRevision)}. Earlier records are retained below.</p>${session.syncHistory.map(row => `<details><summary>Revision ${e(row.revision)} · corrected ${e(date(row.correctedAt))}</summary><p>${e(row.reason)}</p><p>${e(row.sync.summary)}</p>${detailSection("Earlier completed work", row.sync.workCompleted)}${detailSection("Earlier decisions", row.sync.decisions)}${detailSection("Earlier blockers", row.sync.blockers)}${detailSection("Earlier next steps", row.sync.nextSteps)}${evidence(row.sync)}</details>`).join("")}</section>`;
 }
 function sessionBranchProperties(item) {
   const finalBranch = sessionBranch(item);
@@ -402,7 +408,7 @@ function renderDetail() {
     $("detail").innerHTML = `<h2 class="detail-title">${e(item.title)}</h2><p class="detail-description">${e(item.description || "No description yet.")}</p><div class="detail-actions"><button type="button" class="button compact" data-action="edit-feature" ${demo ? "disabled" : ""}>Edit feature</button><button type="button" class="button compact" data-action="copy-feature">Copy agent prompt</button></div><dl class="properties"><dt>Status</dt><dd>${tag(item.status)}</dd><dt>Owner</dt><dd>${e(item.owner || "Unassigned")}</dd><dt>Branch</dt><dd><code>${e(item.branch || "Not set")}</code></dd><dt>Updated</dt><dd>${e(date(item.updatedAt))}</dd></dl><section class="detail-section"><h3>Checklist <span class="subtle">${completed}/${item.checklist.length}</span></h3><div class="progress" role="progressbar" aria-label="Checklist progress" aria-valuemin="0" aria-valuemax="${item.checklist.length || 1}" aria-valuenow="${completed}"><span style="width:${item.checklist.length ? 100 * completed / item.checklist.length : 0}%"></span></div><div class="checklist">${item.checklist.map((check) => `<label class="${check.done ? "done" : ""}"><input type="checkbox" data-check="${e(check.id)}" ${check.done ? "checked" : ""} ${demo ? "disabled" : ""}/><span>${e(check.text)}</span></label>`).join("") || '<p class="subtle">Add checklist items from Edit feature.</p>'}</div></section>${sessions.length ? '<section class="detail-section"><h3>Sessions for this feature</h3>' + sessions.map((session) => `<p><button class="text-button" type="button" data-session="${e(session.id)}">${e(session.participant)} · ${e(date(session.startedAt))}</button></p>`).join("") + "</section>" : ""}`;
   } else {
     const feature = data.features.find((f) => f.id === item.featureId);
-    $("detail").innerHTML = `<h2 class="detail-title">${e(feature?.title || item.intent || "Session")}</h2><p class="detail-description">${e(item.sync?.summary || "The session has not been synced yet.")}</p><div class="detail-actions"><button type="button" class="button compact" data-action="copy-handoff">Copy handoff</button><button type="button" class="button compact" data-action="export-session">Download</button></div><dl class="properties"><dt>Participant</dt><dd>${e(item.participant)}</dd><dt>Status</dt><dd>${e(sessionStatuses[item.status])}</dd><dt>Started</dt><dd>${e(date(item.startedAt))}</dd><dt>Synced</dt><dd>${e(date(item.syncedAt))}</dd>${sessionBranchProperties(item)}</dl>${detailSection("Completed work", item.sync?.workCompleted)}${detailSection("Decisions", item.sync?.decisions)}${detailSection("Blockers", item.sync?.blockers)}${detailSection("Next steps", item.sync?.nextSteps)}${evidence(item.sync)}`;
+    $("detail").innerHTML = `<h2 class="detail-title">${e(feature?.title || item.intent || "Session")}</h2><p class="detail-description">${e(item.sync?.summary || "The session has not been synced yet.")}</p><div class="detail-actions"><button type="button" class="button compact" data-action="copy-handoff">Copy handoff</button><button type="button" class="button compact" data-action="export-session">Download</button></div><dl class="properties"><dt>Participant</dt><dd>${e(item.participant)}</dd><dt>Status</dt><dd>${e(sessionStatuses[item.status])}</dd><dt>Started</dt><dd>${e(date(item.startedAt))}</dd><dt>Synced</dt><dd>${e(date(item.syncedAt))}</dd>${sessionBranchProperties(item)}</dl>${detailSection("Completed work", item.sync?.workCompleted)}${detailSection("Decisions", item.sync?.decisions)}${detailSection("Blockers", item.sync?.blockers)}${detailSection("Next steps", item.sync?.nextSteps)}${evidence(item.sync)}${correctionHistory(item)}`;
   }
   if (!demo) {
     const linkButton = document.createElement("button");
@@ -572,7 +578,8 @@ function handoffText(session) {
   const verified = session.sync.verified;
   if (verified) {
     text += "\n## Git evidence\n\n" + (verified.source === "local_git" ? "Read from local Git." : "Reported by the agent, not independently checked by Collavibe.") + "\n" + verified.startHead + " → " + verified.endHead + "\n";
-    text += verified.commits.map((commit) => "- " + commit.shortHash + " " + commit.subject).join("\n") + "\n";
+    text += commitEvidenceNotice(verified) + "\n";
+    text += sessionCommits(session).map((commit) => "- " + commit.shortHash + " " + commit.subject).join("\n") + "\n";
   }
   return text;
 }

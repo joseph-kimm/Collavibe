@@ -63,6 +63,7 @@ describe("MCP contract", () => {
       "choose_work_item",
       "get_sync_template",
       "sync_collaboration_session",
+      "amend_collaboration_session",
       "get_collaboration_plan",
       "propose_project_tickets",
       "get_brainstorm_context",
@@ -74,6 +75,11 @@ describe("MCP contract", () => {
     expect(start.inputSchema.properties).not.toHaveProperty("participant");
     expect(start.inputSchema.properties).not.toHaveProperty("repoPath");
     expect(start.inputSchema.properties).toHaveProperty("project");
+
+    const malformedSnapshot = await client.callTool({ name: "start_collaboration_session", arguments: { project: { key: "example/repo", name: "Hash validation", git: { branch: "main", head: "a".repeat(38) } } } });
+    expect(malformedSnapshot.isError).toBe(true);
+    const amend = tools.tools.find(tool => tool.name === "amend_collaboration_session")!;
+    expect(amend.inputSchema.required).toEqual(expect.arrayContaining(["sessionId", "expectedRevision", "correctionReason", "commitRange"]));
 
     const prompts = await client.listPrompts();
     expect(prompts.prompts.map((prompt) => prompt.name)).toEqual(["start", "sync"]);

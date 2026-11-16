@@ -1,3 +1,4 @@
+import { sessionCommits } from "../public/commit-evidence.js";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { collaborationScope, findRecord, newRecord, readRecords, reviseRecord, saveRecord, type Actor } from "./collaboration-records.js";
@@ -35,7 +36,7 @@ export async function previewPortfolio(actor: Actor, teamId: string, projectId: 
     features: features.map(row => ({ id: row.id, title: publicText(row.title,200), description: publicText(row.description,4000), status: row.status })),
     sessions: sessions.sort((a,b) => a.startedAt.localeCompare(b.startedAt)).map(row => ({ id: row.id, participant: publicText(row.participant,120), featureId: row.featureId || null, startedAt: row.startedAt,
       summary: publicText(row.sync?.summary || row.intent), workCompleted: strings(row.sync?.workCompleted), decisions: strings(row.sync?.decisions), blockers: strings(row.sync?.blockers), nextSteps: strings(row.sync?.nextSteps),
-      branch: publicText(row.sync?.verified.endBranch || row.startSnapshot.branch,255), commits: (row.sync?.verified.commits || []).slice(0,100).map(commit => ({ shortHash: commit.shortHash.slice(0,12), subject: publicText(commit.subject,500) })),
+      branch: publicText(row.sync?.verified.endBranch || row.startSnapshot.branch,255), commits: sessionCommits(row).slice(0,100).map(commit => ({ shortHash: commit.shortHash.slice(0,12), subject: publicText(commit.subject,500) })),
       reflections: records.filter(note => note.kind === "reflection" && note.payload.sessionId === row.id && note.payload.publicConsent === true && !note.deletedAt).map(note => ({ id: note.id, authorName: publicText(note.authorName,120), text: publicText(note.payload.text,8000), authorship: String(note.payload.authorship || "unspecified") })),
     })), evidenceNotice: "Handoffs and Git metadata are supplied by the coding agent. This portfolio does not independently verify code changes or measure anyone’s effort.",
   };

@@ -24,7 +24,7 @@ export function sampleWorkspace() {
     const shortHash = ({ s1: "a14c72f", s2: "3eb7841", s3: "8ca322f", s4: "0bc887a" })[id];
     const head = shortHash.padEnd(40, "0");
     const startHead = "7d9b1e3".padEnd(40, "0");
-    return { id, participant, featureId, projectId: "p1", repoPath: git.root, startedAt: date(days, hours + 1), syncedAt: date(days, hours), status: "synced", startSnapshot: { ...git, branch: "main", head: startHead }, sync: { summary, workCompleted: completed, decisions, blockers, nextSteps, agentReportedFiles: files, verified: { source: "agent_attested", startHead, endHead: head, startBranch: "main", endBranch: branch, commits: [{ hash: head, shortHash, author: participant, subject: summary.split(".")[0], authoredAt: date(days,hours) }], changedFiles: files, workingFiles: [], reportedButUnverified: [] } } };
+    return { id, participant, featureId, projectId: "p1", repoPath: git.root, startedAt: date(days, hours + 1), syncedAt: date(days, hours), status: "synced", startSnapshot: { ...git, branch: "main", head: startHead }, sync: { summary, workCompleted: completed, decisions, blockers, nextSteps, agentReportedFiles: files, verified: { source: "agent_attested", commitEvidence: "explicit_range", commitRange: { baseHead: startHead, head }, startHead, endHead: head, startBranch: "main", endBranch: branch, commits: [{ hash: head, shortHash, author: participant, subject: summary.split(".")[0], authoredAt: date(days,hours) }], changedFiles: files, workingFiles: [], reportedButUnverified: [] } } };
   };
   return {
     user: { id: "u1", name: "Maya Chen", email: "maya@example.com" },

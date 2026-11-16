@@ -69,6 +69,9 @@ export interface VerifiedDelta {
   startBranch: string;
   endBranch: string;
   commits: GitCommit[];
+  commitRange?: { baseHead: string; head: string };
+  commitEvidence?: "explicit_range" | "recent_context_only";
+  unverifiedRecentCommits?: GitCommit[];
   changedFiles: string[];
   workingFiles: string[];
   reportedButUnverified: string[];
@@ -98,6 +101,9 @@ export interface CollaborationSession {
   startedAt: string;
   syncedAt?: string;
   sync?: SessionSync;
+  syncRevision?: number;
+  syncUpdatedAt?: string;
+  syncHistory?: Array<{ revision: number; recordedAt: string; correctedAt: string; correctedBy: string; reason: string; sync: SessionSync }>;
   /** Local-only capability used to publish this session to its hosted team. */
   teamCode?: string;
 }

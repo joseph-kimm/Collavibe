@@ -1,3 +1,4 @@
+import { sessionCommits } from "./commit-evidence.js";
 const unique = (items) => [...new Set(items.filter(Boolean))];
 const personName = (value) => String(value || "").trim();
 
@@ -64,7 +65,7 @@ export function buildProjectMap({ projectId, features = [], sessions = [], query
     sessions: projectSessions.filter((session) => sessionContributorKey(session) === person.key && (entries.some((entry) => entry.feature.id === session.featureId) || unlinkedSessions.some((item) => item.id === session.id))),
   }));
   if (entries.some((entry) => !entry.people.length)) groups.push({ key: "unassigned", name: "Unassigned", label: "Unassigned", unassigned: true, entries: entries.filter((entry) => !entry.people.length), sessions: [] });
-  const commits = unique(projectSessions.flatMap((session) => session.sync?.verified?.commits?.map((commit) => commit.hash) || []));
+  const commits = unique(projectSessions.flatMap((session) => sessionCommits(session).map((commit) => commit.hash)));
   return { entries, groups, people, unlinkedSessions, summary: {
     features: projectFeatures.filter((feature) => !feature.archivedAt).length,
     people: people.length, sessions: projectSessions.length,
