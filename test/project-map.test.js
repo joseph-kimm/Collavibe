@@ -21,7 +21,7 @@ describe("project map relationships", () => {
   });
   it("shows multiple actual collaborators without inferring completed work from assignment", () => {
     const result = build({ features: [feature("f1"), feature("f2", "Joseph")], sessions: [session("s1", "f1"), session("s2", "f1", "Joseph")] });
-    expect(result.people).toEqual(["Joseph", "Shayan"]);
+    expect(result.people.map((person) => person.name)).toEqual(["Joseph", "Shayan"]);
     const joseph = result.groups.find((group) => group.name === "Joseph");
     expect(joseph.entries).toHaveLength(2);
     expect(joseph.sessions).toHaveLength(1);
@@ -30,11 +30,11 @@ describe("project map relationships", () => {
   it("never leaks another project's features or sessions", () => {
     const result = build({ features: [feature("f1"), feature("private", "Other", { projectId: "p2" })], sessions: [session("s1", "f1"), session("private-session", "f1", "Other", { projectId: "p2" })] });
     expect(result.entries).toHaveLength(1);
-    expect(result.people).toEqual(["Shayan"]);
+    expect(result.people.map((person) => person.name)).toEqual(["Shayan"]);
     expect(result.summary.sessions).toBe(1);
   });
   it("filters by people who contributed even when someone else owns the feature", () => {
-    const result = build({ person: "Joseph", sessions: [session("s1", "f1", "Joseph")] });
+    const result = build({ person: "legacy:Joseph", sessions: [session("s1", "f1", "Joseph")] });
     expect(result.entries).toHaveLength(1);
     expect(result.groups.map((group) => group.name)).toEqual(["Joseph"]);
     expect(build({ person: "Nobody" }).entries).toEqual([]);
@@ -75,6 +75,31 @@ describe("project map relationships", () => {
     expect(result.summary).toMatchObject({ features: 6, people: 3, handoffs: 4, commits: 4 });
     expect(sessionBranch(demo.sessions.find((item) => item.featureId === "f2"))).toBe("feature/calendar");
     expect(result.groups.find((group) => group.name === "Maya").sessions).toHaveLength(2);
+  });
+  it("separates equal display names by account across a shared feature", () => {
+    const args = { features: [feature("f1", "Alex", { ownerUserId: "user-a" })], sessions: [session("s1", "f1", "Alex", { userId: "user-a" }), session("s2", "f1", "Alex", { userId: "user-b" })] };
+    const result = build(args);
+    expect(result.summary.people).toBe(2);
+    expect(result.groups.map((group) => group.key)).toEqual(["user:user-a", "user:user-b"]);
+    expect(new Set(result.people.map((person) => person.label)).size).toBe(2);
+    expect(result.groups.map((group) => group.sessions.map((item) => item.id))).toEqual([["s1"], ["s2"]]);
+    const filtered = build({ ...args, person: "user:user-b" });
+    expect(filtered.entries.map((entry) => entry.feature.id)).toEqual(["f1"]);
+    expect(filtered.entries[0].sessions.map((item) => item.id)).toEqual(["s2"]);
+    expect(filtered.groups).toHaveLength(1);
+    expect(filtered.groups[0].sessions.map((item) => item.id)).toEqual(["s2"]);
+  });
+  it("keeps a renamed account in one lane while preserving original session labels", () => {
+    const result = build({ features: [feature("f1", "Old name", { ownerUserId: "user-a" })], sessions: [session("s1", "f1", "Old name", { userId: "user-a" }), session("s2", "f1", "New name", { userId: "user-a", syncedAt: "2026-11-16T18:00:00Z" })] });
+    expect(result.summary.people).toBe(1);
+    expect(result.groups[0]).toMatchObject({ key: "user:user-a", name: "New name" });
+    expect(result.groups[0].sessions.map((item) => item.participant)).toEqual(["Old name", "New name"]);
+  });
+  it("never guesses an account for a legacy name, including a name resembling a key", () => {
+    const result = build({ features: [feature("f1", "Alex", { ownerUserId: "a" })], sessions: [session("s1", "f1", "Alex"), session("s2", undefined, "user:a")] });
+    expect(result.people.map((person) => person.key).sort()).toEqual(["legacy:Alex", "legacy:user:a", "user:a"]);
+    expect(result.people.find((person) => person.key === "legacy:Alex").label).toBe("Alex · legacy records");
+    expect(build({ features: [], sessions: [session("s1", undefined, "Alex", { userId: "a" }), session("s2", undefined, "Alex", { userId: "b" })], person: "user:b" }).unlinkedSessions.map((item) => item.id)).toEqual(["s2"]);
   });
   it("does not reintroduce tiny fixed font sizes in the workspace styles", () => {
     for (const file of ["styles.css", "project-map.css"]) {

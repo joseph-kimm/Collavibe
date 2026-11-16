@@ -1,7 +1,7 @@
 import { announceAuthChange, watchSession } from "./inline-auth.js";
 import { sampleWorkspace } from "./demo.js";
 import { repositoryPresentation } from "./repository-ui.js";
-import { buildProjectMap, sessionBranch } from "./project-map.js";
+import { buildProjectMap, sessionBranch, sessionContributorKey, featureOwnerKey } from "./project-map.js";
 import { hydrateIcons, icon } from "./icons.js";
 import { initializeLanding } from "./landing.js";
 import { mountSessionLearning } from "./session-learning.js";
@@ -257,10 +257,12 @@ function render() {
   for (const option of $("sort").options) if (["priority", "due"].includes(option.value)) option.hidden = !["work", "map"].includes(view);
   $("search").placeholder = view === "repository" ? "Search branches and files…" : "Search features, people, decisions…";
   const owner = $("owner-filter").value;
-  const names = view === "map" ? buildProjectMap({ projectId, features: data.features, sessions: data.sessions }).people : [...new Set(view === "sessions" ? currentSessions().map((item) => item.participant) : currentFeatures().map((item) => item.owner).filter(Boolean))].sort();
+  const directory = buildProjectMap({ projectId, features: data.features, sessions: data.sessions }).people;
+  const visiblePeople = new Set(view === "sessions" ? currentSessions().map(sessionContributorKey) : currentFeatures().map(featureOwnerKey));
+  const people = view === "map" ? directory : directory.filter((person) => visiblePeople.has(person.key));
   $("owner-filter").setAttribute("aria-label", view === "map" ? "Person" : "Owner");
-  $("owner-filter").innerHTML = '<option value="all">' + (view === "map" ? "All people" : "Everyone") + '</option>' + (view === "sessions" ? "" : '<option value="unassigned">Unassigned</option>') + names.map((name) => `<option value="${e(name)}">${e(name)}</option>`).join("");
-  $("owner-filter").value = names.includes(owner) || owner === "unassigned" ? owner : "all";
+  $("owner-filter").innerHTML = '<option value="all">' + (view === "map" ? "All people" : "Everyone") + '</option>' + (view === "sessions" ? "" : '<option value="unassigned">Unassigned</option>') + people.map((person) => `<option value="${e(person.key)}">${e(person.label)}</option>`).join("");
+  $("owner-filter").value = people.some((person) => person.key === owner) || (owner === "unassigned" && view !== "sessions") ? owner : "all";
   if (view === "team") renderTeam(); else renderContent();
   updateHash();
 }
@@ -312,14 +314,14 @@ function renderContent() {
   }
   if (view === "map") { renderMap(project, query); renderDetail(); return; }
   if (view === "sessions") {
-    const sessions = currentSessions().filter((item) => (owner === "all" || item.participant === owner) && (!query || JSON.stringify([item.participant, item.intent, item.sync, data.features.find((f) => f.id === item.featureId)?.title]).toLowerCase().includes(query))).sort(compare);
+    const sessions = currentSessions().filter((item) => (owner === "all" || sessionContributorKey(item) === owner) && (!query || JSON.stringify([item.participant, item.intent, item.sync, data.features.find((f) => f.id === item.featureId)?.title]).toLowerCase().includes(query))).sort(compare);
     content.innerHTML = sessions.length ? sessions.map((item) => {
       const feature = data.features.find((f) => f.id === item.featureId);
       return `<button type="button" class="work-row session-row ${selected("session", item.id) ? "selected" : ""}" data-session="${e(item.id)}"><span class="avatar" aria-hidden="true">${e(initial(item.participant))}</span><span class="work-main"><strong>${e(feature?.title || item.intent || "Session")}<span class="session-person">${e(item.participant)}</span></strong><p>${e(item.sync?.summary || "Session started. The agent has not synced a handoff yet.")}</p>${item.sync?.blockers?.length ? '<small class="mini-flag">' + item.sync.blockers.length + " blocker" + (item.sync.blockers.length === 1 ? "" : "s") + "</small>" : ""}</span><span class="work-meta"><span>${e(date(item.syncedAt || item.startedAt))}</span><span>${e(sessionStatuses[item.status])}</span><code>${e(sessionBranch(item) || "No branch")}</code></span></button>`;
     }).join("") + `<p class="count-summary">${sessions.length} of ${currentSessions().length} sessions</p>` : empty(currentSessions().length ? "No matching sessions" : "No sessions yet", currentSessions().length ? "Try a different search or owner." : "Connect your coding agent and start a session. The handoff will appear here after you ask it to sync.", '<button type="button" class="button" data-action="connect-agent">Connect agent</button>');
   } else {
     const scope = currentFeatures().filter((item) => Boolean(item.archivedAt) === $("show-archived").checked);
-    const filtered = scope.filter((item) => ($("priority-filter").value === "all" || (item.priority || "normal") === $("priority-filter").value) && ($("status-filter").value === "all" || item.status === $("status-filter").value) && (owner === "all" || (owner === "unassigned" ? !item.owner : item.owner === owner)) && (!query || JSON.stringify([item.title, item.description, item.owner, item.branch, item.checklist, item.comments]).toLowerCase().includes(query))).sort(compare);
+    const filtered = scope.filter((item) => ($("priority-filter").value === "all" || (item.priority || "normal") === $("priority-filter").value) && ($("status-filter").value === "all" || item.status === $("status-filter").value) && (owner === "all" || (owner === "unassigned" ? !featureOwnerKey(item) : featureOwnerKey(item) === owner)) && (!query || JSON.stringify([item.title, item.description, item.owner, item.branch, item.checklist, item.comments]).toLowerCase().includes(query))).sort(compare);
     content.innerHTML = filtered.length ? Object.entries(statuses).map(([status, label]) => {
       const features = filtered.filter((item) => item.status === status);
       if (!features.length) return "";
@@ -329,19 +331,19 @@ function renderContent() {
   renderDetail();
 }
 function mapPersonTone(name) {
-  // Stable across filtering and grouping; the full name remains the identity label.
+  // Stable account key keeps the same tint after a display-name change.
   const hash = [...String(name || "")].reduce((value, char) => (value * 31 + char.codePointAt(0)) >>> 0, 0);
   return "map-tone-" + ((hash ^ (hash >>> 16)) >>> 0) % 4;
 }
 function mapSessionNode(session) {
   const commits = session.sync?.verified?.commits?.length || 0;
   const files = session.sync?.verified?.changedFiles?.length || 0;
-  return `<li class="map-session-item"><button type="button" class="map-session ${selected("session", session.id) ? "selected" : ""}" data-session="${e(session.id)}"><span class="avatar map-person-avatar ${mapPersonTone(session.participant)}" aria-hidden="true">${e(initial(session.participant))}</span><span class="map-session-copy"><span class="map-node-heading"><strong>${e(session.participant)}</strong><span class="tag">${e(sessionStatuses[session.status])}</span></span><span class="map-session-summary">${e(session.sync?.summary || session.intent || "Session started. No handoff saved yet.")}</span><span class="map-node-meta"><code>${e(sessionBranch(session) || "Branch not recorded")}</code><span>${commits} ${commits === 1 ? "commit" : "commits"} · ${files} ${files === 1 ? "file" : "files"}</span><span>${e(date(session.syncedAt || session.startedAt))}</span></span></span><span class="map-open-label">Open handoff ↗</span></button></li>`;
+  return `<li class="map-session-item"><button type="button" class="map-session ${selected("session", session.id) ? "selected" : ""}" data-session="${e(session.id)}"><span class="avatar map-person-avatar ${mapPersonTone(sessionContributorKey(session))}" aria-hidden="true">${e(initial(session.participant))}</span><span class="map-session-copy"><span class="map-node-heading"><strong>${e(session.participant)}</strong><span class="tag">${e(sessionStatuses[session.status])}</span></span><span class="map-session-summary">${e(session.sync?.summary || session.intent || "Session started. No handoff saved yet.")}</span><span class="map-node-meta"><code>${e(sessionBranch(session) || "Branch not recorded")}</code><span>${commits} ${commits === 1 ? "commit" : "commits"} · ${files} ${files === 1 ? "file" : "files"}</span><span>${e(date(session.syncedAt || session.startedAt))}</span></span></span><span class="map-open-label">Open handoff ↗</span></button></li>`;
 }
 function mapFeatureNode(entry, group = "features", person = "") {
   const feature = entry.feature;
   const nodeKey = group + ":" + feature.id;
-  const linked = person ? entry.sessions.filter((session) => session.participant.trim() === person) : entry.sessions;
+  const linked = person ? entry.sessions.filter((session) => sessionContributorKey(session) === person) : entry.sessions;
   const done = feature.checklist?.filter((item) => item.done).length || 0;
   return `<li class="map-feature-item"><details class="map-feature ${selected("feature", feature.id) ? "selected" : ""}" data-map-node="${e(nodeKey)}" ${collapsedMapNodes.has(nodeKey) ? "" : "open"}><summary><span class="map-chevron" aria-hidden="true">›</span><span class="map-feature-heading"><span class="map-node-heading"><span class="tag">${dot(feature.status)}${e(statuses[feature.status] || feature.status)}</span>${feature.archivedAt ? '<span class="tag">Archived</span>' : ""}</span><strong>${e(feature.title)}</strong><span class="map-node-meta"><span>Owner: ${e(feature.owner || "Unassigned")}</span><span>${done}/${feature.checklist?.length || 0} checklist complete</span></span></span><span class="map-session-count">${linked.length} ${linked.length === 1 ? "session" : "sessions"}</span></summary><div class="map-feature-body"><div class="map-feature-context"><code>${e(feature.branch || "No branch assigned")}</code><button class="button compact" type="button" data-feature="${e(feature.id)}">Open feature & checklist</button></div>${linked.length ? '<ul class="map-session-list">' + linked.map(mapSessionNode).join("") + '</ul>' : '<p class="map-no-session">' + (person ? "No session recorded by this person yet." : "No sessions yet. Connect your agent to start work on this feature.") + '</p>'}</div></details></li>`;
 }
@@ -357,10 +359,10 @@ function renderMap(project, query) {
   let branches = "";
   if (mapGrouping === "features") branches = model.entries.map((entry) => mapFeatureNode(entry)).join("");
   else branches = model.groups.map((group) => {
-    const key = "person:" + group.name;
-    const assigned = group.unassigned ? group.entries.length : group.entries.filter((entry) => entry.feature.owner?.trim() === group.name).length;
+    const key = "person:" + group.key;
+    const assigned = group.unassigned ? group.entries.length : group.entries.filter((entry) => featureOwnerKey(entry.feature) === group.key).length;
     const handoffs = group.sessions.filter((session) => session.status === "synced").length;
-    return `<li class="map-person-item"><details class="map-person ${mapPersonTone(group.name)}" data-map-node="${e(key)}" ${collapsedMapNodes.has(key) ? "" : "open"}><summary><span class="map-chevron" aria-hidden="true">›</span><span class="avatar map-person-avatar" aria-hidden="true">${e(initial(group.name))}</span><span class="map-person-label"><span class="map-person-kicker">${group.unassigned ? "To be assigned" : "Contributor"}</span><strong>${e(group.name)}</strong><span class="map-node-meta">${group.sessions.length} recorded ${group.sessions.length === 1 ? "session" : "sessions"} · ${assigned} ${group.unassigned ? "unassigned" : "assigned"} ${assigned === 1 ? "feature" : "features"}</span></span><span class="map-person-total"><strong>${handoffs}</strong><span>saved ${handoffs === 1 ? "handoff" : "handoffs"}</span></span></summary><ul class="map-branches" aria-label="${e(group.name)}: features and sessions">${group.entries.map((entry) => mapFeatureNode(entry, "person-" + group.name, group.unassigned ? "" : group.name)).join("")}${model.unlinkedSessions.filter((session) => session.participant.trim() === group.name).map(mapSessionNode).join("")}</ul></details></li>`;
+    return `<li class="map-person-item"><details class="map-person ${mapPersonTone(group.key)}" data-map-node="${e(key)}" ${collapsedMapNodes.has(key) ? "" : "open"}><summary><span class="map-chevron" aria-hidden="true">›</span><span class="avatar map-person-avatar" aria-hidden="true">${e(initial(group.name))}</span><span class="map-person-label"><span class="map-person-kicker">${group.unassigned ? "To be assigned" : "Contributor"}</span><strong>${e(group.label)}</strong><span class="map-node-meta">${group.sessions.length} recorded ${group.sessions.length === 1 ? "session" : "sessions"} · ${assigned} ${group.unassigned ? "unassigned" : "assigned"} ${assigned === 1 ? "feature" : "features"}</span></span><span class="map-person-total"><strong>${handoffs}</strong><span>saved ${handoffs === 1 ? "handoff" : "handoffs"}</span></span></summary><ul class="map-branches" aria-label="${e(group.label)}: features and sessions">${group.entries.map((entry) => mapFeatureNode(entry, "person-" + group.key, group.unassigned ? "" : group.key)).join("")}${model.unlinkedSessions.filter((session) => sessionContributorKey(session) === group.key).map(mapSessionNode).join("")}</ul></details></li>`;
   }).join("");
   if (mapGrouping === "features" && model.unlinkedSessions.length) branches += `<li class="map-unlinked"><h3>Sessions without a feature</h3><p class="subtle">Started sessions that have not been linked to a feature.</p><ul class="map-session-list">${model.unlinkedSessions.map(mapSessionNode).join("")}</ul></li>`;
   const blank = !summary.features && !summary.sessions;
