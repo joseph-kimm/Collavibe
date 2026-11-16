@@ -97,7 +97,7 @@ code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .sidebar > select { width: 100%; padding: 10px 12px; border: 1px solid #dce1da; border-radius: 6px; background: #fff; font-size: 1rem; font-weight: 550; text-overflow: ellipsis; }
 .sidebar-section-heading { display: flex; align-items: center; justify-content: space-between; margin: 25px 9px 9px 12px; color: var(--muted); font-size: .875rem; }
 .sidebar-section-heading .text-button { font-size: .875rem; min-height: 32px; }
-.project-list { display: grid; align-content: start; gap: 3px; overflow-y: auto; min-height: 40px; max-height: 45vh; }
+.project-list { display: grid; align-content: start; gap: 3px; overflow-y: auto; flex-shrink: 0; min-height: 44px; max-height: 45vh; }
 .project-link { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 11px; border: 0; border-radius: 6px; background: none; text-align: left; font-size: 1rem; line-height: 1.45; }
 .project-link:hover, .nav-button:hover { background: var(--accent-soft); }
 .project-link.selected { color: var(--accent); background: var(--accent-soft); font-weight: 600; }
