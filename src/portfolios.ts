@@ -18,7 +18,7 @@ export const publicUrl = z.string().trim().max(2048).refine(value => {
 
 export const portfolioFields = z.object({ title: z.string().trim().min(3).max(200), description: z.string().trim().min(12).max(4000), appUrl: publicUrl.default(""),
   sessionIds: z.array(z.string().min(5).max(128)).max(200).default([]), featureIds: z.array(z.string().min(5).max(128)).max(200).default([]), includeReflections: z.boolean().default(false) });
-type PublicSession = { id: string; participant: string; featureId: string | null; startedAt: string; summary: string; workCompleted: string[]; decisions: string[]; blockers: string[]; nextSteps: string[]; branch: string; commits: { shortHash: string; subject: string }[]; reflections: { id: string; authorName: string; text: string }[] };
+type PublicSession = { id: string; participant: string; featureId: string | null; startedAt: string; summary: string; workCompleted: string[]; decisions: string[]; blockers: string[]; nextSteps: string[]; branch: string; commits: { shortHash: string; subject: string }[]; reflections: { id: string; authorName: string; text: string; authorship?: string }[] };
 export type Snapshot = { title: string; description: string; appUrl: string; features: { id: string; title: string; description: string; status: string }[]; sessions: PublicSession[]; evidenceNotice: string };
 
 export async function previewPortfolio(actor: Actor, teamId: string, projectId: string, raw: unknown) {
@@ -36,7 +36,7 @@ export async function previewPortfolio(actor: Actor, teamId: string, projectId: 
     sessions: sessions.sort((a,b) => a.startedAt.localeCompare(b.startedAt)).map(row => ({ id: row.id, participant: publicText(row.participant,120), featureId: row.featureId || null, startedAt: row.startedAt,
       summary: publicText(row.sync?.summary || row.intent), workCompleted: strings(row.sync?.workCompleted), decisions: strings(row.sync?.decisions), blockers: strings(row.sync?.blockers), nextSteps: strings(row.sync?.nextSteps),
       branch: publicText(row.sync?.verified.endBranch || row.startSnapshot.branch,255), commits: (row.sync?.verified.commits || []).slice(0,100).map(commit => ({ shortHash: commit.shortHash.slice(0,12), subject: publicText(commit.subject,500) })),
-      reflections: records.filter(note => note.kind === "reflection" && note.payload.sessionId === row.id && note.payload.publicConsent === true && !note.deletedAt).map(note => ({ id: note.id, authorName: publicText(note.authorName,120), text: publicText(note.payload.text,8000) })),
+      reflections: records.filter(note => note.kind === "reflection" && note.payload.sessionId === row.id && note.payload.publicConsent === true && !note.deletedAt).map(note => ({ id: note.id, authorName: publicText(note.authorName,120), text: publicText(note.payload.text,8000), authorship: String(note.payload.authorship || "unspecified") })),
     })), evidenceNotice: "Handoffs and Git metadata are supplied by the coding agent. This portfolio does not independently verify code changes or measure anyone’s effort.",
   };
   return { snapshot, previewHash: createHash("sha256").update(JSON.stringify(snapshot)).digest("hex") };
@@ -76,7 +76,15 @@ export async function publicPortfolio(id: string) {
   const snapshot = structuredClone(row.payload.snapshot) as Snapshot;
   // Withdrawing a reflection's consent also removes it from already-shared
   // snapshots, rather than leaving an irrevocable personal note public.
-  snapshot.sessions.forEach(session => { session.reflections = session.reflections.filter(note => records.some(source => source.id === note.id && source.kind === "reflection" && source.payload.publicConsent === true && !source.deletedAt)); });
+  snapshot.sessions.forEach(session => {
+    session.reflections = session.reflections.flatMap(note => {
+      const source = records.find(source => source.id === note.id && source.kind === "reflection" && source.payload.publicConsent === true && !source.deletedAt);
+      if (!source) return [];
+      // A source correction can label an existing published example without
+      // silently replacing the reviewed text with an unpublished edit.
+      return [{ ...note, authorship: note.text === publicText(source.payload.text, 8000) ? String(source.payload.authorship || "unspecified") : note.authorship || "unspecified" }];
+    });
+  });
   const feedback = records.filter(item => item.kind === "feedback" && item.payload.portfolioId === id && !item.deletedAt).map(item => ({ id: item.id, authorName: publicText(item.authorName,120), text: publicText(item.payload.text,2000), createdAt: item.createdAt, sessionId: item.payload.sessionId || null, parentId: item.payload.parentId || null }));
   return { id: row.id, publishedAt: row.payload.publishedAt, snapshot, feedback };
 }

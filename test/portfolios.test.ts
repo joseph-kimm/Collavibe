@@ -35,10 +35,23 @@ describe("opt-in reviewed public portfolio", () => {
     let note=await writeReflection(f.member,f.teamId,f.projectId,f.sessionId,{text:"PRIVATE_LEARNING_NOTE"});
     const privatePreview=await previewPortfolio(f.owner,f.teamId,f.projectId,fields());
     expect(JSON.stringify(privatePreview)).not.toContain("PRIVATE_LEARNING_NOTE"); expect(JSON.stringify(privatePreview)).not.toContain("PRIVATE_MEETING");
-    note=await writeReflection(f.member,f.teamId,f.projectId,f.sessionId,{text:note.payload.text,expectedVersion:note.version,publicConsent:true});
+    note=await writeReflection(f.member,f.teamId,f.projectId,f.sessionId,{text:note.payload.text,expectedVersion:note.version,publicConsent:true,authorship:"synthetic"});
     const preview=await previewPortfolio(f.owner,f.teamId,f.projectId,fields());
     const published=await publishPortfolio(f.owner,f.teamId,f.projectId,{...fields(),previewHash:preview.previewHash,consentConfirmed:true});
-    expect(JSON.stringify(await publicPortfolio(published.id))).toContain("PRIVATE_LEARNING_NOTE");
+    const publicPage = await publicPortfolio(published.id);
+    expect(JSON.stringify(publicPage)).toContain("PRIVATE_LEARNING_NOTE");
+    expect(publicPage.snapshot.sessions[0].reflections[0].authorship).toBe("synthetic");
+    expect(portfolioContent(publicPage.snapshot)).toContain("Synthetic demo · not personal learning evidence");
+    // Old snapshots had no source label. They must not be presented as verified human writing.
+    const legacy = structuredClone(publicPage.snapshot);
+    delete legacy.sessions[0].reflections[0].authorship;
+    expect(portfolioContent(legacy)).toContain("Authorship not specified");
+    note=await writeReflection(f.member,f.teamId,f.projectId,f.sessionId,{text:note.payload.text,expectedVersion:note.version,publicConsent:true,authorship:"ai_assisted"});
+    expect((await publicPortfolio(published.id)).snapshot.sessions[0].reflections[0].authorship).toBe("ai_assisted");
+    note=await writeReflection(f.member,f.teamId,f.projectId,f.sessionId,{text:"New unpublished personal wording",expectedVersion:note.version,publicConsent:true,authorship:"personal"});
+    const unchangedSnapshot = (await publicPortfolio(published.id)).snapshot.sessions[0].reflections[0];
+    expect(unchangedSnapshot.text).toBe("PRIVATE_LEARNING_NOTE");
+    expect(unchangedSnapshot.authorship).toBe("synthetic");
     await writeReflection(f.member,f.teamId,f.projectId,f.sessionId,{text:note.payload.text,expectedVersion:note.version,publicConsent:false});
     const page=JSON.stringify(await publicPortfolio(published.id));
     expect(page).not.toContain("PRIVATE_LEARNING_NOTE");expect(page).not.toContain("PRIVATE_MEETING");expect(page).not.toContain("authorId");

@@ -1,3 +1,4 @@
+import { reflectionSourceLabel } from "./reflection-source.js";
 import { api, courseContext } from "./course.js";
 import { escape as e, safeHref } from "./portfolio-content.js";
 
@@ -12,6 +13,7 @@ function storyMarkup(row) {
   return `<article class="course-story">
     <h3>${e(row.title)}</h3>
     <p class="subtle">${e(row.authorName)}${row.publishedAt ? " · " + e(new Date(row.publishedAt).toLocaleDateString()) : ""}</p>
+    <p class="subtle">${e(reflectionSourceLabel(row.authorship))}</p>
     <p class="course-story-body">${e(row.body)}</p>
     <div class="form-actions">
       ${demoUrl ? `<a href="${e(demoUrl)}" target="_blank" rel="noopener noreferrer">Open demo or related work</a>` : ""}
@@ -84,6 +86,12 @@ async function editor(selectedId = null, message = "") {
       formHost.innerHTML = `<form class="form" id="story-form">
         <label>Title<input name="title" required minlength="3" maxlength="200" value="${e(payload.title || "")}" /></label>
         <label>Your story<textarea name="body" required minlength="20" maxlength="15000" rows="7">${e(payload.body || "")}</textarea></label>
+        <label>About this story<select name="authorship">
+          <option value="unspecified" ${!payload.authorship || payload.authorship === "unspecified" ? "selected" : ""}>Authorship not specified</option>
+          <option value="personal" ${payload.authorship === "personal" ? "selected" : ""}>I wrote this about my own experience</option>
+          <option value="ai_assisted" ${payload.authorship === "ai_assisted" ? "selected" : ""}>My experience, with AI writing assistance</option>
+          <option value="synthetic" ${payload.authorship === "synthetic" ? "selected" : ""}>Synthetic or demonstration example</option>
+        </select></label>
         <label>Demo or project link (optional HTTPS link)<input name="demoUrl" type="url" value="${e(payload.demoUrl || "")}" /></label>
         <label>Published team portfolio (optional)<select name="portfolioId">
           <option value="">${payload.portfolioId && !available ? "Previous portfolio link is unavailable" : "No portfolio link"}</option>

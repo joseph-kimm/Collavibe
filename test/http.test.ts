@@ -207,7 +207,8 @@ describe("Streamable HTTP transport", () => {
     const learning=base+`/sessions/${session.id}/learning`;
     expect((await call(learning,"GET",undefined,"")).status).toBe(401);
     const note=(await (await call(learning+"/reflection","PUT",{text:"I changed the data model after feedback."},learner)).json()).record;
-    expect(note.payload.humanWritten).toBe(true);
+    expect(note.payload.humanWritten).toBe(false);
+    expect(note.payload.authorship).toBe("unspecified");
     expect((await call(learning,"GET",undefined,visitor)).status).toBe(403);
     const reply=(await (await call(learning+"/replies","POST",{parentId:note.id,text:"What changed your reasoning?"})).json()).record;
     expect(reply.payload.parentId).toBe(note.id);

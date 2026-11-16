@@ -4,11 +4,11 @@ import { collaborationScope, findRecord, newRecord, readRecords, reviseRecord, s
 import { publicText, publicUrl, type Snapshot } from "./portfolios.js";
 import { WorkspaceError } from "./workspace-model.js";
 
-const fields=z.object({title:z.string().trim().min(3).max(200),body:z.string().trim().min(20).max(15000),demoUrl:publicUrl.default(""),portfolioId:z.string().regex(/^portfolio_[a-f0-9-]{36}$/).or(z.literal("")).default("")});
+const fields=z.object({authorship:z.enum(["unspecified","personal","ai_assisted","synthetic"]).optional(),title:z.string().trim().min(3).max(200),body:z.string().trim().min(20).max(15000),demoUrl:publicUrl.default(""),portfolioId:z.string().regex(/^portfolio_[a-f0-9-]{36}$/).or(z.literal("")).default("")});
 const hash=(value:unknown)=>createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const isStory = (row: CollaborationRecord) => row.kind === "post" && row.payload.courseEntry === undefined;
 function projectStory(row:CollaborationRecord) {
-  return {id:row.id,title:publicText(row.payload.title,200),body:publicText(row.payload.body,15000),demoUrl:String(row.payload.demoUrl||""),portfolioId:String(row.payload.portfolioId||""),authorName:publicText(row.authorName,120)};
+  return {id:row.id,title:publicText(row.payload.title,200),body:publicText(row.payload.body,15000),demoUrl:String(row.payload.demoUrl||""),portfolioId:String(row.payload.portfolioId||""),authorName:publicText(row.authorName,120),authorship:String(row.payload.authorship||"unspecified")};
 }
 async function scoped(actor:Actor,teamId:string,id:string) {
   const scope=await collaborationScope(actor,teamId);
@@ -44,7 +44,8 @@ export async function saveCourseStory(actor:Actor,teamId:string,raw:unknown,id?:
   if(current&&current.version!==input.expectedVersion)throw new WorkspaceError("The story changed. Reload before saving.",409);
   const {expectedVersion,...content}=input;
   // Changed text returns to draft; publication is always a deliberate action.
-  const payload={...content,published:false,humanWritten:true,courseId:"vibecode-101"};
+  const authorship=input.authorship ?? (current?.payload.body===input.body ? current.payload.authorship : undefined) ?? "unspecified";
+  const payload={...content,authorship,published:false,humanWritten:authorship==="personal",courseId:"vibecode-101"};
   return saveRecord(actor,current?reviseRecord(current,payload):newRecord(actor,teamId,null,"post",payload),current?.version||null);
 }
 export async function previewCourseStory(actor:Actor,teamId:string,id:string) {

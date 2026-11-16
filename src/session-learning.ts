@@ -2,7 +2,7 @@ import { z } from "zod";
 import { collaborationScope, newRecord, readRecords, reviseRecord, saveRecord, type Actor } from "./collaboration-records.js";
 import { WorkspaceError } from "./workspace-model.js";
 
-export const reflectionInput = z.object({ text: z.string().trim().min(1).max(8000), publicConsent: z.boolean().default(false), expectedVersion: z.number().int().positive().optional() });
+export const reflectionInput = z.object({ text: z.string().trim().min(1).max(8000), publicConsent: z.boolean().default(false), authorship: z.enum(["unspecified", "personal", "ai_assisted", "synthetic"]).optional(), expectedVersion: z.number().int().positive().optional() });
 export const replyInput = z.object({ text: z.string().trim().min(1).max(2000), parentId: z.string().min(5).max(128) });
 
 export async function sessionLearning(actor: Actor, teamId: string, projectId: string, sessionId: string) {
@@ -20,7 +20,10 @@ export async function writeReflection(actor: Actor, teamId: string, projectId: s
   const current = records.find(row => row.kind === "reflection" && row.authorId === actor.id);
   if (current && current.version !== input.expectedVersion) throw new WorkspaceError("Your reflection changed. Reload it before saving.", 409);
   if (!current && input.expectedVersion) throw new WorkspaceError("Reflection not found.", 404);
-  const payload = { sessionId, text: input.text, publicConsent: input.publicConsent, humanWritten: true };
+  // Older rows asserted humanWritten automatically. Do not treat that historical
+  // flag as attestation, or carry an attestation over to newly replaced text.
+  const authorship = input.authorship ?? (current?.payload.text === input.text ? current.payload.authorship : undefined) ?? "unspecified";
+  const payload = { sessionId, text: input.text, publicConsent: input.publicConsent, authorship, humanWritten: authorship === "personal" };
   const row = current ? reviseRecord(current, payload) : newRecord(actor, teamId, projectId, "reflection", payload);
   // Deterministic identity prevents two tabs creating duplicate initial entries.
   if (!current) row.id = `reflection_${sessionId}_${actor.id}`;

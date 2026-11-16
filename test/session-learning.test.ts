@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { mutate } from "../src/store.js";
+import { reflectionSourceLabel } from "../public/reflection-source.js";
 import { collaborationFixture } from "./helpers/collaboration-fixture.js";
 import { removeLearningEntry, sessionLearning, writeReflection, writeSessionReply } from "../src/session-learning.js";
 
@@ -6,11 +8,38 @@ let f: Awaited<ReturnType<typeof collaborationFixture>>;
 beforeAll(async () => { f = await collaborationFixture(); });
 afterAll(async () => { await f.cleanup(); });
 
-describe("human session reflection and discussion", () => {
-  it("persists a human-authored reflection, not a generated handoff, privately by default", async () => {
+describe("session reflection provenance and discussion", () => {
+  it("records the account author without assuming human writing, privately by default", async () => {
     const row = await writeReflection(f.owner, f.teamId, f.projectId, f.sessionId, { text: "I learned why we validate an API response.", authorId: f.member.id });
-    expect(row.authorId).toBe(f.owner.id); expect(row.payload.humanWritten).toBe(true); expect(row.payload.publicConsent).toBe(false);
+    expect(row.authorId).toBe(f.owner.id); expect(row.payload.humanWritten).toBe(false); expect(row.payload.authorship).toBe("unspecified"); expect(row.payload.publicConsent).toBe(false);
     expect((await sessionLearning(f.member, f.teamId, f.projectId, f.sessionId)).records).toContainEqual(row);
+  });
+  it("requires explicit personal attestation and labels synthetic/assisted writing", async () => {
+    let row = (await sessionLearning(f.owner, f.teamId, f.projectId, f.sessionId)).records[0];
+    row = await writeReflection(f.owner, f.teamId, f.projectId, f.sessionId, { text: "My experience", authorship: "personal", expectedVersion: row.version });
+    expect(row.payload.humanWritten).toBe(true);
+    row = await writeReflection(f.owner, f.teamId, f.projectId, f.sessionId, { text: row.payload.text, publicConsent: true, expectedVersion: row.version });
+    expect(row.payload.authorship).toBe("personal");
+    row = await writeReflection(f.owner, f.teamId, f.projectId, f.sessionId, { text: "Replacement without attestation", expectedVersion: row.version, humanWritten: true });
+    expect(row.payload.authorship).toBe("unspecified"); expect(row.payload.humanWritten).toBe(false);
+    for (const authorship of ["synthetic", "ai_assisted"] as const) {
+      row = await writeReflection(f.owner, f.teamId, f.projectId, f.sessionId, { text: "Example", authorship, expectedVersion: row.version, humanWritten: true });
+      expect(row.payload.authorship).toBe(authorship); expect(row.payload.humanWritten).toBe(false);
+    }
+    await expect(writeReflection(f.owner, f.teamId, f.projectId, f.sessionId, { text: "Invalid source", authorship: "verified_human", expectedVersion: row.version })).rejects.toThrow();
+  });
+  it("preserves legacy record contents but does not render the old automatic flag as attestation", async () => {
+    const row = (await sessionLearning(f.owner, f.teamId, f.projectId, f.sessionId)).records[0];
+    await mutate(state => {
+      const legacy = state.collaborationRecords!.find(record => record.id === row.id)!;
+      delete legacy.payload.authorship;
+      legacy.payload.humanWritten = true;
+    });
+    const legacy = (await sessionLearning(f.member, f.teamId, f.projectId, f.sessionId)).records.find(record => record.id === row.id)!;
+    expect(legacy.payload.text).toBe(row.payload.text);
+    expect(legacy.payload.humanWritten).toBe(true);
+    expect(reflectionSourceLabel(legacy.payload.authorship)).toBe("Authorship not specified");
+    expect(reflectionSourceLabel("__proto__")).toBe("Authorship not specified");
   });
   it("rejects outsiders, unknown sessions, and mismatched projects", async () => {
     await expect(sessionLearning(f.outsider, f.teamId, f.projectId, f.sessionId)).rejects.toMatchObject({ status: 403 });

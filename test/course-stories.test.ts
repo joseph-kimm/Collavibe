@@ -4,9 +4,11 @@ import { listCourseStories,saveCourseStory,previewCourseStory,publishCourseStory
 let f:Awaited<ReturnType<typeof collaborationFixture>>;
 const fields={title:"How we chose our data",body:"We changed our plan after a classmate could not tell where our data came from.",demoUrl:"https://example.com/demo"};
 beforeAll(async()=>{f=await collaborationFixture();});afterAll(async()=>{await f.cleanup();});
-describe("human-written course stories",()=>{
+describe("course story provenance and publication",()=>{
   it("keeps unpublished drafts private from organizers and outsiders", async () => {
     const row = await saveCourseStory(f.member, f.teamId, fields);
+    expect(row.payload.humanWritten).toBe(false);
+    expect(row.payload.authorship).toBe("unspecified");
     expect(await publicCourseStories()).toHaveLength(0);
     expect(await listCourseStories(f.owner, f.teamId)).toHaveLength(0);
     expect(await listCourseStories(f.member, f.teamId)).toHaveLength(1);
@@ -26,5 +28,19 @@ describe("human-written course stories",()=>{
   });
   it("requires consent and a current preview; public responses omit private IDs",async()=>{const row=await saveCourseStory(f.member,f.teamId,fields);const preview=await previewCourseStory(f.member,f.teamId,row.id);await expect(publishCourseStory(f.member,f.teamId,row.id,{previewHash:preview.previewHash,expectedVersion:row.version})).rejects.toThrow();await publishCourseStory(f.member,f.teamId,row.id,{previewHash:preview.previewHash,expectedVersion:row.version,publicConsent:true});const result=await publicCourseStories();expect(result).toHaveLength(1);expect(JSON.stringify(result)).not.toContain(f.teamId);expect(result[0]).not.toHaveProperty("authorId");});
   it("returns edits to draft, rejects stale previews, and supports organizer moderation",async()=>{let row=await saveCourseStory(f.member,f.teamId,fields);const old=await previewCourseStory(f.member,f.teamId,row.id);row=await saveCourseStory(f.member,f.teamId,{...fields,body:fields.body+" More evidence.",expectedVersion:row.version},row.id);await expect(publishCourseStory(f.member,f.teamId,row.id,{previewHash:old.previewHash,expectedVersion:old.version,publicConsent:true})).rejects.toMatchObject({status:409});const preview=await previewCourseStory(f.member,f.teamId,row.id);row=await publishCourseStory(f.member,f.teamId,row.id,{...preview,expectedVersion:row.version,publicConsent:true});await unpublishCourseStory(f.owner,f.teamId,row.id,row.version);expect((await publicCourseStories()).some(post=>post.id===row.id)).toBe(false);});
+  it("carries explicit synthetic labels through preview/publication and does not infer human writing", async () => {
+    let row=await saveCourseStory(f.member,f.teamId,{...fields,authorship:"personal"});
+    expect(row.payload.humanWritten).toBe(true);
+    row=await saveCourseStory(f.member,f.teamId,{...fields,body:fields.body+" Generated replacement.",humanWritten:true,expectedVersion:row.version},row.id);
+    expect(row.payload.humanWritten).toBe(false);
+    expect(row.payload.authorship).toBe("unspecified");
+    row=await saveCourseStory(f.member,f.teamId,{...fields,authorship:"synthetic",expectedVersion:row.version},row.id);
+    const preview=await previewCourseStory(f.member,f.teamId,row.id);
+    expect(preview.snapshot.authorship).toBe("synthetic");
+    row=await publishCourseStory(f.member,f.teamId,row.id,{...preview,expectedVersion:row.version,publicConsent:true});
+    expect((await publicCourseStories()).find(story=>story.id===row.id)?.authorship).toBe("synthetic");
+    expect((await listCourseStories(f.owner,f.teamId)).find(story=>story.id===row.id)?.payload.authorship).toBe("synthetic");
+    await unpublishCourseStory(f.member,f.teamId,row.id,row.version);
+  });
   it("rejects credential links and foreign/private portfolio links",async()=>{await expect(saveCourseStory(f.member,f.teamId,{...fields,demoUrl:"https://example.com?token=secret"})).rejects.toThrow();await expect(saveCourseStory(f.member,f.teamId,{...fields,portfolioId:"portfolio_12345678-1234-1234-1234-123456789012"})).rejects.toMatchObject({status:400});});
 });
