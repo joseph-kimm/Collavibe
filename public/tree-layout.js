@@ -8,7 +8,7 @@ export function projectTree(model, project, grouping = 'people') {
     const f = entry.feature;
     const linked = person ? entry.sessions.filter(s => sessionContributorKey(s) === person) : entry.sessions;
     const key = prefix + '/feature/' + f.id;
-    return { key, kind: 'feature', id: f.id, title: f.title, subtitle: f.owner || 'Unassigned', status: f.status, comments: f.comments?.length || 0, meta: `${f.checklist?.filter(c => c.done).length || 0}/${f.checklist?.length || 0} checks · ${linked.length} sessions`, children: linked.map(s => sessionNode(s, key)) };
+    return { key, kind: 'feature', compact: grouping === 'people', id: f.id, title: f.title, subtitle: f.owner || 'Unassigned', status: f.status, comments: f.comments?.length || 0, meta: `${f.checklist?.filter(c => c.done).length || 0}/${f.checklist?.length || 0} checks · ${linked.length} sessions`, children: linked.map(s => sessionNode(s, key)) };
   };
   const root = { key: 'project/' + project.id, kind: 'project', id: project.id, title: project.name, subtitle: `${model.summary.people} contributors · ${model.summary.handoffs} handoffs`, meta: `${model.summary.features} features · ${model.summary.commits} recorded commits`, children: [] };
   if (grouping === 'people') root.children = model.groups.map(group => {
@@ -19,12 +19,12 @@ export function projectTree(model, project, grouping = 'people') {
   return root;
 }
 export function flattenTree(root) { return [root, ...root.children.flatMap(flattenTree)]; }
-const dimensions = kind => ({ width: kind === 'project' ? 248 : kind === 'person' ? 220 : 240, height: kind === 'feature' ? 194 : kind === 'session' ? 202 : 130 });
+const dimensions = node => ({ width: node.kind === 'project' ? 248 : node.kind === 'person' ? 220 : 240, height: node.kind === 'feature' ? (node.compact ? 146 : 170) : node.kind === 'session' ? 174 : node.kind === 'person' ? 108 : 112 });
 export function layoutTree(root, isOpen = () => true, direction = "down") {
   if (direction === "down") return layoutDown(root, isOpen);
   const nodes = [], edges = [], gap = 28, column = 356, padding = 36;
   const measure = node => {
-    const size = dimensions(node.kind), open = isOpen(node);
+    const size = dimensions(node), open = isOpen(node);
     const children = open ? node.children.map(measure) : [];
     return { ...node, ...size, expanded: open, childCount: node.children.length, children, span: Math.max(size.height, children.reduce((sum, child) => sum + child.span, 0) + Math.max(0, children.length - 1) * gap) };
   };
@@ -52,14 +52,14 @@ export function zoomAt(camera, nextScale, point) {
 function layoutDown(root, isOpen) {
   const nodes=[], edges=[], gap=28, padding=36;
   const measure=node=>{
-    const size=dimensions(node.kind),expanded=isOpen(node);
+    const size=dimensions(node),expanded=isOpen(node);
     const children=expanded?node.children.map(measure):[];
     return {...node,...size,expanded,childCount:node.children.length,children,span:Math.max(size.width,children.reduce((sum,c)=>sum+c.span,0)+Math.max(0,children.length-1)*gap)};
   };
   const tree=measure(root), rowHeights=[];
   const collect=(node,depth)=>{rowHeights[depth]=Math.max(rowHeights[depth]||0,node.height);node.children.forEach(child=>collect(child,depth+1));};
   collect(tree,0);
-  const rowTops=rowHeights.map((_,depth)=>padding+rowHeights.slice(0,depth).reduce((sum,height)=>sum+height+48,0));
+  const rowTops=rowHeights.map((_,depth)=>padding+rowHeights.slice(0,depth).reduce((sum,height)=>sum+height+32,0));
   const place=(node,depth,left,parent)=>{
     const placed={...node,x:left+(node.span-node.width)/2,y:rowTops[depth]};nodes.push(placed);
     if(parent)edges.push({from:parent.key,to:placed.key,x1:parent.x+parent.width/2,y1:parent.y+parent.height,x2:placed.x+placed.width/2,y2:placed.y,vertical:true});

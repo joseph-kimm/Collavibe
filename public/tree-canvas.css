@@ -139,3 +139,5 @@
 @media(max-width:700px) {
  .tree-focused .tree-caption::before { content:"Zoom in to read nodes, or switch to Outline.";display:block;font-size:.875rem;color:var(--muted); }
 }
+.tree-node-compact .tree-node-open > span, .tree-person .tree-node-meta { display:none; }
+.tree-node-compact .tree-node-open { padding-top:5px; }
