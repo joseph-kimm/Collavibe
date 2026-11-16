@@ -19,7 +19,7 @@ export function projectTree(model, project, grouping = 'people') {
   return root;
 }
 export function flattenTree(root) { return [root, ...root.children.flatMap(flattenTree)]; }
-const dimensions = kind => ({ width: kind === 'project' ? 248 : kind === 'person' ? 220 : 240, height: kind === 'feature' ? 194 : kind === 'session' ? 202 : 150 });
+const dimensions = kind => ({ width: kind === 'project' ? 248 : kind === 'person' ? 220 : 240, height: kind === 'feature' ? 194 : kind === 'session' ? 202 : 130 });
 export function layoutTree(root, isOpen = () => true, direction = "down") {
   if (direction === "down") return layoutDown(root, isOpen);
   const nodes = [], edges = [], gap = 28, column = 356, padding = 36;
@@ -50,15 +50,18 @@ export function zoomAt(camera, nextScale, point) {
 }
 
 function layoutDown(root, isOpen) {
-  const nodes=[], edges=[], gap=28, padding=36, rowHeight=230;
+  const nodes=[], edges=[], gap=28, padding=36;
   const measure=node=>{
     const size=dimensions(node.kind),expanded=isOpen(node);
     const children=expanded?node.children.map(measure):[];
     return {...node,...size,expanded,childCount:node.children.length,children,span:Math.max(size.width,children.reduce((sum,c)=>sum+c.span,0)+Math.max(0,children.length-1)*gap)};
   };
-  const tree=measure(root);
+  const tree=measure(root), rowHeights=[];
+  const collect=(node,depth)=>{rowHeights[depth]=Math.max(rowHeights[depth]||0,node.height);node.children.forEach(child=>collect(child,depth+1));};
+  collect(tree,0);
+  const rowTops=rowHeights.map((_,depth)=>padding+rowHeights.slice(0,depth).reduce((sum,height)=>sum+height+48,0));
   const place=(node,depth,left,parent)=>{
-    const placed={...node,x:left+(node.span-node.width)/2,y:padding+depth*rowHeight};nodes.push(placed);
+    const placed={...node,x:left+(node.span-node.width)/2,y:rowTops[depth]};nodes.push(placed);
     if(parent)edges.push({from:parent.key,to:placed.key,x1:parent.x+parent.width/2,y1:parent.y+parent.height,x2:placed.x+placed.width/2,y2:placed.y,vertical:true});
     let cursor=left+(node.span-(node.children.reduce((sum,c)=>sum+c.span,0)+Math.max(0,node.children.length-1)*gap))/2;
     for(const child of node.children){place(child,depth+1,cursor,placed);cursor+=child.span+gap;}

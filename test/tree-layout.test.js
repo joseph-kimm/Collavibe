@@ -26,7 +26,8 @@ describe('explorable project tree',()=>{
  it('lays out deep and broad trees without overlap or edges pointing to missing nodes',()=>{
   const root=projectTree(model,project,'people');
   for(const open of [()=>true,n=>n.kind==='project'||n.kind==='person']) {
-   const layout=layoutTree(root,open);
+   for (const direction of ["down", "right"]) {
+   const layout=layoutTree(root,open,direction);
    for(const a of layout.nodes) {
     expect(a.x).toBeGreaterThanOrEqual(0);expect(a.y).toBeGreaterThanOrEqual(0);
     expect(a.x+a.width).toBeLessThanOrEqual(layout.width);expect(a.y+a.height).toBeLessThanOrEqual(layout.height);
@@ -34,6 +35,7 @@ describe('explorable project tree',()=>{
    }
    expect(layout.edges.length).toBe(layout.nodes.length-1);
    for(const edge of layout.edges) expect(layout.nodes.some(n=>n.key===edge.to)).toBe(true);
+   }
   }
  });
  it('collapses branches without losing children or metadata',()=>{
