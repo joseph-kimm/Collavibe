@@ -129,9 +129,13 @@
 .tree-focused .visual-map { position:relative; }
 .tree-focused .tree-heading { position:absolute;top:12px;right:20px;padding:0;z-index:5; }
 .tree-focused .tree-heading > div:first-child { display:none; }
-.tree-focused .map-controls { padding-right:230px;min-height:52px; }
+.tree-focused .map-controls { padding-right:390px;min-height:52px; }
 @media(max-width:1000px) {
  .tree-focused .tree-heading { position:static;padding:0 0 8px; }
  .tree-focused .map-controls { padding-right:0; }
  .tree-focused .tree-heading > div:first-child { display:block; }
+}
+.tree-empty-notice { padding:14px 16px;background:var(--accent-soft);border-radius:6px; }
+@media(max-width:700px) {
+ .tree-focused .tree-caption::before { content:"Zoom in to read nodes, or switch to Outline.";display:block;font-size:.875rem;color:var(--muted); }
 }

@@ -30,6 +30,18 @@ export async function writeReflection(actor: Actor, teamId: string, projectId: s
   return saveRecord(actor, row, current?.version || null);
 }
 
+// Standalone session questions share the reply record kind, but are explicitly
+// marked discussion roots. They never claim to be reflections or public consent.
+export async function writeSessionComment(actor: Actor, teamId: string, projectId: string, sessionId: string, raw: unknown) {
+  const input = z.object({ text: z.string().trim().min(1).max(2000) }).parse(raw);
+  const { scope, records } = await sessionLearning(actor, teamId, projectId, sessionId);
+  if (scope.project?.archivedAt) throw new WorkspaceError("Restore this project before commenting.", 409);
+  if (records.length >= 500) throw new WorkspaceError("This session discussion is full.", 409);
+  const row = newRecord(actor, teamId, projectId, "reply", { sessionId, text: input.text, discussion: true });
+  row.payload.rootId = row.id;
+  return saveRecord(actor, row, null);
+}
+
 export async function writeSessionReply(actor: Actor, teamId: string, projectId: string, sessionId: string, raw: unknown) {
   const input = replyInput.parse(raw);
   const { scope, records } = await sessionLearning(actor, teamId, projectId, sessionId);
@@ -38,7 +50,8 @@ export async function writeSessionReply(actor: Actor, teamId: string, projectId:
   if (!parent) throw new WorkspaceError("Reply target not found in this session.", 404);
   if (records.length >= 500) throw new WorkspaceError("This session discussion is full.", 409);
   const rootId = parent.kind === "reflection" ? parent.id : String(parent.payload.rootId);
-  return saveRecord(actor, newRecord(actor, teamId, projectId, "reply", { sessionId, parentId: parent.id, rootId, text: input.text }), null);
+  if (!records.some(row => row.id === rootId)) throw new WorkspaceError("This discussion was removed.", 404);
+  return saveRecord(actor, newRecord(actor, teamId, projectId, "reply", { sessionId, parentId: parent.id, rootId, text: input.text, ...(parent.payload.discussion === true ? { discussion: true } : {}) }), null);
 }
 
 export async function removeLearningEntry(actor: Actor, teamId: string, projectId: string, sessionId: string, recordId: string, version: number) {

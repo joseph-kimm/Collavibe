@@ -363,7 +363,7 @@ function renderMap(project, query) {
   const root = `<div class="map-root"><span class="map-root-icon" aria-hidden="true">${icon("git-branch")}</span><div><p class="map-eyebrow">${demo ? "Sample project" : "Project"}</p><h2>${e(project.name)}</h2></div><dl class="map-stats"><div><dt>Features</dt><dd>${summary.features}</dd></div><div><dt>People</dt><dd>${summary.people}</dd></div><div><dt>Saved handoffs</dt><dd>${summary.handoffs}</dd></div><div><dt>Recorded commits</dt><dd>${summary.commits}</dd></div></dl></div>`;
   const controls = `<div class="map-controls"><div class="map-grouping" role="group" aria-label="Map display"><button class="button compact" type="button" data-map-presentation="tree" aria-pressed="${mapPresentation === "tree"}">${icon("network")} Tree</button><button class="button compact" type="button" data-map-presentation="outline" aria-pressed="${mapPresentation === "outline"}">Outline</button></div><div class="map-grouping" role="group" aria-label="Group project map"><button class="button compact" type="button" data-map-group="features" aria-pressed="${mapGrouping === "features"}">By feature</button><button class="button compact" type="button" data-map-group="people" aria-pressed="${mapGrouping === "people"}">By contributor</button></div><div class="map-expansion"><button class="text-button" type="button" data-map-expand="all">Expand all</button><button class="text-button" type="button" data-map-expand="none">Collapse all</button></div></div>`;
   if (mapPresentation === "tree") {
-    $("work-content").innerHTML = `<div class="project-map visual-map">${controls}<div id="tree-host"></div><p class="map-footnote">Connections show recorded project relationships, not Git merges or individual effort.${filterCount ? ' Filters are active. <button class="text-button" data-action="reset-map-filters">Clear filters</button>' : ''}</p></div>`;
+    $("work-content").innerHTML = `<div class="project-map visual-map">${controls}${!model.entries.length && !model.unlinkedSessions.length ? '<p class="tree-empty-notice" role="status">' + (filterCount ? 'No matching work. Clear the filters to see the whole project.' : 'Add a feature to start this project tree. Sessions will appear as your team builds.') + '</p>' : ''}<div id="tree-host"></div><p class="map-footnote">Connections show recorded project relationships, not Git merges or individual effort.${filterCount ? ' Filters are active. <button class="text-button" data-action="reset-map-filters">Clear filters</button>' : ''}</p></div>`;
     treeCanvas = mountTreeCanvas($("tree-host"), { model, project, grouping: mapGrouping, selection,
       onOpen: (kind, id) => { selection = {kind, id}; detailTarget = null; renderContent(); updateHash(); $("close-detail").focus({preventScroll:true}); },
       onComments: openDiscussion,
@@ -459,6 +459,8 @@ function renderDetail() {
     focusDiscussion();
     if (commentFocus && $("comment-text")) { $("comment-text").focus({ preventScroll: true }); $("comment-text").setSelectionRange(commentFocus.start, commentFocus.end); }
   }
+  if (!isFeature && demo) $("detail").insertAdjacentHTML("beforeend", '<section class="session-discussion"><h3>Session discussion</h3><p class="subtle">Sample sessions are read-only. Sign in to discuss your team’s work.</p></section>');
+  if (!isFeature && demo) focusDiscussion();
   if (!isFeature && !demo) {
     if (item.sync && canWrite()) {
       const next = document.createElement("section");

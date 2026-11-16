@@ -210,6 +210,15 @@ describe("Streamable HTTP transport", () => {
     expect(note.payload.humanWritten).toBe(false);
     expect(note.payload.authorship).toBe("unspecified");
     expect((await call(learning,"GET",undefined,visitor)).status).toBe(403);
+    expect((await call(learning+"/comments","POST",{text:"Forbidden"},"")).status).toBe(401);
+    expect((await call(learning+"/comments","POST",{text:"Forbidden"},visitor)).status).toBe(403);
+    const commentResponse=await call(learning+"/comments","POST",{text:"Standalone question"},learner);
+    expect(commentResponse.status).toBe(201);
+    const comment=(await commentResponse.json()).record;
+    expect(comment.payload.discussion).toBe(true);
+    const discussionReply=await call(learning+"/replies","POST",{parentId:comment.id,text:"Standalone answer"});
+    expect(discussionReply.status).toBe(201);
+    expect((await discussionReply.json()).record.payload.rootId).toBe(comment.id);
     const reply=(await (await call(learning+"/replies","POST",{parentId:note.id,text:"What changed your reasoning?"})).json()).record;
     expect(reply.payload.parentId).toBe(note.id);
     const ticket=(await (await call(base+"/tickets","POST",{title:"Test the empty-data state"})).json()).ticket;

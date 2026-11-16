@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Express, NextFunction, Request, RequestHandler, Response } from "express";
-import { sessionLearning, writeReflection, writeSessionReply, removeLearningEntry } from "../src/session-learning.js";
+import { sessionLearning, writeReflection, writeSessionReply, writeSessionComment, removeLearningEntry } from "../src/session-learning.js";
 import type { Actor } from "../src/collaboration-records.js";
 import { listTickets, createTicket, changeTicket } from "../src/tickets.js";
 import express from "express";
@@ -45,6 +45,9 @@ export function registerCollaborationRoutes(app: Express, requireUser: RequestHa
   }));
   app.put(sessionPath + "/reflection", requireUser, route(async (req, res) => {
     res.json({ record: await writeReflection(req.collavibeUser!, ...params(req), req.body) });
+  }));
+  app.post(sessionPath + "/comments", requireUser, route(async (req, res) => {
+    res.status(201).json({ record: await writeSessionComment(req.collavibeUser!, ...params(req), req.body) });
   }));
   app.post(sessionPath + "/replies", requireUser, route(async (req, res) => {
     res.status(201).json({ record: await writeSessionReply(req.collavibeUser!, ...params(req), req.body) });
