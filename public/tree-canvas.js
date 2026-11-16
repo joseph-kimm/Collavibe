@@ -9,6 +9,16 @@ export function mountTreeCanvas(host, { model, project, grouping, selection, onO
   if (!states.has(stateKey)) states.set(stateKey, { expanded:new Set(), collapsed:new Set(), camera:null, isolated:null, fit:true, direction:"down" });
   const state = states.get(stateKey), root = projectTree(model, project, grouping);
   const all = flattenTree(root), byKey = new Map(all.map(node => [node.key, node]));
+  // A shared handoff link should reveal its path in the diagram as well as the inspector.
+  const reveal = (node, ancestors = []) => {
+    if (selection?.kind === node.kind && selection.id === node.id) {
+      for (const parent of ancestors) { state.collapsed.delete(parent.key); state.expanded.add(parent.key); }
+      if (state.isolated && !ancestors.some(parent => parent.key === state.isolated) && state.isolated !== node.key) state.isolated = null;
+      return true;
+    }
+    return node.children.some(child => reveal(child, [...ancestors, node]));
+  };
+  reveal(root);
   let layout, observer, controller = new AbortController();
   const on = (target, type, fn, options = {}) => target.addEventListener(type, fn, { ...options, signal:controller.signal });
   const isOpen = node => state.expanded.has(node.key) || (!state.collapsed.has(node.key) && ['project','person'].includes(node.kind));
