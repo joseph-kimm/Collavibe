@@ -10,6 +10,7 @@ import { mountMeetings } from "./meetings.js";
 import { stopMeetingRecording } from "./meeting-recorder.js";
 import { mountPortfolioManager } from "./portfolio-manager.js";
 import { safeReturnTo } from "./auth-return.js";
+import { readWorkspaceRoute, bindWorkspaceNavigation } from "./workspace-route.js";
 
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[c]);
@@ -45,12 +46,7 @@ let authorizationId = new URLSearchParams(location.search).get("authorize") || "
 let setupCourseTeam = new URLSearchParams(location.search).get("setupTeam") === "1";
 const requestedReturnPath = safeReturnTo(new URLSearchParams(location.search).get("returnTo"));
 let invitation = new URLSearchParams(location.search).get("join") || "";
-const hash = new URLSearchParams(location.hash.slice(1));
-if (hash.get("team")) teamId = hash.get("team");
-if (hash.get("project")) projectId = hash.get("project");
-if (["map", "work", "sessions", "repository", "team", "tickets", "meetings", "portfolio"].includes(hash.get("view"))) view = hash.get("view");
-if (hash.get("feature")) selection = { kind: "feature", id: hash.get("feature") };
-if (hash.get("session")) { selection = { kind: "session", id: hash.get("session") }; if (view !== "map") view = "sessions"; }
+({ teamId, projectId, view, selection } = readWorkspaceRoute(location.hash, { teamId, projectId }));
 
 const currentProject = () => data.projects.find((item) => item.id === projectId);
 const currentFeatures = () => data.features.filter((item) => item.projectId === projectId);
@@ -876,6 +872,15 @@ document.addEventListener("keydown", (event) => {
 });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && !demo && !$("workspace").hidden) load({ quiet: true }); });
 window.addEventListener("online", () => { if (!demo) load(); });
+bindWorkspaceNavigation(window, (route) => {
+  if (demo) return;
+  if (route.teamId !== teamId) members = [];
+  ({ teamId, projectId, view, selection } = route);
+  fingerprint = "";
+  // load() supersedes pending requests, so a prior team's response cannot
+  // replace the URL the user just opened in this tab.
+  load();
+}, () => ({ teamId, projectId }));
 window.addEventListener("resize", () => { if (!matchMedia("(max-width: 700px)").matches) setMobileNav(false); });
 setInterval(() => { if (!demo && !document.hidden && !$("workspace").hidden) load({ quiet: true }); }, 20000);
 setAuthMode("login"); setTeamMode("create");
