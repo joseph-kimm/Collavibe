@@ -44,7 +44,7 @@ export function mountTreeCanvas(host, { model, project, grouping, selection, onO
       state.camera = { scale, x:(el.clientWidth-layout.width*scale)/2, y:24 };
       state.fit = 'width';
     } else {
-      state.camera = fitCamera(layout, el.clientWidth, Math.max(220, el.clientHeight - 58));
+      state.camera = fitCamera(layout, el.clientWidth, Math.max(220, el.clientHeight));
       state.fit = true;
     }
     state.firstView = false; paint();

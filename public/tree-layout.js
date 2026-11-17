@@ -50,12 +50,12 @@ export function zoomAt(camera, nextScale, point) {
 }
 
 function layoutDown(root, isOpen, compact) {
-  const nodes=[], edges=[], gap=32, padding=32, levelGap=56;
+  const nodes=[], edges=[], gap=32, padding=24, levelGap=36;
   const measure=node=>{
     const size=dimensions(node), expanded=isOpen(node);
     const children=expanded?node.children.map(measure):[];
     // Contributor branches stack sibling features, keeping large teams compact.
-    const stacked=node.kind==='person'||(compact&&node.kind==='feature');
+    const stacked=(node.kind==='person'&&(compact||root.children.length>2||node.children.length>2))||(compact&&node.kind==='feature');
     const childrenWidth=stacked?Math.max(0,...children.map(c=>c.span))+24:children.reduce((sum,c)=>sum+c.span,0)+Math.max(0,children.length-1)*gap;
     const childrenHeight=stacked?children.reduce((sum,c)=>sum+c.depthHeight,0)+Math.max(0,children.length-1)*gap:Math.max(0,...children.map(c=>c.depthHeight));
     return {...node,...size,expanded,childCount:node.children.length,children,stacked,span:Math.max(size.width,childrenWidth),depthHeight:size.height+(children.length?levelGap+childrenHeight:0)};

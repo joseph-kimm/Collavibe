@@ -6,6 +6,16 @@ const sample=sampleWorkspace();
 const model=buildProjectMap({projectId:'p1',features:sample.features,sessions:sample.sessions});
 const project=sample.projects.find(p=>p.id==='p1');
 describe('explorable project tree',()=>{
+ it('uses the width for a small team rather than shrinking a tall narrow overview',()=>{
+  const features=['A','B'].flatMap(owner=>[1,2].map(i=>({id:owner+i,projectId:'p',owner,title:owner+i,status:'active',checklist:[]})));
+  const small=buildProjectMap({projectId:'p',features,sessions:[]});
+  const tree=projectTree(small,{id:'p',name:'Small team'},'people');
+  const layout=layoutTree(tree,n=>n.kind==='project'||n.kind==='person');
+  expect(layout.width).toBeGreaterThan(layout.height);
+  expect(fitCamera(layout,1428,529).scale).toBeGreaterThan(.8);
+  const featureNodes=layout.nodes.filter(n=>n.kind==='feature');
+  expect(new Set(featureNodes.map(n=>n.y)).size).toBe(1);
+ });
  it('has unique instance keys for shared features and only actual relationships',()=>{
   const root=projectTree(model,project,'people'),nodes=flattenTree(root);
   expect(new Set(nodes.map(n=>n.key)).size).toBe(nodes.length);

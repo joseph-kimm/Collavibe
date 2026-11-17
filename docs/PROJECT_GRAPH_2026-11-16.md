@@ -15,7 +15,7 @@ The diagram distinguishes four kinds of information:
 - Feature cards show status, owner, checklist completion, comments, and an expandable session count.
 - Dated session records show the contributor, a summary, and recorded commit/file counts. Opening a record reveals the full handoff.
 
-Contributor branches stack sibling features rather than spreading every feature across one long row. By-feature mode brings all contributors' sessions for that feature together. A shared feature can appear in multiple contributor branches; these are views of the same feature, not duplicate work. The footer therefore labels instances as feature cards.
+Large contributor branches stack sibling features rather than spreading every feature across one long row. Small teams spread their features across the available width. By-feature mode brings all contributors' sessions for that feature together. A shared feature can appear in multiple contributor branches; these are views of the same feature, not duplicate work. The footer therefore labels instances as feature cards.
 
 Hover and keyboard focus trace the path to a node. Branch focus, full-screen focus, sidebar collapse, pan, zoom, fit, minimap navigation, and the text outline remain available. The initial view favors readable text; Fit project deliberately switches to an overview. Phone layouts stack session records vertically. Type inherits the workspace's Inter family.
 
