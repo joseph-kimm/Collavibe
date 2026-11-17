@@ -81,3 +81,6 @@
 #public-feedback-list .text-button { margin-right: 18px; }
 @media(max-width:700px) { .public-main { padding: 28px 20px 60px; } .public-header { padding: 20px; flex-wrap: wrap; } .view-tabs { overflow-x: auto; } }
 @media (max-width:700px) { .collaboration-page { padding: 24px 20px 44px; } .ticket-toolbar { gap: 14px; } .ticket-proposal-review { padding: 14px; } }
+.portfolio-features h3,.portfolio-process h3 { font-size:var(--text-2xl);font-weight:600; }
+.portfolio-features h4,.portfolio-session h4 { font-size:var(--text-lg);font-weight:600; }
+.portfolio-features h4 .tag { margin-left:8px;font-size:var(--text-sm);font-weight:400;color:var(--muted); }

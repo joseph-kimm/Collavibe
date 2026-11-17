@@ -15,3 +15,5 @@ Reviewed the homepage/account form, course, cohort forum, public forum, blog, ex
 Corrections include removal of the serif display font, consistent variable-font weights, more compact workspace headers, aligned public navigation, readable tree labels, consistent selected-button hover contrast, and mobile tree starting scale. The downloadable standalone API exercise retains its self-contained system-font stylesheet so it works away from the website.
 
 Validation: TypeScript passed. All 177 tests passed with two workers after the default parallel run encountered resource/time-limit failures. Tree layout tests passed again after card sizing changes. Detailed browser evidence is saved locally under output/audit/visual-system.
+
+The production portfolio audit also exposed a missing shared stylesheet on learner portfolios, leaving their navigation flush against the window. Added the same collaboration stylesheet used by the other public pages and rechecked the header and reading layout.

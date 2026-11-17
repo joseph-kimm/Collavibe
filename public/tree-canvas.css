@@ -208,3 +208,7 @@
 .project-map .map-grouping .button[aria-pressed=true],
 .project-map .map-grouping .button[aria-pressed=true]:hover:not(:disabled) { background:white;color:var(--ink);border-color:var(--line);box-shadow:0 1px 3px #1835280b; }
 .project-map .map-expansion .text-button { font-size:var(--text-sm);font-weight:500; }
+/* Parent labels are self-evident in the hierarchy; reserve space for names. */
+.tree-project .tree-node-top,.tree-person .tree-node-top,.tree-node-actions:empty { display:none; }
+.tree-person .tree-node-open { padding-top:0; }
+.tree-person .tree-node-actions { margin-top:4px; }

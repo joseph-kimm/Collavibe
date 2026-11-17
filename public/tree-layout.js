@@ -19,7 +19,7 @@ export function projectTree(model, project, grouping = 'people') {
   return root;
 }
 export function flattenTree(root) { return [root, ...root.children.flatMap(flattenTree)]; }
-const dimensions = node => ({ width: node.kind === 'project' ? 256 : node.kind === 'person' ? 224 : 260, height: node.kind === 'feature' ? (node.compact ? 174 : 202) : node.kind === 'session' ? 210 : node.kind === 'person' ? 124 : 140 });
+const dimensions = node => ({ width: node.kind === 'project' ? 256 : node.kind === 'person' ? 224 : 260, height: node.kind === 'feature' ? (node.compact ? 174 : 202) : node.kind === 'session' ? 210 : node.kind === 'person' ? 92 : 112 });
 export function layoutTree(root, isOpen = () => true, direction = "down") {
   if (direction === "down") return layoutDown(root, isOpen);
   const nodes = [], edges = [], gap = 28, column = 356, padding = 36;
@@ -50,7 +50,7 @@ export function zoomAt(camera, nextScale, point) {
 }
 
 function layoutDown(root, isOpen) {
-  const nodes=[], edges=[], gap=28, padding=36;
+  const nodes=[], edges=[], gap=28, padding=28;
   const measure=node=>{
     const size=dimensions(node),expanded=isOpen(node);
     const children=expanded?node.children.map(measure):[];
@@ -59,7 +59,7 @@ function layoutDown(root, isOpen) {
   const tree=measure(root), rowHeights=[];
   const collect=(node,depth)=>{rowHeights[depth]=Math.max(rowHeights[depth]||0,node.height);node.children.forEach(child=>collect(child,depth+1));};
   collect(tree,0);
-  const rowTops=rowHeights.map((_,depth)=>padding+rowHeights.slice(0,depth).reduce((sum,height)=>sum+height+32,0));
+  const rowTops=rowHeights.map((_,depth)=>padding+rowHeights.slice(0,depth).reduce((sum,height)=>sum+height+24,0));
   const place=(node,depth,left,parent)=>{
     const placed={...node,x:left+(node.span-node.width)/2,y:rowTops[depth]};nodes.push(placed);
     if(parent)edges.push({from:parent.key,to:placed.key,x1:parent.x+parent.width/2,y1:parent.y+parent.height,x2:placed.x+placed.width/2,y2:placed.y,vertical:true});
