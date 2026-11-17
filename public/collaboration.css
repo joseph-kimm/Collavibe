@@ -26,7 +26,7 @@
 .ticket-proposal-review p { flex-basis: 100%; }
 .ticket-proposal-review label { display: grid; gap: 6px; }
 .ticket-editor { margin-top: 28px; }
-.ticket-editor > summary { cursor: pointer; padding: 12px 0; color: var(--accent); font-weight: 550; }
+.ticket-editor > summary { cursor: pointer; padding: 12px 0; color: var(--accent); font-weight: 500; }
 .ticket-form { margin-top: 18px; max-width: 650px; }
 .collaboration-status { margin-top: 18px; }
 .meeting-choices { display: flex; gap: 10px; flex-wrap: wrap; margin: 24px 0; }
@@ -41,7 +41,7 @@
 .audio-upload input { max-width: 100%; }
 .audio-recorder audio { display: block; width: min(100%,420px); margin-top: 18px; }
 .speaker-names { border: 1px solid var(--line); border-radius: 8px; padding: 20px; display: grid; gap: 14px; min-width: 0; }
-.speaker-names legend { font-weight: 550; padding-inline: 6px; }
+.speaker-names legend { font-weight: 500; padding-inline: 6px; }
 .speaker-segments summary { cursor: pointer; padding: 12px 0; }
 .speaker-segments p { padding: 12px 0; border-bottom: 1px solid var(--line); white-space: pre-wrap; }
 .meeting-next { padding-top: 26px; margin-top: 26px; border-top: 1px solid var(--line); max-width: 800px; }
@@ -50,7 +50,7 @@
 .portfolio-links .form-actions { justify-content: flex-start; flex-wrap: wrap; margin-top: 12px; }
 .portfolio-form { max-width: 760px; }
 .portfolio-form fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
-.portfolio-form legend { font-weight: 550; padding: 0 6px; }
+.portfolio-form legend { font-weight: 500; padding: 0 6px; }
 .portfolio-form .checkbox-label, .portfolio-preview .checkbox-label, #public-feedback-form .checkbox-label { font-weight: 400; line-height: 1.6; align-items: flex-start; }
 .portfolio-form .checkbox-label input, .portfolio-preview .checkbox-label input, #public-feedback-form .checkbox-label input { flex-shrink: 0; min-height: 18px; margin-top: 4px; }
 .portfolio-preview { border-top: 2px solid var(--accent); padding: 26px 0; margin-top: 32px; }
@@ -62,7 +62,7 @@
 .portfolio-features, .portfolio-process { margin: 32px 0; }
 .portfolio-features h3, .portfolio-process h3 { font-size: 23px; margin-bottom: 20px; }
 .portfolio-features article, .portfolio-session { border-top: 1px solid var(--line); padding: 24px 0; }
-.portfolio-features h4, .portfolio-session h4 { font-size: 18px; font-weight: 550; }
+.portfolio-features h4, .portfolio-session h4 { font-size: 18px; font-weight: 500; }
 .portfolio-features p { margin-top: 10px; }
 .portfolio-section { margin-top: 20px; }
 .portfolio-section li { line-height: 1.65; margin: 8px 0; overflow-wrap: anywhere; }

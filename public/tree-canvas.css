@@ -143,3 +143,68 @@
 .tree-node-compact .tree-node-open { padding-top:5px; }
 .session-discussion-heading { display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap; }
 .session-discussion-heading .text-button { font-size:.875rem; }
+/* Tree uses the same type and control scale as the surrounding workspace. */
+.tree-stage { background-color:#f8faf9; background-image:radial-gradient(#dce5df .65px,transparent .65px); border-color:var(--line); border-radius:12px; }
+.tree-node { padding:14px 16px 12px; border-color:#d6dfd9; border-radius:9px; box-shadow:0 2px 4px #20382b05; }
+.tree-node-kind,.tree-node-status,.tree-node-meta { font-size:var(--text-sm);line-height:1.4; }
+.tree-node-kind { font-weight:400; }
+.tree-node-open strong { font-size:var(--text-base);font-weight:600;line-height:1.4;letter-spacing:-.02em; }
+.tree-project .tree-node-open strong { font-size:var(--text-lg); }
+.tree-node-open > span { font-size:var(--text-sm);line-height:1.4; }
+.tree-node-open { flex:1 0 auto;padding-top:8px;min-height:32px; }
+.tree-node-meta { margin-top:6px; }
+.tree-node-actions { margin-top:8px;gap:8px; }
+.tree-node-actions button { font-size:var(--text-sm);font-weight:500;line-height:1.4;padding:2px 0;min-height:26px; }
+.tree-node-actions button:hover { color:var(--action-hover); }
+.tree-node-toggle { font-size:18px;font-weight:400;box-shadow:none;border-color:#b9cbbf; }
+.tree-project { background:#eaf1ec;border-color:#b9cbbf; }
+.tree-person { border-left:3px solid #719280;background:white; }
+.tree-session { border-style:solid;background:#fdfefd; }
+.tree-edges path { stroke:#a7bbae;stroke-width:1.5; }
+.visual-map .map-grouping { border:1px solid var(--line);background:var(--surface);border-radius:8px; }
+.visual-map .map-grouping .button { min-height:36px;font-size:var(--text-sm);font-weight:500; }
+.visual-map .map-expansion .text-button { font-size:var(--text-sm);min-height:36px;padding:6px 8px;border-radius:6px; }
+.visual-map .map-expansion .text-button:hover { background:var(--surface);text-decoration:none; }
+.tree-heading-actions select { font-size:var(--text-sm);min-height:36px; }
+.tree-heading strong { font-size:var(--text-base);font-weight:600; }
+.tree-camera-controls { border-color:var(--line);box-shadow:0 2px 8px #20382b08; }
+.tree-camera-controls button { font-size:var(--text-sm);font-weight:500; }
+.tree-minimap { border-color:var(--line); }
+.tree-caption,.visual-map .map-footnote { font-size:var(--text-sm);line-height:1.5; }
+@media(max-width:700px) {
+ .tree-camera-controls button { min-height:44px; }
+ .tree-heading-actions select,.tree-heading-actions .button { min-height:44px; }
+}
+/* Give the map more room before asking people to enter focus mode. */
+.map-view .page-header { min-height:60px;padding-block:8px; }
+.map-view .page-title { padding-block:14px 10px; }
+.map-view .repository-summary { margin-bottom:0;padding-block:10px;align-items:center; }
+.map-view .repository-identity { display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap; }
+.map-view .repository-label { width:100%;margin:0;font-size:var(--text-sm); }
+.map-view .repository-explanation { margin:0; }
+.map-view .repository-explanation[open] { flex-basis:100%; }
+.map-view .repository-context { gap:4px; }
+.map-view .repository-status,.map-view .repository-snapshot { font-size:var(--text-sm); }
+.map-view .view-tabs { gap:24px; }
+.map-view .view-tabs button { min-height:44px;padding:10px 0;font-size:var(--text-sm); }
+.visual-map { padding-top:12px; }
+.visual-map .map-controls { margin-bottom:0; }
+.tree-heading { padding-block:8px; }
+.tree-heading > div:first-child { display:none; }
+.tree-heading-actions { margin-left:auto; }
+@media(min-width:1100px) {
+ .visual-map { position:relative; }
+ .visual-map .map-controls { padding-right:305px;min-height:44px;gap:12px; }
+ .visual-map .map-expansion { margin-left:0;gap:2px; }
+ .visual-map .tree-heading { position:absolute;top:12px;right:24px;padding:0;z-index:5; }
+ .visual-map .tree-heading-actions { gap:6px; }
+ .tree-focused .visual-map .map-controls { padding-right:390px; }
+ .tree-focused .visual-map .tree-heading { right:20px; }
+ .tree-stage { margin-top:12px; }
+}
+/* Identical segmented controls in Tree and Outline, including hovered selection. */
+.project-map .map-grouping { gap:3px;padding:3px;border:1px solid var(--line);background:var(--surface);border-radius:8px; }
+.project-map .map-grouping .button { min-height:36px;font-size:var(--text-sm);font-weight:500;background:transparent;border-color:transparent;color:var(--muted); }
+.project-map .map-grouping .button[aria-pressed=true],
+.project-map .map-grouping .button[aria-pressed=true]:hover:not(:disabled) { background:white;color:var(--ink);border-color:var(--line);box-shadow:0 1px 3px #1835280b; }
+.project-map .map-expansion .text-button { font-size:var(--text-sm);font-weight:500; }

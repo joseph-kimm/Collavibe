@@ -8,7 +8,7 @@ export function projectTree(model, project, grouping = 'people') {
     const f = entry.feature;
     const linked = person ? entry.sessions.filter(s => sessionContributorKey(s) === person) : entry.sessions;
     const key = prefix + '/feature/' + f.id;
-    return { key, kind: 'feature', compact: grouping === 'people', id: f.id, title: f.title, subtitle: f.owner || 'Unassigned', status: f.status, comments: f.comments?.length || 0, meta: `${f.checklist?.filter(c => c.done).length || 0}/${f.checklist?.length || 0} checks · ${linked.length} sessions`, children: linked.map(s => sessionNode(s, key)) };
+    return { key, kind: 'feature', compact: grouping === 'people', id: f.id, title: f.title, subtitle: f.owner || 'Unassigned', status: f.status, comments: f.comments?.length || 0, meta: `${f.checklist?.filter(c => c.done).length || 0}/${f.checklist?.length || 0} checks · ${linked.length} ${linked.length === 1 ? "session" : "sessions"}`, children: linked.map(s => sessionNode(s, key)) };
   };
   const root = { key: 'project/' + project.id, kind: 'project', id: project.id, title: project.name, subtitle: `${model.summary.people} contributors · ${model.summary.handoffs} handoffs`, meta: `${model.summary.features} features · ${model.summary.commits} recorded commits`, children: [] };
   if (grouping === 'people') root.children = model.groups.map(group => {
@@ -19,7 +19,7 @@ export function projectTree(model, project, grouping = 'people') {
   return root;
 }
 export function flattenTree(root) { return [root, ...root.children.flatMap(flattenTree)]; }
-const dimensions = node => ({ width: node.kind === 'project' ? 248 : node.kind === 'person' ? 220 : 240, height: node.kind === 'feature' ? (node.compact ? 146 : 170) : node.kind === 'session' ? 174 : node.kind === 'person' ? 108 : 112 });
+const dimensions = node => ({ width: node.kind === 'project' ? 256 : node.kind === 'person' ? 224 : 260, height: node.kind === 'feature' ? (node.compact ? 174 : 202) : node.kind === 'session' ? 210 : node.kind === 'person' ? 124 : 140 });
 export function layoutTree(root, isOpen = () => true, direction = "down") {
   if (direction === "down") return layoutDown(root, isOpen);
   const nodes = [], edges = [], gap = 28, column = 356, padding = 36;

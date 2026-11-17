@@ -1,12 +1,12 @@
 /* Shared palette lives in styles.css so every public and workspace page agrees. */
 :root {
-  --display: Georgia, "Times New Roman", serif;
+  --display: var(--font-sans);
 }
 ::selection { background: var(--accent-soft); color: var(--ink); }
 input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .ui-icon { display: inline-block; width: 20px; height: 20px; flex: 0 0 20px; vertical-align: middle; pointer-events: none; }
 [data-icon] { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.button { min-height: 44px; padding: 10px 16px; border-radius: 4px; font-weight: 600; line-height: 1.35; border-color: var(--line); transition: background .16s, border-color .16s; }
+.button { min-height: 44px; padding: 10px 16px; border-radius: 7px; font-size: var(--text-sm); font-weight: 500; line-height: 1.4; border-color: var(--line); transition: background .16s, border-color .16s; }
 .button:hover:not(:disabled) { background: var(--surface); border-color: var(--line-strong); }
 .button.primary { background: var(--action); border-color: var(--action); }
 .button.primary:hover:not(:disabled) { background: var(--action-hover); }
@@ -47,7 +47,7 @@ dialog::backdrop { background: #23372d66; backdrop-filter: blur(3px); }
 .landing-hero { width: 100%; padding: 46px max(6vw,24px) 72px; border-bottom: 1px solid var(--line); }
 .hero-inner { max-width: 1320px; margin: 0 auto; display: grid; grid-template-columns: 1.2fr 1fr; gap: 6vw; align-items: center; }
 .hero-copy .overline { letter-spacing: .015em; font-weight: 500; margin-bottom: 15px; }
-.hero-copy h1 { font-family: var(--display); font-size: clamp(62px,7.6vw,112px); font-weight: 400; line-height: 1.03; letter-spacing: -.055em; margin-left: -5px; }
+.hero-copy h1 { font-family: var(--display); font-size: clamp(56px,6.6vw,96px); font-weight: 600; line-height: 1.06; letter-spacing: -.055em; margin-left: -3px; }
 .hero-heading { font-size: clamp(28px,3vw,43px); line-height: 1.16; letter-spacing: -.035em; margin-top: 26px; }
 .hero-description { max-width: 470px; font-size: 18px; color: var(--muted); margin-top: 24px; line-height: 1.65; }
 .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 28px; }
@@ -61,12 +61,12 @@ dialog::backdrop { background: #23372d66; backdrop-filter: blur(3px); }
 .flow-avatar { width: 60px; height: 60px; border-radius: 50%; background: var(--accent-soft); display: grid; place-items: center; font-size: 15px; border: 1px solid var(--line); margin-bottom: 10px; }
 .flow-avatar.teammate { background: var(--bg); }
 .flow-avatar .ui-icon { width: 25px; height: 25px; }
-.flow-person strong { font-size: 15px; font-weight: 550; }
+.flow-person strong { font-size: 15px; font-weight: 500; }
 .flow-person > span:last-child { font-size: 14px; color: var(--muted); max-width: 180px; line-height: 1.55; }
 .flow-handoff { margin: 42px auto 0; max-width: 325px; display: flex; gap: 14px; align-items: center; border-block: 1px solid var(--line); padding: 22px 8px; }
 .flow-handoff > [data-icon] { width: 36px; height: 36px; }
 .flow-handoff strong, .flow-handoff div > span { display: block; }
-.flow-handoff strong { font-size: 16px; font-weight: 550; }
+.flow-handoff strong { font-size: 16px; font-weight: 500; }
 .flow-handoff div > span { color: var(--muted); font-size: 14px; margin-top: 5px; }
 .hero-figure figcaption { font-size: 14px; color: var(--muted); text-align: center; margin-top: 20px; }
 .landing-workflow, .landing-setup, .landing-account { padding: 88px max(6vw,24px); scroll-margin-top: 24px; }
@@ -82,15 +82,15 @@ dialog::backdrop { background: #23372d66; backdrop-filter: blur(3px); }
 .workflow-steps button:hover { background: var(--surface); }
 .workflow-steps button[aria-pressed=true] { background: var(--accent-soft); }
 .workflow-steps button[aria-pressed=true]::before { content: ""; position: absolute; width: 3px; left: 0; top: 18px; bottom: 18px; border-radius: 2px; background: var(--accent); }
-.step-number { font-family: ui-monospace, monospace; color: var(--muted); font-size: 14px; }
-.workflow-steps strong { display: block; font-size: 18px; font-weight: 550; }
+.step-number { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; }
+.workflow-steps strong { display: block; font-size: 18px; font-weight: 500; }
 .workflow-steps button > span:nth-child(2) { flex: 1; }
 .workflow-steps strong + span { display: block; color: var(--muted); font-size: 15px; margin-top: 7px; line-height: 1.6; }
 .workflow-steps button > [data-icon] { opacity: .35; transition: transform .18s, opacity .18s; }
 .workflow-steps button[aria-pressed=true] > [data-icon] { opacity: 1; transform: translateX(3px); }
 .workflow-panel { min-width: 0; padding: 26px 28px; background: var(--surface); border-left: 2px solid var(--line); }
 .example-label { display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--muted); margin-bottom: 22px; }
-.workflow-panel h3 { font-size: 19px; font-weight: 550; }
+.workflow-panel h3 { font-size: 19px; font-weight: 500; }
 .workflow-panel blockquote { font-size: 17px; line-height: 1.65; margin: 15px 0 20px; }
 .workflow-panel .button { font-size: 14px; }
 .workflow-result { display: flex; gap: 12px; margin-top: 25px; padding-top: 23px; border-top: 1px solid var(--line); }
@@ -103,18 +103,18 @@ dialog::backdrop { background: #23372d66; backdrop-filter: blur(3px); }
 .landing-setup ol { list-style: none; margin: 0; padding: 0; max-width: 555px; }
 .landing-setup li { display: flex; gap: 22px; padding-bottom: 28px; }
 .landing-setup li:last-child { padding-bottom: 0; }
-.landing-setup li > span { font-family: ui-monospace, monospace; font-size: 14px; color: var(--muted); padding-top: 3px; }
-.landing-setup h3 { font-size: 18px; font-weight: 550; margin-bottom: 8px; }
+.landing-setup li > span { font-variant-numeric: tabular-nums; font-size: 14px; color: var(--muted); padding-top: 3px; }
+.landing-setup h3 { font-size: 18px; font-weight: 500; margin-bottom: 8px; }
 .landing-setup li p { font-size: 16px; color: var(--muted); }
 .landing-account { display: grid; grid-template-columns: 1fr 1fr; gap: 9vw; background: var(--bg); }
 .account-intro { justify-self: end; width: min(100%,555px); }
 .account-intro > p:not(.overline) { color: var(--muted); margin-top: 24px; max-width: 450px; }
 .account-intro details { margin-top: 24px; max-width: 450px; }
-.account-intro summary { cursor: pointer; font-size: 15px; font-weight: 550; padding: 10px 0; text-underline-offset: 4px; }
+.account-intro summary { cursor: pointer; font-size: 15px; font-weight: 500; padding: 10px 0; text-underline-offset: 4px; }
 .account-intro details p { color: var(--muted); font-size: 15px; margin-top: 8px; }
 .account-intro .account-note { font-size: 14px; }
 .landing-account .auth-form-wrap { width: min(100%,400px); }
-.landing-account .auth-form-wrap h2 { font-size: 24px; font-weight: 550; letter-spacing: -.025em; }
+.landing-account .auth-form-wrap h2 { font-size: 24px; font-weight: 500; letter-spacing: -.025em; }
 .auth-context { padding: 14px; background: var(--accent-soft); margin-bottom: 22px; font-size: 15px; border-radius: 6px; }
 .landing-footer { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 28px max(6vw,24px); border-top: 1px solid var(--line); }
 .landing-footer p, .landing-footer > a:last-child { color: var(--muted); font-size: 14px; }
@@ -137,7 +137,7 @@ dialog::backdrop { background: #23372d66; backdrop-filter: blur(3px); }
   .landing-header .brand { font-size: 23px; }
   .landing-hero { padding: 28px 24px 40px; }
   .hero-inner { display: block; }
-  .hero-copy h1 { font-size: clamp(58px,15vw,86px); margin-left: -3px; }
+  .hero-copy h1 { font-size: clamp(42px,12vw,72px); margin-left: -2px; }
   .hero-copy .overline { font-size: 13px; max-width: 250px; }
   .hero-heading { font-size: 32px; margin-top: 20px; }
   .hero-description { font-size: 17px; margin-top: 20px; }
@@ -174,6 +174,46 @@ dialog::backdrop { background: #23372d66; backdrop-filter: blur(3px); }
 @media (prefers-reduced-motion:reduce) { .button, .workflow-steps button, .workflow-steps button > [data-icon] { transition: none; } }
 
 .inline-auth { width: min(100%, 420px); padding: 12px 0 28px; }
-.inline-auth h2 { font-family: inherit; font-size: 24px; font-weight: 550; letter-spacing: -.025em; }
+.inline-auth h2 { font-family: inherit; font-size: 24px; font-weight: 500; letter-spacing: -.025em; }
 .inline-auth .auth-message { margin: 0 0 20px; color: var(--muted); }
 .inline-auth .form { margin-top: 20px; }
+
+/* Shared interface rhythm, including public navigation and account forms. */
+.brand, .sidebar .brand, .landing-header .brand, .landing-footer .brand { font-size:24px; font-weight:600; letter-spacing:-.045em; }
+.button.compact { font-size:var(--text-sm); min-height:36px; padding:7px 12px; }
+.text-button { font-weight:500; }
+.overline { font-size:var(--text-sm); font-weight:500; letter-spacing:0; }
+.sidebar-label,.sidebar-section-heading { font-size:var(--text-sm);font-weight:500; }
+.project-link,.nav-button,.view-tabs button,.breadcrumb { font-size:var(--text-ui);font-weight:500; }
+.form input,.form select,.form textarea { font-weight:400; line-height:1.5; border-color:var(--line-strong); }
+.form label { font-size:var(--text-sm);font-weight:500; }
+.public-header { gap:16px 28px; }
+.public-header > a:not(.brand),.landing-header nav > a { font-size:var(--text-sm);font-weight:500; }
+.detail-title { font-size:var(--text-xl);line-height:1.35;letter-spacing:-.025em; }
+.detail-section h3,.team-section h2 { font-size:var(--text-base);font-weight:600; }
+.work-main strong { font-weight:500; }
+.sidebar-bottom a.nav-button { text-decoration:none; }
+.sidebar-bottom a.nav-button:hover { background:var(--accent-soft);color:var(--ink); }
+.public-header { flex-wrap:wrap; }
+.public-header > a:not(.brand) { text-decoration:none;min-height:36px;display:inline-flex;align-items:center; }
+.public-header > a:not(.brand):hover { text-decoration:underline;text-underline-offset:4px; }
+
+.public-header { justify-content:flex-start;gap:16px 28px; }
+.public-header > .brand { margin-right:auto; }
+/* Keep working screens compact without changing the reading pages. */
+.workspace .page-header { min-height:60px;padding-block:8px; }
+.workspace .page-title { padding:20px 32px 16px;align-items:center; }
+.workspace .page-title h1 { font-size:var(--text-2xl);line-height:1.3; }
+.workspace .page-title p { font-size:var(--text-ui);margin-top:4px; }
+.workspace .repository-summary { margin-bottom:8px;padding-block:12px; }
+.workspace .repository-label,.workspace .repository-status,.workspace .repository-snapshot { font-size:var(--text-sm); }
+.workspace .repository-identity strong { font-size:var(--text-base); }
+.workspace .repository-context { gap:4px; }
+.workspace .view-tabs button { min-height:44px;padding-block:10px;font-size:var(--text-ui); }
+.workspace .view-tabs { gap:24px; }
+@media(max-width:700px) {
+ .workspace .page-title { padding:20px 16px 16px; }
+ .workspace .view-tabs { gap:12px; }
+ .workspace .view-tabs button { font-size:var(--text-sm); }
+ .public-header > .brand { width:100%; }
+}

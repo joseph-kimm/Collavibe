@@ -6,7 +6,7 @@ const states = new Map();
 
 export function mountTreeCanvas(host, { model, project, grouping, selection, onOpen, onComments, onFilter, onFocusChange }) {
   const stateKey = project.id + ':' + grouping;
-  if (!states.has(stateKey)) states.set(stateKey, { expanded:new Set(), collapsed:new Set(), camera:null, isolated:null, fit:true, direction:"down" });
+  if (!states.has(stateKey)) states.set(stateKey, { expanded:new Set(), collapsed:new Set(), camera:null, isolated:null, fit:true, firstView:true, direction:"down" });
   const state = states.get(stateKey), root = projectTree(model, project, grouping);
   const all = flattenTree(root), byKey = new Map(all.map(node => [node.key, node]));
   // A shared handoff link should reveal its path in the diagram as well as the inspector.
@@ -31,7 +31,20 @@ export function mountTreeCanvas(host, { model, project, grouping, selection, onO
     if (!state.camera || state.fit) fit(); else paint();
   };
   const stage = () => host.querySelector('.tree-stage');
-  function fit() { const el = stage(); if (!el?.clientWidth) return; state.camera = fitCamera(layout, el.clientWidth, Math.max(220, el.clientHeight - 58)); state.fit = true; paint(); }
+  function fit() {
+    const el = stage(); if (!el?.clientWidth) return;
+    // Open narrow screens at a readable scale. Fit remains an explicit overview action.
+    if (state.firstView && el.clientWidth < 600) {
+      const target = layout.nodes.find(n => selection?.kind === n.kind && selection.id === n.id) || layout.nodes[0];
+      const scale = Math.min(1, (el.clientWidth - 40) / target.width);
+      state.camera = { scale, x:(el.clientWidth - target.width * scale)/2 - target.x * scale, y:24 - target.y * scale };
+      state.fit = false;
+    } else {
+      state.camera = fitCamera(layout, el.clientWidth, Math.max(220, el.clientHeight - 58));
+      state.fit = true;
+    }
+    state.firstView = false; paint();
+  }
   function paint() {
     const el = stage(); if (!state.camera || !el) return;
     const { x,y,scale } = state.camera;
