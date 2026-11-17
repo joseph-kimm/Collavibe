@@ -2,6 +2,8 @@
 
 Changes:
 
+- Feature and session inspectors consistently use a full-height drawer, with a sticky close control. Closing a map detail returns keyboard focus to its node.
+
 - Explicit feature, session and view navigation now creates browser history. Background refreshes do not add duplicate history entries.
 
 - Removed the normal Archive feature action and its browser-side archive handler. Previously archived features retain a Restore feature action so historical data remains recoverable.

@@ -1,5 +1,6 @@
+import { writeWorkspaceUrl } from "../public/workspace-history.js";
 import { describe, expect, it } from "vitest";
-import { readWorkspaceRoute, hasWorkspaceRoute, bindWorkspaceNavigation, writeWorkspaceUrl } from "../public/workspace-route.js";
+import { readWorkspaceRoute, hasWorkspaceRoute, bindWorkspaceNavigation } from "../public/workspace-route.js";
 
 describe("workspace routes", () => {
   it("records explicit navigation without adding entries on refresh or repeated clicks", () => {

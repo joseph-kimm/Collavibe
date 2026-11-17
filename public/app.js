@@ -1,3 +1,4 @@
+import { writeWorkspaceUrl } from "./workspace-history.js";
 import { renderSessionEvidence } from "./session-evidence.js";
 import { featureBrief } from "./feature-brief.js";
 import { mountTreeCanvas } from "./tree-canvas.js";
@@ -15,7 +16,7 @@ import { mountMeetings } from "./meetings.js";
 import { stopMeetingRecording } from "./meeting-recorder.js";
 import { mountPortfolioManager } from "./portfolio-manager.js";
 import { safeReturnTo } from "./auth-return.js";
-import { readWorkspaceRoute, bindWorkspaceNavigation, writeWorkspaceUrl } from "./workspace-route.js";
+import { readWorkspaceRoute, bindWorkspaceNavigation } from "./workspace-route.js";
 
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[c]);
@@ -805,7 +806,11 @@ for (const id of ["owner-filter", "status-filter", "sort", "priority-filter", "s
 function closeDetail() {
   const previous = selection;
   selection = null; detailTarget = null; renderContent(); updateHash(true);
-  if (previous) document.querySelector('[data-' + previous.kind + '="' + CSS.escape(previous.id) + '"]')?.focus({ preventScroll: true });
+  if (previous) {
+    const listButton = document.querySelector(`[data-${previous.kind}="${CSS.escape(previous.id)}"]`);
+    const treeNode = [...document.querySelectorAll('[data-node-key]')].find(node => node.dataset.nodeKey.endsWith('/' + previous.kind + '/' + previous.id));
+    (listButton || treeNode?.querySelector('[data-tree-action="open"]'))?.focus({ preventScroll: true });
+  }
 }
 $("close-detail").addEventListener("click", closeDetail);
 $("sidebar-add-project").addEventListener("click", openProject);
