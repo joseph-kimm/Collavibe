@@ -15,7 +15,7 @@ import { mountMeetings } from "./meetings.js";
 import { stopMeetingRecording } from "./meeting-recorder.js";
 import { mountPortfolioManager } from "./portfolio-manager.js";
 import { safeReturnTo } from "./auth-return.js";
-import { readWorkspaceRoute, bindWorkspaceNavigation } from "./workspace-route.js";
+import { readWorkspaceRoute, bindWorkspaceNavigation, writeWorkspaceUrl } from "./workspace-route.js";
 
 const $ = (id) => document.getElementById(id);
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[c]);
@@ -193,14 +193,14 @@ async function loadMembers() {
     if (view === "team") renderTeam();
   }
 }
-function updateHash() {
+function updateHash(push = false) {
   if (demo) return;
   const params = new URLSearchParams();
   if (teamId) params.set("team", teamId);
   if (projectId) params.set("project", projectId);
   params.set("view", view);
   if (selection) params.set(selection.kind, selection.id);
-  history.replaceState(null, "", location.pathname + location.search + (params.size ? "#" + params : ""));
+  writeWorkspaceUrl(window, location.pathname + location.search + (params.size ? "#" + params : ""), push);
 }
 function render() {
   const project = currentProject();
@@ -367,7 +367,7 @@ function renderMap(project, query) {
   if (mapPresentation === "tree") {
     $("work-content").innerHTML = `<div class="project-map visual-map">${controls}${!model.entries.length && !model.unlinkedSessions.length ? '<p class="tree-empty-notice" role="status">' + (filterCount ? 'No matching work. Clear the filters to see the whole project.' : 'Add a feature to start this project tree. Sessions will appear as your team builds.') + '</p>' : ''}<div id="tree-host"></div><p class="map-footnote">Connections show recorded project relationships, not Git merges or individual effort.${filterCount ? ' Filters are active. <button class="text-button" data-action="reset-map-filters">Clear filters</button>' : ''}</p></div>`;
     treeCanvas = mountTreeCanvas($("tree-host"), { model, project, grouping: mapGrouping, selection, sample: demo,
-      onOpen: (kind, id) => { selection = {kind, id}; detailTarget = null; renderContent(); updateHash(); $("close-detail").focus({preventScroll:true}); },
+      onOpen: (kind, id) => { selection = {kind, id}; detailTarget = null; renderContent(); updateHash(true); $("close-detail").focus({preventScroll:true}); },
       onComments: openDiscussion,
       onFilter: key => { $("owner-filter").value = key; renderContent(); },
       onFocusChange: () => workspaceLayout.sync(),
@@ -413,7 +413,7 @@ function sessionBranchProperties(item) {
 }
 function openDiscussion(kind, id) {
   selection = { kind, id }; detailTarget = "discussion";
-  renderContent(); updateHash();
+  renderContent(); updateHash(true);
 }
 function focusDiscussion() {
   if (detailTarget !== "discussion") return;
@@ -481,7 +481,7 @@ function renderTeam() {
   $("team-content").innerHTML = `<h1>Team & invitations</h1><p>Manage who works in ${e(team.name)}.</p><section class="team-section"><h2>Team name</h2><form id="team-name-form" class="form"><div class="team-name-form"><label class="sr-only" for="team-name-input">Team name</label><input id="team-name-input" name="name" value="${e(team.name)}" minlength="2" maxlength="120" required ${!owner || demo ? "disabled" : ""}/><button class="button" type="submit" ${!owner || demo ? "disabled" : ""}>Save</button></div><p class="form-error" role="alert"></p></form></section><section class="team-section"><h2>Invite a teammate</h2><p>Share a code or link. They’ll log in or create an account, then join this team.</p><div class="copy-field"><div><span>Invite code</span><code class="team-code">${e(team.joinCode)}</code></div><button class="button compact" type="button" data-action="copy-team">Copy code</button></div><div class="team-invite-actions"><button class="button" data-action="copy-invite" type="button">Copy invite link</button>${owner ? '<button class="button" data-action="reset-code" type="button"' + (demo ? " disabled" : "") + '>Reset code</button>' : ""}</div><p class="subtle" style="margin-top:16px">This code is for invitations only. Agent connections use browser sign-in or a personal key. Reset the code if an invitation was shared too widely.</p></section><section class="team-section"><h2>Members <span class="subtle">${members.length}</span></h2>${memberError ? '<p class="form-error">' + e(memberError) + '</p><button class="button" type="button" data-action="retry-members">Retry</button>' : ""}${members.map((member) => `<div class="team-member"><span class="avatar" aria-hidden="true">${e(initial(member.name))}</span><div><strong>${e(member.name)}${member.userId === data.user.id ? ' <span class="subtle">(you)</span>' : ""}</strong><small>${e(member.email)}</small></div><span>${member.role === "owner" ? "Owner" : "Member"}</span>${owner && member.userId !== data.user.id ? '<button class="text-button" type="button" data-remove-member="' + e(member.userId) + '"' + (demo ? " disabled" : "") + '>Remove</button>' : ""}</div>`).join("") || (!memberError ? '<p class="subtle">Loading members…</p>' : "")}${!owner ? '<div class="team-invite-actions"><button class="button" type="button" data-action="leave-team"' + (demo ? " disabled" : "") + '>Leave team</button></div>' : ""}</section>`;
 }
 function switchView(next) {
-  view = next; selection = null; setMobileNav(false);
+  view = next; selection = null; setMobileNav(false); updateHash(true);
   if (!["work", "map"].includes(next) && ["priority", "due"].includes($("sort").value)) $("sort").value = "updated";
   $("owner-filter").value = "all"; $("status-filter").value = "all";
   render();
@@ -655,8 +655,8 @@ document.addEventListener("click", async (event) => {
     if (button.dataset.discussSession) { openDiscussion("session", button.dataset.discussSession); return; }
     if (button.dataset.jumpDiscussion !== undefined) { detailTarget = "discussion"; focusDiscussion(); return; }
     if (["tree", "outline"].includes(button.dataset.mapPresentation)) { mapPresentation = button.dataset.mapPresentation; renderContent(); workspaceLayout.sync(); document.querySelector('[data-map-presentation="'+mapPresentation+'"]').focus({preventScroll:true}); return; }
-    if (button.dataset.feature) { detailTarget = null; selection = { kind: "feature", id: button.dataset.feature }; renderContent(); updateHash(); if (matchMedia("(max-width: 1250px)").matches) $("close-detail").focus(); return; }
-    if (button.dataset.session) { selection = { kind: "session", id: button.dataset.session }; if (view !== "map") view = "sessions"; render(); if (matchMedia("(max-width: 1250px)").matches) $("close-detail").focus(); return; }
+    if (button.dataset.feature) { detailTarget = null; selection = { kind: "feature", id: button.dataset.feature }; renderContent(); updateHash(true); if (matchMedia("(max-width: 1250px)").matches) $("close-detail").focus(); return; }
+    if (button.dataset.session) { selection = { kind: "session", id: button.dataset.session }; if (view !== "map") view = "sessions"; updateHash(true); render(); if (matchMedia("(max-width: 1250px)").matches) $("close-detail").focus(); return; }
     if (["features", "people"].includes(button.dataset.mapGroup)) { mapGrouping = button.dataset.mapGroup; renderContent(); document.querySelector('[data-map-group="' + mapGrouping + '"]').focus({ preventScroll: true }); return; }
     if (button.dataset.mapExpand) { if (treeCanvas) { treeCanvas.expandAll(button.dataset.mapExpand === "all"); return; } $("work-content").querySelectorAll("details[data-map-node]").forEach((node) => { node.open = button.dataset.mapExpand === "all"; if (node.open) collapsedMapNodes.delete(node.dataset.mapNode); else collapsedMapNodes.add(node.dataset.mapNode); }); return; }
     if (button.dataset.copySetup) { await copy(setupValues()[button.dataset.copySetup]); return; }
@@ -804,7 +804,7 @@ $("work-content").addEventListener("toggle", (event) => {
 for (const id of ["owner-filter", "status-filter", "sort", "priority-filter", "show-archived"]) $(id).addEventListener("change", renderContent);
 function closeDetail() {
   const previous = selection;
-  selection = null; detailTarget = null; renderContent(); updateHash();
+  selection = null; detailTarget = null; renderContent(); updateHash(true);
   if (previous) document.querySelector('[data-' + previous.kind + '="' + CSS.escape(previous.id) + '"]')?.focus({ preventScroll: true });
 }
 $("close-detail").addEventListener("click", closeDetail);

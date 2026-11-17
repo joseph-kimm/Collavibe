@@ -92,3 +92,6 @@
 .commit-provenance { margin-top:16px;font-size:.875rem;color:var(--muted); }
 .commit-provenance summary,.detail-section > summary { cursor:pointer;min-height:36px;padding-block:8px; }
 .commit-provenance p { margin-top:8px; }
+/* One consistent full-height inspector across the map, work list and sessions. */
+.detail-pane:not([hidden]) { position:fixed;right:0;top:0;bottom:0;width:min(480px,100vw);height:100svh;max-height:100svh;z-index:30;overflow-y:auto;overscroll-behavior:contain;box-shadow:-12px 0 36px #23372d16; }
+.detail-pane .detail-header { position:sticky;top:-18px;z-index:2;background:#fdfdfb;padding:12px 0;margin-top:-12px;margin-bottom:16px; }
