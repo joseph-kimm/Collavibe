@@ -72,9 +72,9 @@ describe("project map relationships", () => {
   it("keeps multi-contributor demo evidence coherent and explicitly separate", () => {
     const demo = sampleWorkspace();
     const result = buildProjectMap({ projectId: "p1", features: demo.features, sessions: demo.sessions });
-    expect(result.summary).toMatchObject({ features: 6, people: 3, handoffs: 4, commits: 4 });
+    expect(result.summary).toMatchObject({ features: 6, people: 3, handoffs: 6, commits: 6 });
     expect(sessionBranch(demo.sessions.find((item) => item.featureId === "f2"))).toBe("feature/calendar");
-    expect(result.groups.find((group) => group.name === "Maya").sessions).toHaveLength(2);
+    expect(result.groups.find((group) => group.name === "Maya").sessions).toHaveLength(3);
   });
   it("separates equal display names by account across a shared feature", () => {
     const args = { features: [feature("f1", "Alex", { ownerUserId: "user-a" })], sessions: [session("s1", "f1", "Alex", { userId: "user-a" }), session("s2", "f1", "Alex", { userId: "user-b" })] };

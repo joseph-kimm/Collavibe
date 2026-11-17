@@ -26,8 +26,8 @@ describe('explorable project tree',()=>{
  it('lays out deep and broad trees without overlap or edges pointing to missing nodes',()=>{
   const root=projectTree(model,project,'people');
   for(const open of [()=>true,n=>n.kind==='project'||n.kind==='person']) {
-   for (const direction of ["down", "right"]) {
-   const layout=layoutTree(root,open,direction);
+   for (const [direction,compact] of [["down",false],["down",true],["right",false]]) {
+   const layout=layoutTree(root,open,direction,compact);
    for(const a of layout.nodes) {
     expect(a.x).toBeGreaterThanOrEqual(0);expect(a.y).toBeGreaterThanOrEqual(0);
     expect(a.x+a.width).toBeLessThanOrEqual(layout.width);expect(a.y+a.height).toBeLessThanOrEqual(layout.height);

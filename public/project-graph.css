@@ -1,0 +1,53 @@
+/* Semantic node shapes: a hub, people branches, feature cards, and dated records.
+   All type inherits the shared Inter workspace scale. */
+.tree-node[class*="graph-"] { padding:16px; border:1px solid #cedad2; border-radius:12px; box-shadow:0 4px 12px #173f2a08; }
+.tree-node button { font:inherit; }
+.graph-title { display:block; padding:0; color:inherit; border:0; background:transparent; text-align:left; min-width:0; }
+.graph-title strong { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; font-size:16px; line-height:1.4; font-weight:600; letter-spacing:-.02em; overflow-wrap:anywhere; }
+.graph-title:hover strong { text-decoration:underline; text-underline-offset:3px; }
+.graph-top { display:flex; align-items:center; justify-content:space-between; min-height:24px; gap:8px; margin-bottom:9px; }
+.graph-status { display:flex; gap:6px; align-items:center; font-size:14px; line-height:1.4; color:#466151; }
+.graph-focus { display:grid; place-items:center; border:0; border-radius:5px; background:transparent; color:#597163; width:26px; height:26px; padding:4px; }
+.graph-focus svg { width:16px; height:16px; }
+.graph-focus:hover { background:#eaf1ec; color:#174b31; }
+.graph-avatar { display:grid; place-items:center; flex-shrink:0; width:36px; height:36px; border-radius:50%; background:#dcebe0; color:#28573a; font-size:14px; font-weight:600; }
+.tree-node.graph-project { background:#173f2c; color:#fff; border-color:#173f2c; padding:18px 22px; box-shadow:0 5px 18px #173f2c15; }
+.graph-hub-mark { display:flex; gap:8px; align-items:center; margin-bottom:8px; font-size:14px; color:#c7dfcf; }
+.graph-hub-mark svg { width:18px; height:18px; }
+.graph-project .graph-title strong { font-size:21px; line-height:1.3; -webkit-line-clamp:1; }
+.graph-project p { color:#d3e5d9; font-size:14px; margin:6px 0 0; }
+.graph-hub-stats { border-top:1px solid #ffffff26; color:#d3e5d9; margin-top:auto; padding-top:8px; font-size:14px; }
+.tree-node.graph-person { border-radius:16px; padding:13px 15px; background:#f0f6f1; box-shadow:none; }
+.graph-person-row { display:flex; gap:10px; align-items:center; min-width:0; }
+.graph-person-row > div { min-width:0; flex:1; }
+.graph-person .graph-title strong { -webkit-line-clamp:1; }
+.graph-person-row > div > span { font-size:14px; color:#526b5c; white-space:nowrap; }
+.graph-person .graph-focus { flex-shrink:0; }
+.graph-person-bottom { display:flex; justify-content:space-between; align-items:center; margin-top:auto; font-size:14px; color:#526b5c; }
+.graph-person-bottom button { background:none; border:0; padding:4px 0 0 6px; color:#24543a; font-size:14px; }
+.graph-owner { display:flex; align-items:center; gap:6px; font-size:14px; color:#526b5c; margin-top:auto; padding-top:8px; }
+.graph-owner .graph-avatar { width:22px; height:22px; font-size:11px; }
+.graph-owner > span:last-child { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.graph-progress-label { display:flex; justify-content:space-between; font-size:14px; color:#526b5c; margin-top:8px; }
+.graph-progress { height:4px; background:#e9eeeb; border-radius:4px; overflow:hidden; margin-top:5px; flex-shrink:0; }
+.graph-progress > span { display:block; height:100%; background:#4c8360; border-radius:4px; }
+.graph-actions { display:flex; align-items:center; justify-content:space-between; margin:12px -16px -16px; padding:0 12px; border-top:1px solid #e6ece8; min-height:38px; }
+.graph-actions button,.graph-session-footer button { display:flex; align-items:center; gap:6px; background:transparent; border:0; color:#305f43; padding:7px 4px; font-size:14px; }
+.graph-actions button svg,.graph-session-footer svg { width:16px; height:16px; }
+.graph-actions button:hover,.graph-session-footer button:hover { background:#edf4ef; border-radius:5px; }
+.graph-actions button > span { font-size:18px; margin-left:5px; }
+.graph-no-sessions { font-size:14px; color:#65786d; }
+.tree-node.graph-session { background:#fcfdfc; border-radius:4px 12px 12px 4px; border-left:3px solid #86a794; }
+.graph-session-date { display:flex; align-items:center; gap:6px; color:#536b5c; font-size:14px; }
+.graph-session-date svg { width:16px; height:16px; }
+.graph-session-title { flex:1; overflow:hidden; }
+.graph-session-title strong { font-size:15px; }
+.graph-session-title > span { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; margin-top:8px; font-size:14px; line-height:1.5; color:#536b5c; }
+.graph-session-footer { display:flex; align-items:center; justify-content:space-between; border-top:1px solid #e6ece8; margin-top:10px; padding-top:5px; color:#536b5c; font-size:14px; }
+.tree-edges path { stroke:#b5c9bd; stroke-width:2; }
+.tree-edges path.edge-traced { stroke:#376b4e; stroke-width:3; }
+.tree-node.node-traced:not(.graph-project) { border-color:#6d947b; }
+.tree-node.selected:not(.graph-project) { border-color:#286242; outline:3px solid #b2cfbc; }
+.tree-node button:focus-visible { outline:2px solid #40805a; outline-offset:3px; border-radius:4px; }
+.graph-project button:focus-visible { outline-color:#d9eee0; }
+@media(prefers-reduced-motion:no-preference) { .tree-edges path { transition:stroke .15s; } }
