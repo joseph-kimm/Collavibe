@@ -29,9 +29,11 @@ These are design references, not evidence that this UI has undergone a user stud
 
 ## Validation
 
-- TypeScript check and full suite: 180 tests across 28 files passed.
+- TypeScript check and full suite: 181 tests across 28 files passed.
 - After the responsive layout changes, the 24 directly affected brief, relationship, and layout tests passed again. Layout coverage includes both directions and compact phone stacking, checking that nodes do not overlap or disappear.
 - The explicit read-only sample now includes one unfinished feature with three sessions by two contributors. Tests verify project scoping, complete history, chronological brief ordering, and that copying does not mutate data.
 - Browser checks covered feature and session inspectors, existing discussions, contributor and feature grouping, branch focus, phone pan, the text outline, and narrow-screen overflow.
 - A foreground Chrome clipboard check verified all three saved sessions, both contributors, and the unfinished status without a start-session command.
 - Fixed focus handling so pointer focus does not reposition a target before its click completes. Keyboard focus still brings offscreen nodes into view.
+
+Production check: Study Sprint shows both Shani and Shayan Ahmad, four features and four recorded sessions. Existing feature comments, session replies, Git authorship and learning reflections remain accessible. The overview reserves space for its navigation controls.

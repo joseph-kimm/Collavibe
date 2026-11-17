@@ -50,7 +50,7 @@ export function zoomAt(camera, nextScale, point) {
 }
 
 function layoutDown(root, isOpen, compact) {
-  const nodes=[], edges=[], gap=32, padding=24, levelGap=36;
+  const nodes=[], edges=[], gap=32, padding=20, levelGap=20;
   const measure=node=>{
     const size=dimensions(node), expanded=isOpen(node);
     const children=expanded?node.children.map(measure):[];
